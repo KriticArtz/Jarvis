@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { friendlyAuthError, logAuthError } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 import { siteOrigin } from "@/lib/origin";
 import { safeNextPath } from "@/lib/routes";
@@ -29,7 +30,10 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     password: parsed.data.password,
     options: { emailRedirectTo: `${origin}/auth/callback?next=/onboarding` },
   });
-  if (error) return { error: friendlyAuthError(error.message), email };
+  if (error) {
+    logAuthError("signUp", error);
+    return { error: friendlyAuthError(error), email };
+  }
 
   // If email confirmation is disabled in Supabase, a session is returned immediately.
   if (data.session) redirect("/onboarding");
@@ -45,7 +49,10 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: friendlyAuthError(error.message), email };
+  if (error) {
+    if (error.code !== "invalid_credentials") logAuthError("signIn", error);
+    return { error: friendlyAuthError(error), email };
+  }
 
   redirect(safeNextPath(formData.get("next") as string | null));
 }
@@ -81,17 +88,9 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims?.sub) return { error: "Your reset link has expired. Please request a new one." };
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return { error: friendlyAuthError(error.message) };
+  if (error) {
+    logAuthError("updatePassword", error);
+    return { error: friendlyAuthError(error) };
+  }
   redirect("/dashboard");
-}
-
-function friendlyAuthError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes("invalid login credentials")) return "That email and password don't match. Try again or reset your password.";
-  if (m.includes("email not confirmed")) return "Please confirm your email first — check your inbox for the link.";
-  if (m.includes("already registered") || m.includes("already been registered")) return "An account with this email already exists. Try logging in.";
-  if (m.includes("rate limit")) return "Too many attempts. Please wait a minute and try again.";
-  if (m.includes("same password") || m.includes("different from the old")) return "Choose a password different from your current one.";
-  if (m.includes("weak") || m.includes("password should")) return "Please choose a stronger password.";
-  return "Something went wrong. Please try again.";
 }
