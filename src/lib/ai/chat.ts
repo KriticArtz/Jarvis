@@ -1,6 +1,7 @@
 import "server-only";
 import type { ChatMessageParam } from "./chat-messages";
 import { getAI, logAIError } from "./client";
+import { completionParams } from "./model-params";
 
 const MAX_REPLY_TOKENS = 2000;
 
@@ -12,7 +13,7 @@ export async function* streamReply(messages: ChatMessageParam[]): AsyncGenerator
     model: ai.model,
     messages,
     stream: true,
-    max_completion_tokens: MAX_REPLY_TOKENS,
+    ...completionParams(ai.model, MAX_REPLY_TOKENS),
   });
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content;
@@ -28,9 +29,11 @@ export async function completeReply(messages: ChatMessageParam[], maxTokens = MA
     const res = await ai.client.chat.completions.create({
       model: ai.model,
       messages,
-      max_completion_tokens: maxTokens,
+      ...completionParams(ai.model, maxTokens),
     });
-    return res.choices[0]?.message?.content?.trim() || null;
+    const text = res.choices[0]?.message?.content?.trim();
+    if (!text) logAIError("completeReply", { message: `empty reply (finish_reason=${res.choices[0]?.finish_reason})` });
+    return text || null;
   } catch (err) {
     logAIError("completeReply", err);
     return null;
@@ -50,10 +53,11 @@ export async function completeJSON<T>(
     const res = await ai.client.chat.completions.create({
       model: ai.model,
       messages,
-      max_completion_tokens: maxTokens,
+      ...completionParams(ai.model, maxTokens),
       response_format: { type: "json_schema", json_schema: { name: schemaName, schema, strict: true } },
     });
     const text = res.choices[0]?.message?.content;
+    if (!text) logAIError(`completeJSON:${schemaName}`, { message: `empty reply (finish_reason=${res.choices[0]?.finish_reason})` });
     return text ? (JSON.parse(text) as T) : null;
   } catch (err) {
     logAIError(`completeJSON:${schemaName}`, err);

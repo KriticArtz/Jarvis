@@ -491,6 +491,12 @@ create policy "notifications_select_own" on public.notifications
 create policy "inbound_messages_select_own" on public.inbound_messages
   for select to authenticated using (user_id = (select auth.uid()));
 
+-- Explicit Data API grants. Some Supabase projects don't auto-grant new
+-- tables to API roles; RLS policies above still decide which rows are visible.
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant all on all tables in schema public to service_role;
+
 -- Column-level protection: users may update their own profile, but never
 -- identity/verification columns (email is synced from auth, phone
 -- verification will be set by the server once a verification flow exists).
