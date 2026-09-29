@@ -14,6 +14,7 @@ export async function summarizeWeek(
   stats: WeeklyStats,
   style: AccountabilityStyle,
   name: string | null,
+  userId: string,
 ): Promise<{ summary: string; source: "ai" | "rules" }> {
   if (!stats.hasData || !getAI()) return { summary: ruleBasedSummary(stats), source: "rules" };
 
@@ -33,6 +34,7 @@ export async function summarizeWeek(
 ${JSON.stringify(stats)}`,
       },
     ],
+    { userId, feature: "weekly_review" },
     700,
   );
   return summary ? { summary, source: "ai" } : { summary: ruleBasedSummary(stats), source: "rules" };

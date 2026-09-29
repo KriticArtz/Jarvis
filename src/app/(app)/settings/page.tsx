@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireOnboardedUser } from "@/lib/auth";
 import { signOut } from "@/app/(auth)/actions";
-import { smsMode, supabaseServiceKey } from "@/lib/env";
+import { phoneVerificationMode, requirePhoneVerification, smsMode, supabaseServiceKey } from "@/lib/env";
 import { getCommitments, getMemories, getNotificationPreferences } from "@/lib/data/queries";
 import { canReceiveSms } from "@/lib/notifications/scheduler";
 import type { NotificationRecord } from "@/lib/types/domain";
@@ -15,6 +15,9 @@ import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
 import { NotificationPrefsForm, SmsActions } from "@/components/settings/notification-settings";
 import { DemoControls } from "@/components/demo/demo-controls";
+import { DeleteAccount } from "@/components/settings/delete-account";
+import { PhoneVerification } from "@/components/settings/phone-verification";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -34,7 +37,9 @@ export default async function SettingsPage() {
   ]);
   const mode = smsMode();
   const modeCopy = MODE_COPY[mode];
-  const smsReady = canReceiveSms(profile, prefs);
+  const requireVerified = requirePhoneVerification();
+  const verificationMode = phoneVerificationMode();
+  const smsReady = canReceiveSms(profile, prefs, { requireVerified });
   const timezones = Intl.supportedValuesOf("timeZone");
   if (!timezones.includes(profile.timezone)) timezones.unshift(profile.timezone);
 
@@ -85,6 +90,11 @@ export default async function SettingsPage() {
                 </span>
               </p>
               <PhoneForm phone={profile.phone} consented={Boolean(prefs?.sms_enabled && prefs.sms_consent_at)} />
+              {profile.phone && (verificationMode !== "off" || requireVerified || profile.phone_verified_at) ? (
+                <div className="mt-4">
+                  <PhoneVerification verified={Boolean(profile.phone_verified_at)} mode={verificationMode} required={requireVerified} />
+                </div>
+              ) : null}
             </div>
             {prefs ? (
               <div className="border-t border-hairline pt-5">
@@ -121,6 +131,26 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader title="Things your assistant should remember" subtitle="Short facts or preferences it will always take into account." />
           <MemoriesEditor memories={memories} />
+        </Card>
+
+        <Card id="privacy">
+          <CardHeader title="Privacy & data" subtitle="How your information is handled, and how to delete it." />
+          <p className="text-[15px] text-muted">
+            Read our{" "}
+            <Link href="/privacy" className="font-medium text-accent hover:underline">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="font-medium text-accent hover:underline">
+              Terms of Service
+            </Link>
+            .
+          </p>
+          {!isDemo ? (
+            <div className="mt-5 border-t border-hairline pt-5">
+              <DeleteAccount requiresPassword={Boolean(email ?? profile.email)} />
+            </div>
+          ) : null}
         </Card>
 
         {isDemo ? (

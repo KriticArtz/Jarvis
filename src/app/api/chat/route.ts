@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       let full = "";
       try {
-        for await (const delta of streamReply(messages)) {
+        for await (const delta of streamReply(messages, { userId, feature: "chat" })) {
           full += delta;
           controller.enqueue(encoder.encode(delta));
         }

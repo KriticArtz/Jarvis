@@ -1,5 +1,5 @@
 /** Route groups shared by the proxy and layouts. */
-export const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/auth", "/demo"];
+export const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/auth", "/demo", "/privacy", "/terms", "/account-deleted"];
 // Authenticated by Twilio signature / CRON_SECRET instead of a user session.
 export const API_PUBLIC_PATHS = ["/api/sms", "/api/cron"];
 

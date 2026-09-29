@@ -5,6 +5,7 @@ import { brand } from "@/config/brand";
 import { requireOnboardedUser } from "@/lib/auth";
 import { getCheckIns, getGoals, getLatestPlan, getNotificationPreferences, getProgressSince, getTasksForDate } from "@/lib/data/queries";
 import { canReceiveSms } from "@/lib/notifications/scheduler";
+import { requirePhoneVerification } from "@/lib/env";
 import { summarizeGoalProgress } from "@/lib/progress";
 import { addDays, dayPart, formatLongDate, formatTime12, localDate, localMinutesNow, monthStart, timeToMinutes, weekStart } from "@/lib/time";
 import { ButtonLink } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export default async function DashboardPage() {
           {greeting}
           {profile.display_name ? `, ${profile.display_name}` : ""}
         </h1>
-        <AccountabilityStatus smsOn={!isDemo && canReceiveSms(profile, prefs)} prefs={prefs} tz={tz} isDemo={isDemo} />
+        <AccountabilityStatus smsOn={!isDemo && canReceiveSms(profile, prefs, { requireVerified: requirePhoneVerification() })} prefs={prefs} tz={tz} isDemo={isDemo} />
         <div className="mt-6 grid gap-2.5 sm:flex">
           <ButtonLink href="/assistant" size="lg">
             <MessageCircle className="size-[18px]" aria-hidden /> Chat with {brand.assistantName}

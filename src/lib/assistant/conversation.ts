@@ -71,7 +71,7 @@ export async function generateReply(db: DB, userId: string, conversation: Conver
   const { messages, context } = await prepareReply(db, userId, conversation, channel);
   if (!getAI()) return demoReply(context);
   return (
-    (await completeReply(messages, channel === "sms" ? 400 : 2000)) ??
+    (await completeReply(messages, { userId, feature: channel === "sms" ? "sms_reply" : "chat" }, channel === "sms" ? 400 : 2000)) ??
     "Sorry — I couldn't generate a reply just now. Please try again in a minute."
   );
 }

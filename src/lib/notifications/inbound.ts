@@ -5,6 +5,8 @@ import { maybeSummarizeConversation } from "@/lib/ai/memory";
 import { localDate } from "@/lib/time";
 import { detectKeyword } from "./keywords";
 import { deliverNotification } from "./service";
+import { logWarn } from "@/lib/observability/log";
+import { requirePhoneVerification } from "@/lib/env";
 
 export interface InboundSms {
   provider: string;
@@ -21,7 +23,10 @@ export interface InboundSms {
  * fall back to a unique plain match for those.
  */
 async function identifySender(admin: DB, phone: string): Promise<{ id: string; timezone: string } | null> {
-  const { data: profiles } = await admin.from("profiles").select("id, timezone").eq("phone", phone).limit(20);
+  let query = admin.from("profiles").select("id, timezone").eq("phone", phone);
+  // When verification is required, only a verified number identifies a sender.
+  if (requirePhoneVerification()) query = query.not("phone_verified_at", "is", null);
+  const { data: profiles } = await query.limit(20);
   if (!profiles?.length) return null;
   const { data: prefs } = await admin
     .from("notification_preferences")
@@ -58,7 +63,7 @@ export async function handleInboundSms(admin: DB, msg: InboundSms): Promise<{ ha
 
   const match = await identifySender(admin, msg.from);
   if (!match) {
-    console.warn("[sms] inbound text from a number that isn't linked to an account with SMS enabled", { sid: msg.providerMessageId });
+    logWarn("sms", "inbound text from a number that isn't linked to an account with SMS enabled", { sid: msg.providerMessageId });
     await finish({ error: "unknown phone" });
     return { handled: false, reason: "unidentified sender" };
   }
@@ -92,7 +97,7 @@ export async function handleInboundSms(admin: DB, msg: InboundSms): Promise<{ ha
     .eq("user_id", userId)
     .maybeSingle();
   if (!prefs?.sms_enabled || !prefs.sms_consent_at || prefs.sms_opted_out_at) {
-    console.warn("[sms] inbound text ignored: the account hasn't enabled text check-ins", { sid: msg.providerMessageId });
+    logWarn("sms", "inbound text ignored: the account hasn't enabled text check-ins", { sid: msg.providerMessageId });
     await finish({ error: "sms not enabled for user" });
     return { handled: false, reason: "not consented" };
   }

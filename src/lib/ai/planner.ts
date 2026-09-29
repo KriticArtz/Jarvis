@@ -186,6 +186,7 @@ Return a short summary (1-2 sentences, in your accountability style) explaining 
       ],
       "daily_plan",
       PLAN_SCHEMA,
+      { userId, feature: "plan" },
     );
   }
 }

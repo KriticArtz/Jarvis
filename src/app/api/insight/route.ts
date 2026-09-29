@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getOrCreateInsight } from "@/lib/ai/insight";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 export const maxDuration = 30;
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(insight, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("[insight] failed", (err as Error).message);
+    logError("insight", "failed", errorInfo(err));
     return NextResponse.json({ error: "Couldn't load an insight right now." }, { status: 500 });
   }
 }

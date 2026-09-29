@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { handleInboundSms } from "@/lib/notifications/inbound";
 import { EMPTY_TWIML, verifyTwilioRequest } from "@/lib/notifications/webhook";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 export const maxDuration = 60;
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     try {
       await handleInboundSms(admin, { provider: "twilio", providerMessageId: sid, from, body: body ?? "" });
     } catch (err) {
-      console.error("[sms] inbound handling failed", { sid, message: (err as Error).message });
+      logError("sms", "inbound handling failed", { sid, ...errorInfo(err) });
     }
   });
 

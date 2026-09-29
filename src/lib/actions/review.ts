@@ -14,7 +14,7 @@ export async function generateWeeklyReview(week: string): Promise<ActionResult> 
   if (!isoDate.safeParse(week).success || weekStart(week) !== week) return GENERIC_ERROR;
 
   const { stats, profile } = await loadWeeklyStats(session.supabase, session.userId, week);
-  const { summary, source } = await summarizeWeek(stats, profile.accountability_style, profile.display_name);
+  const { summary, source } = await summarizeWeek(stats, profile.accountability_style, profile.display_name, session.userId);
   const { error } = await session.supabase
     .from("weekly_reviews")
     .upsert({ user_id: session.userId, week_start: week, stats, summary, source }, { onConflict: "user_id,week_start" });

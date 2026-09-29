@@ -56,6 +56,7 @@ export async function getOrCreateInsight(db: DB, userId: string, opts: { refresh
             "Give me one short, specific insight for the rest of today (max 2 sentences, no greeting, no lists). Base it only on my schedule, tasks and goal progress above — e.g. what to do first and why, a conflict to watch for, or a goal that's slipping.",
         },
       ],
+      { userId, feature: "insight" },
       300,
     );
     if (content) source = "ai";

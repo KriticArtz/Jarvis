@@ -8,6 +8,7 @@ import { planAcceptSchema, planRequestSchema, uuid } from "@/lib/validation/sche
 import type { PlanItem } from "@/lib/types/domain";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 import { DEMO_LIMITS } from "@/lib/demo/seed";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 export type PlanActionResult = ActionResult & { result?: PlanResult };
 
@@ -32,7 +33,7 @@ export async function generatePlan(_prev: PlanActionResult, formData: FormData):
     revalidatePath("/plan");
     return { ok: true, result };
   } catch (err) {
-    console.error("[plan] generate failed", (err as Error).message);
+    logError("plan", "generate failed", errorInfo(err));
     return { ok: false, error: "I couldn't build a plan right now. Please try again." };
   }
 }

@@ -34,9 +34,10 @@ export async function runDispatch(admin: DB, now = new Date(), windowMinutes = 1
   const userIds = prefsRows.map((p) => p.user_id as string);
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, phone, timezone, display_name, accountability_style")
+    .select("id, phone, phone_verified_at, timezone, display_name, accountability_style")
     .in("id", userIds)
     .not("phone", "is", null);
+  // (deliverNotification enforces REQUIRE_PHONE_VERIFICATION for each send.)
   const byId = new Map((profiles ?? []).map((p) => [p.id as string, p as Pick<Profile, "id" | "phone" | "timezone" | "display_name" | "accountability_style">]));
 
   for (const prefs of prefsRows as NotificationPreferences[]) {

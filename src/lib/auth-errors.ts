@@ -1,3 +1,5 @@
+import { logError } from "@/lib/observability/log";
+
 /**
  * Map Supabase Auth errors to user-facing messages, and log the real cause
  * server-side. Matching is by Supabase's error `code` first, falling back to
@@ -48,12 +50,12 @@ export function friendlyAuthError(error: AuthErrorLike): string {
   return "Something went wrong. Please try again.";
 }
 
-/** Server-side log with the real Supabase error; email addresses are redacted. */
+/** Server-side log with the real Supabase error; the logger redacts emails. */
 export function logAuthError(action: string, error: AuthErrorLike) {
-  console.error(`[auth] ${action} failed`, {
+  logError("auth", `${action} failed`, {
     status: error.status,
     code: error.code,
     name: error.name,
-    message: error.message.replace(/[^\s"'<>]+@[^\s"'<>]+/g, "<email>").slice(0, 300),
+    message: error.message,
   });
 }

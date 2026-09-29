@@ -89,10 +89,15 @@ export function dueNotifications(input: {
   return out;
 }
 
-/** A user may receive SMS only with a phone, explicit consent, and no opt-out. */
+/**
+ * A user may receive SMS only with a phone, explicit consent, and no opt-out —
+ * and, when phone verification is required, a verified number.
+ */
 export function canReceiveSms(
-  profile: Pick<Profile, "phone">,
+  profile: Pick<Profile, "phone"> & Partial<Pick<Profile, "phone_verified_at">>,
   prefs: Pick<NotificationPreferences, "sms_enabled" | "sms_consent_at" | "sms_opted_out_at"> | null,
+  opts: { requireVerified?: boolean } = {},
 ): boolean {
+  if (opts.requireVerified && !profile.phone_verified_at) return false;
   return Boolean(profile.phone && prefs?.sms_enabled && prefs.sms_consent_at && !prefs.sms_opted_out_at);
 }

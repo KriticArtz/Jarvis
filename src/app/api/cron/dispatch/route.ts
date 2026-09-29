@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { cronSecret, smsMode } from "@/lib/env";
 import { runDispatch } from "@/lib/notifications/dispatch";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 export const maxDuration = 60;
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const summary = await runDispatch(admin, new Date(), 15);
     return NextResponse.json({ mode: smsMode(), ...summary });
   } catch (err) {
-    console.error("[cron] dispatch failed", (err as Error).message);
+    logError("cron", "dispatch failed", errorInfo(err));
     return NextResponse.json({ error: "Dispatch failed" }, { status: 500 });
   }
 }

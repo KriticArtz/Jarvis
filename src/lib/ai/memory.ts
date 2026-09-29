@@ -39,6 +39,7 @@ export async function maybeSummarizeConversation(db: DB, userId: string, convers
         content: `${conversation.summary ? `Existing summary:\n${conversation.summary}\n\n` : ""}New messages:\n${transcript}`,
       },
     ],
+    { userId, feature: "conversation_summary" },
     600,
   );
   if (!summary) return;

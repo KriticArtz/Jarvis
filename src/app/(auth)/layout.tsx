@@ -1,4 +1,5 @@
 import { Logo } from "@/components/logo";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -10,6 +11,9 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
       <main className="relative flex flex-1 items-start justify-center px-5 pb-16 pt-6 sm:items-center sm:pt-0">
         <div className="w-full max-w-[400px] animate-rise rounded-[32px] bg-surface p-7 shadow-lift sm:p-9">{children}</div>
       </main>
+      <footer className="relative pb-6 text-center text-[13px] text-muted">
+        <LegalLinks />
+      </footer>
     </div>
   );
 }

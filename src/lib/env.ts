@@ -83,6 +83,35 @@ export function twilioApiBaseUrl(): string {
   return (read("TWILIO_API_BASE_URL") ?? "https://api.twilio.com").replace(/\/$/, "");
 }
 
+export type PhoneVerificationMode = "off" | "test";
+
+/**
+ * PHONE_VERIFICATION_MODE:
+ *   off  (default) no verification flow is offered
+ *   test local development only: codes are generated and checked in-app and
+ *        shown on screen instead of being texted. Refused in production.
+ * A "twilio" mode (Twilio Verify) is the planned production provider; it is
+ * not implemented yet — see src/lib/verification/provider.ts.
+ */
+export function phoneVerificationMode(): PhoneVerificationMode {
+  const raw = read("PHONE_VERIFICATION_MODE")?.toLowerCase();
+  if (raw === "test") return process.env.NODE_ENV === "production" ? "off" : "test";
+  return "off";
+}
+
+/**
+ * REQUIRE_PHONE_VERIFICATION=true makes a verified number mandatory for any
+ * SMS (outbound and inbound). Default false keeps current SMS behavior.
+ */
+export function requirePhoneVerification(): boolean {
+  return read("REQUIRE_PHONE_VERIFICATION")?.toLowerCase() === "true";
+}
+
+/** Secret used to hash verification codes (HMAC). */
+export function phoneVerificationSecret(): string | undefined {
+  return read("PHONE_VERIFICATION_SECRET");
+}
+
 export function cronSecret(): string | undefined {
   return read("CRON_SECRET");
 }

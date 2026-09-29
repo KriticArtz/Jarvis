@@ -1,5 +1,5 @@
 import "server-only";
-import { appUrl, smsMode, twilioConfig } from "@/lib/env";
+import { appUrl, requirePhoneVerification, smsMode, twilioConfig } from "@/lib/env";
 import type { DB } from "@/lib/data/db";
 import { appendMessage, getOrCreateSmsConversation } from "@/lib/assistant/conversation";
 import type { NotificationKind, NotificationPreferences, Profile } from "@/lib/types/domain";
@@ -7,6 +7,7 @@ import { TestSmsProvider } from "./providers/test-provider";
 import { TwilioSmsProvider } from "./providers/twilio-provider";
 import type { SmsProvider } from "./providers/types";
 import { canReceiveSms } from "./scheduler";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 /**
  * The single entry point for sending a user a message.
@@ -55,14 +56,18 @@ export async function deliverNotification(admin: DB, input: DeliverInput): Promi
   if (!provider) return { status: "skipped", reason: "SMS is disabled (SMS_MODE=disabled)" };
 
   const [{ data: profile }, { data: prefs }] = await Promise.all([
-    admin.from("profiles").select("phone").eq("id", input.userId).maybeSingle(),
+    admin.from("profiles").select("phone, phone_verified_at").eq("id", input.userId).maybeSingle(),
     admin.from("notification_preferences").select("*").eq("user_id", input.userId).maybeSingle(),
   ]);
   if (!profile) return { status: "skipped", reason: "No profile" };
+  const requireVerified = requirePhoneVerification();
+  if (requireVerified && !profile.phone_verified_at) {
+    return { status: "skipped", reason: "Verify your phone number before texts can be sent." };
+  }
   const eligible =
     input.requireEnabled === false
       ? Boolean(profile.phone && prefs?.sms_consent_at && !prefs?.sms_opted_out_at)
-      : canReceiveSms(profile as Pick<Profile, "phone">, prefs as NotificationPreferences | null);
+      : canReceiveSms(profile as Pick<Profile, "phone" | "phone_verified_at">, prefs as NotificationPreferences | null, { requireVerified });
   if (!eligible) return { status: "skipped", reason: "User has not consented to SMS or has no phone number" };
 
   const body = input.body.slice(0, 1600);
@@ -100,12 +105,12 @@ export async function deliverNotification(admin: DB, input: DeliverInput): Promi
         const conversation = await getOrCreateSmsConversation(admin, input.userId);
         await appendMessage(admin, input.userId, conversation.id, "assistant", body, "sms");
       } catch (err) {
-        console.error("[sms] could not add outbound message to thread", { notificationId: row.id, message: (err as Error).message });
+        logError("sms", "could not add outbound message to thread", { notificationId: row.id, ...errorInfo(err) });
       }
     }
     return { status, notificationId: row.id };
   }
   await admin.from("notifications").update({ status: "failed", error: result.error.slice(0, 500) }).eq("id", row.id);
-  console.error("[sms] delivery failed", { notificationId: row.id, error: result.error.slice(0, 200) });
+  logError("sms", "delivery failed", { notificationId: row.id, error: result.error });
   return { status: "failed", notificationId: row.id, error: result.error };
 }

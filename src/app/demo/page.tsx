@@ -106,6 +106,10 @@ export default async function DemoPage() {
             Create your own {brand.name}
           </Link>
         </p>
+        <p className="mt-4 text-center text-[13px] text-muted">
+          By starting the demo you agree to our <Link href="/terms" className="underline-offset-2 hover:underline">Terms</Link> and{" "}
+          <Link href="/privacy" className="underline-offset-2 hover:underline">Privacy Policy</Link>.
+        </p>
       </main>
     </div>
   );

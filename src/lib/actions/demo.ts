@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/auth";
 import { resetDemoAccount, seedDemoAccount } from "@/lib/demo/seed";
 import { createClient } from "@/lib/supabase/server";
 import { isValidTimeZone } from "@/lib/time";
+import { errorInfo, logError } from "@/lib/observability/log";
 
 export interface DemoState {
   error?: string;
@@ -35,7 +36,7 @@ export async function startDemo(_prev: DemoState, formData: FormData): Promise<D
 
   const { data, error } = await supabase.auth.signInAnonymously({ options: { data: { demo: true } } });
   if (error || !data.user) {
-    console.error("[demo] anonymous sign-in failed", { status: error?.status, code: error?.code, message: error?.message });
+    logError("demo", "anonymous sign-in failed", { status: error?.status, code: error?.code, message: error?.message });
     return {
       error:
         error?.code === "anonymous_provider_disabled"
@@ -47,7 +48,7 @@ export async function startDemo(_prev: DemoState, formData: FormData): Promise<D
   try {
     await seedDemoAccount(supabase, data.user.id, demoOptions(formData));
   } catch (err) {
-    console.error("[demo] seeding failed", { message: (err as Error).message });
+    logError("demo", "seeding failed", errorInfo(err));
     return { error: "We couldn't set up the demo data. Please try again." };
   }
   redirect("/dashboard");
@@ -64,7 +65,7 @@ export async function resetDemo(): Promise<DemoState> {
       timezone: profile?.timezone || "America/New_York",
     });
   } catch (err) {
-    console.error("[demo] reset failed", { message: (err as Error).message });
+    logError("demo", "reset failed", errorInfo(err));
     return { error: "Reset failed. Please try again." };
   }
   revalidatePath("/", "layout");

@@ -33,6 +33,12 @@ Every variable is documented in [`.env.example`](.env.example).
 | `TWILIO_PHONE_NUMBER` (alias `TWILIO_FROM_NUMBER`) or `TWILIO_MESSAGING_SERVICE_SID` | for live SMS | Twilio Console → Phone Numbers / Messaging | no |
 | `TWILIO_WEBHOOK_BASE_URL` | for SMS via a tunnel | your ngrok URL, e.g. `https://abc123.ngrok-free.app` (defaults to `NEXT_PUBLIC_APP_URL`) | no |
 | `CRON_SECRET` | for scheduled SMS | `openssl rand -hex 32` | no |
+| `PHONE_VERIFICATION_MODE` | no (default `off`) | `off` / `test` (`test` works in development only) | no |
+| `REQUIRE_PHONE_VERIFICATION` | no (default `false`) | `true` = only verified numbers can send or receive texts | no |
+| `PHONE_VERIFICATION_SECRET` | when verification is on | `openssl rand -hex 32` | **never** |
+| `OPENAI_PRICING_JSON` | no | USD per 1M tokens, overrides the built-in reference prices | no |
+| `ERROR_WEBHOOK_URL` | no | any endpoint that accepts JSON POSTs (e.g. a Slack/Discord webhook) | **never** |
+| `LOG_FORMAT` | no | `json` (production default) / `pretty` | no |
 
 Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the build fails if client code ever imports it.
 
@@ -135,6 +141,20 @@ npm run db:verify
 | Twilio credentials (or `SMS_MODE=test`) | Messages go through the same pipeline but are stored with status `test` and **never sent**. Settings shows them as "test — not sent". |
 | `SUPABASE_SERVICE_ROLE_KEY` | Core app works. Sending, recording messages, cron dispatch and the SMS webhook are unavailable, and the UI says so. |
 
+## Privacy, safety and operations
+
+- **Legal pages:** `/privacy` and `/terms` are public and linked from signup, the SMS consent step, Settings, the landing page, the demo page and the auth screens. **Before launch**, fill in `brand.legal` in `src/config/brand.ts` (legal entity name, privacy email, governing law) and `brand.supportEmail`, and have the text reviewed by a lawyer.
+- **Account deletion:** go to Settings → Privacy & data → Delete account. You must type `DELETE` and re-enter your password. Deleting the auth user cascades to every user table, including inbound texts, usage records and verifications; `supabase/tests/rls_test.sql` verifies this. Deletion requires `SUPABASE_SERVICE_ROLE_KEY`. Demo accounts use Reset instead.
+- **Phone verification (foundation):** the `phone_verifications` table is server-only, and codes are stored only as HMAC hashes. A code expires after 10 minutes, allows 5 attempts, and you can request 5 codes per hour. Changing the phone number automatically clears its verification. `PHONE_VERIFICATION_MODE=test` shows the code on screen for local development and is disabled in production. `REQUIRE_PHONE_VERIFICATION=true` enforces verification for outbound texts, inbound attribution and the scheduler. A production provider (Twilio Verify) plugs into `src/lib/verification/provider.ts`.
+- **AI usage tracking:** every OpenAI request, including failures and empty replies, is written to `ai_usage_events`. Each row has the user, feature, model, input/cached/output/reasoning tokens, estimated cost, latency, OpenAI request ID and error code. The table is server-only. Costs come from a reference price table (`src/lib/ai/pricing.ts`), so **verify prices** and override them with `OPENAI_PRICING_JSON`. Example query:
+
+  ```sql
+  select date_trunc('day', created_at) as day, feature, count(*) as requests,
+         sum(total_tokens) as tokens, sum(estimated_cost_usd) as est_usd
+  from ai_usage_events group by 1, 2 order by 1 desc, 2;
+  ```
+- **Logging and errors:** `src/lib/observability/log.ts` writes structured logs and redacts emails, phone numbers, keys, tokens and JWTs. It outputs JSON lines in production, so you can filter Vercel logs by `scope`. Unhandled server errors are captured by `src/instrumentation.ts` (`onRequestError`). Errors are also sent to `ERROR_WEBHOOK_URL` if you set it, or to any reporter registered with `registerErrorReporter()`.
+
 ## Shareable demo mode (`/demo`)
 
 Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own LifePilot**, which ends the demo session and opens signup.
@@ -222,7 +242,7 @@ Inbound:  SMS → Twilio → POST /api/sms/inbound → verify X-Twilio-Signature
 
 ## Intentionally not implemented yet
 
-- **Phone number verification.** Numbers are stored with consent but not verified by code. The column exists; the flow needs Twilio Verify.
+- **Production phone verification.** The verification foundation, enforcement switch and development test mode exist. Sending real verification codes needs a Twilio Verify provider (see above).
 - **The assistant changing data from chat or SMS.** It gives advice only, and says so. It will propose a new time for a missed task, but the user moves the task in the app. Saving plans happens on the "Plan my day" screen.
 - **Automatic memory extraction.** "Things to remember" are entered by the user. The `user_memories.source = 'assistant'` value is reserved for this.
 - Calendar, finance or fitness integrations, voice, billing and native apps: the architecture leaves room for them (provider interfaces, structured context, a channel column on conversations and messages), but there are no placeholder buttons.

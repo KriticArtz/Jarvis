@@ -6,6 +6,7 @@ import { savePhoneAndConsent } from "@/lib/actions/notifications";
 import { SMS_CONSENT_TEXT } from "@/lib/notifications/consent";
 import { Field, FormMessage, Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
+import Link from "next/link";
 
 /**
  * Phone number + explicit SMS consent. The consent checkbox is never
@@ -40,6 +41,17 @@ export function PhoneForm({
         <input type="checkbox" name="sms_consent" defaultChecked={consented} className="mt-1 size-4 shrink-0 accent-[var(--accent)]" />
         <span>{SMS_CONSENT_TEXT}</span>
       </label>
+      <p className="-mt-2 text-[13px] text-muted">
+        See our{" "}
+        <Link href="/terms" target="_blank" className="font-medium text-accent hover:underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" target="_blank" className="font-medium text-accent hover:underline">
+          Privacy Policy
+        </Link>{" "}
+        for how texts and your number are handled.
+      </p>
       <FormMessage tone={state.ok ? "success" : "error"}>{state.ok ? (onSaved ? null : state.message) : state.error}</FormMessage>
       <SubmitButton pendingText="Saving…">{submitLabel}</SubmitButton>
     </form>

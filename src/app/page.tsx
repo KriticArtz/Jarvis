@@ -4,6 +4,7 @@ import { brand } from "@/config/brand";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { PhoneMock } from "@/components/marketing/phone-mock";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 export const metadata: Metadata = { title: { absolute: `${brand.name} — ${brand.tagline}` } };
 
@@ -153,7 +154,10 @@ export default function LandingPage() {
           <span>
             © {new Date().getFullYear()} {brand.name}
           </span>
-          <span>{brand.subheadline}</span>
+          <span className="flex flex-wrap gap-x-5 gap-y-1">
+            <span>{brand.subheadline}</span>
+            <LegalLinks />
+          </span>
         </div>
       </footer>
     </div>

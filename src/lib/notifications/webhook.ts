@@ -2,6 +2,7 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { twilioConfig, twilioWebhookBaseUrl } from "@/lib/env";
 import { isValidTwilioSignature } from "./twilio-signature";
+import { logError } from "@/lib/observability/log";
 
 /**
  * The URLs Twilio may have signed: the configured public base (production
@@ -24,7 +25,7 @@ export function candidateWebhookUrls(pathAndQuery: string, headers: Headers, con
 export async function verifyTwilioRequest(request: NextRequest): Promise<{ ok: true; params: Record<string, string> } | { ok: false; status: number }> {
   const cfg = twilioConfig();
   if (!cfg) {
-    console.error("[sms] webhook rejected: Twilio credentials are not configured");
+    logError("sms", "webhook rejected: Twilio credentials are not configured");
     return { ok: false, status: 503 };
   }
 
@@ -37,7 +38,7 @@ export async function verifyTwilioRequest(request: NextRequest): Promise<{ ok: t
   const signature = request.headers.get("x-twilio-signature");
   const candidates = candidateWebhookUrls(`${request.nextUrl.pathname}${request.nextUrl.search}`, request.headers, twilioWebhookBaseUrl());
   if (!candidates.some((url) => isValidTwilioSignature(cfg.authToken, signature, url, params))) {
-    console.error("[sms] webhook rejected: invalid X-Twilio-Signature", {
+    logError("sms", "webhook rejected: invalid X-Twilio-Signature", {
       hasSignature: Boolean(signature),
       triedUrls: candidates,
       hint: "Set TWILIO_WEBHOOK_BASE_URL to the exact https origin configured in Twilio (e.g. your ngrok URL).",
