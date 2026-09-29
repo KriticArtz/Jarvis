@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const error = typeof params.error === "string" ? ERRORS[params.error] : undefined;
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+      <h1 className="text-[28px] font-bold leading-tight">Welcome back</h1>
       <p className="mb-6 mt-1 text-muted">Log in to pick up where you left off.</p>
       <AuthForm mode="login" action={signIn} next={next} initialError={error} />
       <p className="mt-6 text-center text-sm text-muted">

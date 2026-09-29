@@ -96,7 +96,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           <Card>
             <CardHeader title="Goals & habits" />
             {stats.goals.length ? (
-              <ul className="flex flex-col divide-y divide-border">
+              <ul className="flex flex-col divide-y divide-hairline">
                 {stats.goals.map((g) => (
                   <li key={g.goalId} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex items-center justify-between gap-3">
@@ -131,7 +131,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="rounded-[24px] bg-surface p-4 shadow-card">
       <p className="text-xs font-medium text-muted">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
       {sub ? <p className="text-xs text-muted">{sub}</p> : null}

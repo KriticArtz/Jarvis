@@ -26,7 +26,7 @@ export function CommitmentsEditor({ commitments }: { commitments: RecurringCommi
   return (
     <div className="flex flex-col gap-4">
       {commitments.length ? (
-        <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+        <ul className="divide-y divide-hairline rounded-2xl bg-surface-2/60">
           {commitments.map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
@@ -49,7 +49,7 @@ export function CommitmentsEditor({ commitments }: { commitments: RecurringCommi
         </ul>
       ) : null}
 
-      <form action={action} className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-4" noValidate>
+      <form action={action} className="flex flex-col gap-3 rounded-2xl border-2 border-dashed border-border p-4" noValidate>
         <p className="text-sm font-medium">Add a recurring commitment</p>
         <Field label="What" htmlFor="c-title" error={state.fieldErrors?.title}>
           <Input id="c-title" name="title" placeholder="e.g. Kids' pickup, class, standing meeting" maxLength={120} />

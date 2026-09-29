@@ -86,7 +86,7 @@ export function GoalForm({
                   setValues(toValues(t));
                   setCustomUnit(false);
                 }}
-                className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm transition-colors hover:border-accent hover:text-accent"
+                className="rounded-full bg-surface-2 px-3.5 py-1.5 text-sm transition-all hover:bg-accent-soft hover:text-accent active:scale-95"
               >
                 {t.label}
               </button>
@@ -129,8 +129,8 @@ export function GoalForm({
             <label
               key={value}
               className={cn(
-                "cursor-pointer rounded-xl border p-3 text-sm transition-colors",
-                values.goal_type === value ? "border-accent bg-accent-soft" : "border-border bg-surface hover:bg-surface-2",
+                "cursor-pointer rounded-2xl border-2 p-3.5 text-sm transition-all duration-200",
+                values.goal_type === value ? "border-accent bg-accent-soft" : "border-transparent bg-surface-2 hover:bg-surface-2/70",
               )}
             >
               <input type="radio" name="goal_type" value={value} checked={values.goal_type === value} onChange={() => set("goal_type", value)} className="sr-only" />

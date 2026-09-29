@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import type { NotificationPreferences } from "@/lib/types/domain";
 import type { ActionResult } from "@/lib/actions/result";
-import { revokeSmsConsent, saveNotificationPreferences, sendTestMessage } from "@/lib/actions/notifications";
+import { revokeSmsConsent, saveNotificationPreferences, sendCheckInNow, sendTestMessage } from "@/lib/actions/notifications";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -56,6 +56,9 @@ export function SmsActions({ canSend }: { canSend: boolean }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
+        <Button size="sm" disabled={pending || !canSend} onClick={() => startTransition(async () => setMsg(await sendCheckInNow()))}>
+          Send a check-in now
+        </Button>
         <Button size="sm" variant="secondary" disabled={pending || !canSend} onClick={() => startTransition(async () => setMsg(await sendTestMessage()))}>
           Send a test message
         </Button>

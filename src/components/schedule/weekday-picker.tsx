@@ -11,7 +11,7 @@ export function WeekdayPicker({ name, defaultValue, legend }: { name: string; de
             <input type="checkbox" name={name} value={d.value} defaultChecked={defaultValue.includes(d.value)} className="peer sr-only" />
             <span
               title={d.label}
-              className="flex size-10 cursor-pointer items-center justify-center rounded-xl border border-border bg-surface text-sm font-medium text-muted transition-colors peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:text-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full border-2 border-transparent bg-surface-2 text-sm font-medium text-muted transition-all peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:text-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent"
             >
               {d.short}
             </span>

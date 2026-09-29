@@ -39,8 +39,8 @@ export function StylePicker({
             aria-checked={value === s.value}
             onClick={() => setValue(s.value)}
             className={cn(
-              "rounded-xl border p-4 text-left transition-colors",
-              value === s.value ? "border-accent bg-accent-soft" : "border-border bg-surface hover:bg-surface-2",
+              "rounded-[22px] border-2 p-4 text-left transition-all duration-200 active:scale-[0.99]",
+              value === s.value ? "border-accent bg-accent-soft" : "border-transparent bg-surface-2 hover:bg-surface-2/70",
             )}
           >
             <span className="font-semibold">{s.title}</span>

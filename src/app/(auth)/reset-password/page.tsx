@@ -10,7 +10,7 @@ export default async function ResetPasswordPage() {
   await requireUser();
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Choose a new password</h1>
+      <h1 className="text-[28px] font-bold leading-tight">Choose a new password</h1>
       <p className="mb-6 mt-1 text-muted">You&apos;ll stay signed in after updating it.</p>
       <AuthForm mode="reset" action={updatePassword} />
     </>

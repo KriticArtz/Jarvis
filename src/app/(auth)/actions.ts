@@ -24,6 +24,9 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   if (!parsed.success) return { error: parsed.error.issues[0].message, email };
 
   const supabase = await createClient();
+  // Leaving a demo: drop the anonymous demo session so the new account starts clean.
+  const { data: current } = await supabase.auth.getClaims();
+  if (current?.claims?.is_anonymous === true) await supabase.auth.signOut();
   const origin = await siteOrigin();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,

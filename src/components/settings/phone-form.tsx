@@ -36,7 +36,7 @@ export function PhoneForm({
       <Field label="Mobile number" htmlFor="phone" error={state.fieldErrors?.phone} hint="US numbers can be entered as 10 digits. Include + and country code otherwise.">
         <Input id="phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" defaultValue={phone ?? ""} placeholder="+1 555 123 4567" aria-invalid={!!state.fieldErrors?.phone} />
       </Field>
-      <label className="flex items-start gap-3 rounded-xl border border-border bg-surface-2/60 p-4 text-sm leading-relaxed">
+      <label className="flex items-start gap-3 rounded-2xl bg-surface-2/70 p-4 text-sm leading-relaxed">
         <input type="checkbox" name="sms_consent" defaultChecked={consented} className="mt-1 size-4 shrink-0 accent-[var(--accent)]" />
         <span>{SMS_CONSENT_TEXT}</span>
       </label>

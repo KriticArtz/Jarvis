@@ -50,7 +50,7 @@ export default async function GoalDetailPage({ params }: PageProps<"/goals/[id]"
         <CardHeader title={goal.goal_type === "recurring" ? "This period" : "Progress"} subtitle={s.label} />
         {s.ratio != null ? <ProgressBar value={s.ratio} label={`${goal.title} progress`} tone={s.pace === "behind" ? "warning" : s.pace === "done" ? "success" : "accent"} /> : null}
         {goal.status === "active" ? (
-          <div className="mt-5 border-t border-border pt-4">
+          <div className="mt-5 border-t border-hairline pt-4">
             <p className="mb-2 text-sm font-semibold">Log progress</p>
             <LogProgressForm goalId={goal.id} unit={unit} defaultAmount={unit === "minutes" ? 30 : 1} showNote />
           </div>
@@ -60,7 +60,7 @@ export default async function GoalDetailPage({ params }: PageProps<"/goals/[id]"
       <Card>
         <CardHeader title="History" />
         {entries.length ? (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-hairline">
             {entries.slice(0, 50).map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">

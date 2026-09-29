@@ -48,7 +48,8 @@ export interface TwilioConfig {
 export function twilioConfig(): TwilioConfig | null {
   const accountSid = read("TWILIO_ACCOUNT_SID");
   const authToken = read("TWILIO_AUTH_TOKEN");
-  const fromNumber = read("TWILIO_FROM_NUMBER");
+  // TWILIO_PHONE_NUMBER and TWILIO_FROM_NUMBER are accepted interchangeably.
+  const fromNumber = read("TWILIO_PHONE_NUMBER") ?? read("TWILIO_FROM_NUMBER");
   const messagingServiceSid = read("TWILIO_MESSAGING_SERVICE_SID");
   if (!accountSid || !authToken || (!fromNumber && !messagingServiceSid)) return null;
   return { accountSid, authToken, fromNumber, messagingServiceSid };
@@ -66,6 +67,20 @@ export function smsMode(): SmsMode {
   if (raw === "disabled") return "disabled";
   if (raw === "live") return twilioConfig() ? "live" : "test";
   return "test";
+}
+
+/**
+ * Public base URL Twilio calls for webhooks (e.g. an ngrok tunnel during a
+ * local demo). Falls back to NEXT_PUBLIC_APP_URL. Used only to verify
+ * X-Twilio-Signature, which is computed over the exact URL Twilio requested.
+ */
+export function twilioWebhookBaseUrl(): string | undefined {
+  return (read("TWILIO_WEBHOOK_BASE_URL") ?? read("NEXT_PUBLIC_APP_URL"))?.replace(/\/$/, "");
+}
+
+/** Override for the Twilio REST API origin. Only for automated tests against a mock server. */
+export function twilioApiBaseUrl(): string {
+  return (read("TWILIO_API_BASE_URL") ?? "https://api.twilio.com").replace(/\/$/, "");
 }
 
 export function cronSecret(): string | undefined {

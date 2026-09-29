@@ -27,10 +27,11 @@ Every variable is documented in [`.env.example`](.env.example).
 | `NEXT_PUBLIC_APP_URL` | recommended | Your site origin (`http://localhost:3000` locally) | yes |
 | `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) | for SMS | Supabase → API keys (secret) | **never** |
 | `OPENAI_API_KEY` | for AI | platform.openai.com → API keys | **never** |
-| `OPENAI_MODEL` | no (default `gpt-5-mini`) | any chat model with JSON-schema output | no |
+| `OPENAI_MODEL` | no (default `gpt-5-mini`) | any Responses API model with JSON-schema output | no |
 | `SMS_MODE` | no (default `test`) | `test` / `live` / `disabled` | no |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | for live SMS | Twilio Console → Account Info | **never** |
-| `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM_NUMBER` | for live SMS | Twilio Console → Messaging | no |
+| `TWILIO_PHONE_NUMBER` (alias `TWILIO_FROM_NUMBER`) or `TWILIO_MESSAGING_SERVICE_SID` | for live SMS | Twilio Console → Phone Numbers / Messaging | no |
+| `TWILIO_WEBHOOK_BASE_URL` | for SMS via a tunnel | your ngrok URL, e.g. `https://abc123.ngrok-free.app` (defaults to `NEXT_PUBLIC_APP_URL`) | no |
 | `CRON_SECRET` | for scheduled SMS | `openssl rand -hex 32` | no |
 
 Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the build fails if client code ever imports it.
@@ -88,12 +89,24 @@ npm run db:verify
 | `npm test` | Vitest unit tests |
 | `npm run db:verify` | Apply migrations + RLS isolation tests on a temporary Postgres |
 | `npm run check` | lint + typecheck + tests |
+| `node scripts/simulate-inbound-sms.mjs "+1…" "text"` | Send a signed fake Twilio webhook to the local server |
 
 ## Deploying to Vercel
 
-1. Import the repo into Vercel and add the environment variables. Set `NEXT_PUBLIC_APP_URL` to the production URL.
-2. Add the production URL to Supabase's redirect URLs.
-3. `vercel.json` schedules `/api/cron/dispatch` every 15 minutes. Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Note that Vercel's Hobby plan only allows daily crons, so use Pro or an external scheduler that sends the same header.
+1. **Supabase (production project):**
+   - Run the migration (see [Supabase setup](#supabase-setup)).
+   - **Authentication → URL Configuration:** set Site URL to `https://<your-domain>` and add `https://<your-domain>/**` to Redirect URLs.
+   - **For the shareable demo:** turn on **Authentication → Sign In / Providers → Anonymous sign-ins**. Optionally enable CAPTCHA under Attack Protection to limit abuse.
+2. **Vercel:** click "Add New… → Project", import the GitHub repo, and keep the defaults (Framework: Next.js, build `next build`). Under **Settings → Environment Variables** (Production), add:
+   - `NEXT_PUBLIC_APP_URL=https://<your-domain>`
+   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`)
+   - `CRON_SECRET`
+   - For SMS: `SMS_MODE=live`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (or `TWILIO_MESSAGING_SERVICE_SID`)
+3. Deploy, then point Twilio's incoming-message webhook at `https://<your-domain>/api/sms/inbound` (see [Twilio setup](#twilio-setup)).
+4. `vercel.json` schedules `/api/cron/dispatch` every 15 minutes, and Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Vercel's Hobby plan only allows daily crons, so use Pro or an external scheduler that sends the same header. Scheduled texts are the only thing that depends on this.
+5. Share `https://<your-domain>/demo`.
 
 ---
 
@@ -122,6 +135,63 @@ npm run db:verify
 | Twilio credentials (or `SMS_MODE=test`) | Messages go through the same pipeline but are stored with status `test` and **never sent**. Settings shows them as "test — not sent". |
 | `SUPABASE_SERVICE_ROLE_KEY` | Core app works. Sending, recording messages, cron dispatch and the SMS webhook are unavailable, and the UI says so. |
 
+## Shareable demo mode (`/demo`)
+
+Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own LifePilot**, which ends the demo session and opens signup.
+
+**How isolation works**
+- Each demo visitor becomes a separate **Supabase anonymous user**. This is a real `auth.users` row with `is_anonymous = true` in its JWT, and no email or password.
+- The existing Row Level Security policies (`user_id = auth.uid()`) therefore confine the visitor to their own rows, exactly as for a real user. There is no shared demo account and no service-role access in the demo path.
+- The sample data is written **with the visitor's own session**, so RLS applies even to seeding.
+- Starting the demo while signed in to a real account signs that account out first. Signing up from the demo drops the anonymous session.
+- Demo sessions can't add a phone number or send texts. AI use is capped per demo session (40 chat messages, 15 plan generations), in addition to the normal per-minute chat limit. Supabase rate-limits anonymous sign-ins per IP (30/hour by default).
+- **Reset** deletes that visitor's rows and re-seeds them. It only works for anonymous sessions.
+
+**Sample data** (`src/lib/demo/sample-data.ts`):
+- Goals: Exercise 4×/week, Finish college coursework 5 h/week, Build my business 30 min/day, and a $1,000 emergency fund.
+- A 9–5 schedule, an evening class and a commute.
+- Two weeks of history with a realistic pattern (evening study sessions slip).
+- Today's plan, where anything whose time has passed is already checked off.
+- A check-in from yesterday and two remembered preferences.
+
+All dates are relative to the visitor's own timezone.
+
+**Housekeeping:** anonymous demo users aren't deleted automatically. To purge ones older than 7 days (their data cascades), run this in the SQL editor:
+
+```sql
+delete from auth.users where is_anonymous and created_at < now() - interval '7 days';
+```
+
+## Local SMS demo with ngrok
+
+Twilio can't reach `localhost`, so expose your local app through a temporary HTTPS tunnel.
+
+1. Fill in `.env.local`:
+   - `SMS_MODE=live`
+   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `OPENAI_API_KEY`
+2. Start the app: `npm run build && npm start` (or `npm run dev`). It serves on port 3000.
+3. In a second terminal: `ngrok http 3000`. Copy the `https://….ngrok-free.app` forwarding URL.
+4. Add `TWILIO_WEBHOOK_BASE_URL=https://<id>.ngrok-free.app` to `.env.local` and restart the app. The browser can stay on `http://localhost:3000`.
+5. In the Twilio Console, open **Phone Numbers → Manage → Active numbers → (your number) → Messaging configuration**. Under "A message comes in", choose **Webhook**, enter `https://<id>.ngrok-free.app/api/sms/inbound`, set the method to **HTTP POST**, and click Save.
+6. In the app, go to **Settings → Text message check-ins**. Enter **your** mobile number, check the consent box and save; you'll receive the confirmation text.
+7. Text your Twilio number: "What should I focus on tonight?" LifePilot replies within a few seconds, using your goals and schedule.
+8. For the accountability exchange:
+   - Add a task with a time (e.g. "Workout" at 7:00 PM).
+   - Tap **Settings → Send a check-in now**. You'll get "You planned "Workout" at 7:00 PM. Still happening?"
+   - Reply "Can't tonight, work ran late." LifePilot acknowledges it and proposes a new time.
+9. Every text also appears in the app under **Assistant → History → Text messages**.
+
+**Rehearse without a phone:** `node scripts/simulate-inbound-sms.mjs "+1YOURNUMBER" "What should I focus on tonight?"` sends a correctly signed fake webhook to `http://localhost:3000/api/sms/inbound`. With `SMS_MODE=live`, the AI reply goes to your real phone.
+
+**Trial accounts:** a Twilio trial can only text **verified** numbers (Twilio Console → Phone Numbers → Verified Caller IDs), and it prefixes messages with "Sent from your Twilio trial account".
+
+**Troubleshooting:** the server log explains every rejected or ignored text:
+- `[sms] webhook rejected: invalid X-Twilio-Signature` means `TWILIO_WEBHOOK_BASE_URL` doesn't exactly match the URL you configured in Twilio.
+- `[sms] inbound text from a number that isn't linked…` means the phone number isn't saved with SMS consent on an account.
+- `[ai] … failed` shows OpenAI status and error codes (never keys).
+
 ## SMS architecture (Twilio)
 
 ```
@@ -137,13 +207,15 @@ Inbound:  SMS → Twilio → POST /api/sms/inbound → verify X-Twilio-Signature
 - `src/lib/notifications/providers/`: the `SmsProvider` interface, the Twilio REST provider (no SDK) and the test provider.
 - `src/lib/notifications/service.ts`: the **only** way to send a message. It enforces phone number + consent + no opt-out, and records every attempt.
 - `src/lib/notifications/scheduler.ts`: morning check-in, reminders before timed priority tasks ("You planned to work out at 6:30. Still happening?"), and the evening check-in, all in the user's own timezone.
-- `src/lib/notifications/inbound.ts`: the two-way pipeline. It replies after the webhook has returned, because Twilio times out at 15 seconds.
+- `src/lib/notifications/inbound.ts`: the two-way pipeline. It replies after the webhook has returned, because Twilio times out at 15 seconds. If several accounts list the same number, it uses the one with the most recent SMS consent.
+- Proactive texts (check-ins and reminders) are also added to the user's SMS conversation, so the AI knows what a reply like "can't tonight" refers to.
+- Signature verification accepts the configured public URL (`TWILIO_WEBHOOK_BASE_URL`, falling back to `NEXT_PUBLIC_APP_URL`) or the URL reconstructed from forwarding headers. Either way, the HMAC must match `TWILIO_AUTH_TOKEN`.
 - `src/app/api/sms/status`: the delivery-status callback, which marks failed or undelivered messages.
 
-**To go live with Twilio:**
+<a id="twilio-setup"></a>**Twilio setup (production):**
 
 1. Buy a number and create a Messaging Service in Twilio. For US numbers, complete A2P 10DLC registration.
-2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` (or `TWILIO_FROM_NUMBER`), `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL=https://<your-domain>` and `SMS_MODE=live`.
+2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (or `TWILIO_MESSAGING_SERVICE_SID`), `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL=https://<your-domain>` and `SMS_MODE=live`.
 3. In the Messaging Service (or phone number) settings, set **"A message comes in"** to `POST https://<your-domain>/api/sms/inbound`.
 4. Keep Twilio's default opt-out handling on. It sends the carrier-required STOP/HELP replies, and the app mirrors opt-outs in its own database.
 5. Add phone number verification (e.g. Twilio Verify, which will set `profiles.phone_verified_at`) before sending at scale.
@@ -151,8 +223,7 @@ Inbound:  SMS → Twilio → POST /api/sms/inbound → verify X-Twilio-Signature
 ## Intentionally not implemented yet
 
 - **Phone number verification.** Numbers are stored with consent but not verified by code. The column exists; the flow needs Twilio Verify.
-- **Real SMS delivery** in this environment (no credentials). The pipeline is complete and unit-tested, and runs in test mode.
-- **The assistant changing data from chat.** It gives advice only, and says so. Saving plans happens on the "Plan my day" screen.
+- **The assistant changing data from chat or SMS.** It gives advice only, and says so. It will propose a new time for a missed task, but the user moves the task in the app. Saving plans happens on the "Plan my day" screen.
 - **Automatic memory extraction.** "Things to remember" are entered by the user. The `user_memories.source = 'assistant'` value is reserved for this.
 - Calendar, finance or fitness integrations, voice, billing and native apps: the architecture leaves room for them (provider interfaces, structured context, a channel column on conversations and messages), but there are no placeholder buttons.
 - Multi-day or future-date planning. Planning covers the rest of today.

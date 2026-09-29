@@ -26,7 +26,7 @@ export function GoalRanker({ goals, submitLabel = "Save order", onSaved }: { goa
     <div className="flex flex-col gap-4">
       <ol className="flex flex-col gap-2">
         {order.map((g, i) => (
-          <li key={g.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
+          <li key={g.id} className="flex items-center gap-3 rounded-2xl bg-surface-2/70 px-3 py-2.5">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-accent">{i + 1}</span>
             <span className="flex-1 font-medium">{g.title}</span>
             <div className="flex gap-1">

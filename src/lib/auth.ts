@@ -15,16 +15,22 @@ export const requireUser = cache(async () => {
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (error || !userId) redirect("/login");
-  return { supabase, userId, email: (data.claims.email as string | undefined) ?? null };
+  return {
+    supabase,
+    userId,
+    email: (data.claims.email as string | undefined) ?? null,
+    // Demo sessions are Supabase anonymous users (see src/lib/demo).
+    isDemo: data.claims.is_anonymous === true,
+  };
 });
 
 /** Current user + profile. Redirects to onboarding if it isn't finished. */
 export const requireOnboardedUser = cache(async () => {
-  const { supabase, userId, email } = await requireUser();
+  const { supabase, userId, email, isDemo } = await requireUser();
   const profile = await getProfile(supabase, userId);
   if (!profile) redirect("/login");
-  if (!profile.onboarding_completed_at) redirect("/onboarding");
-  return { supabase, userId, email, profile: profile as Profile };
+  if (!profile.onboarding_completed_at) redirect(isDemo ? "/demo" : "/onboarding");
+  return { supabase, userId, email, isDemo, profile: profile as Profile };
 });
 
 /** For server actions / route handlers: returns null instead of redirecting. */
@@ -33,5 +39,5 @@ export async function getSessionUser() {
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (error || !userId) return null;
-  return { supabase, userId };
+  return { supabase, userId, isDemo: data.claims.is_anonymous === true };
 }

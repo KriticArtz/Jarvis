@@ -51,7 +51,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthed && (pathname === "/login" || pathname === "/signup")) {
+  const isDemo = data?.claims?.is_anonymous === true;
+  if (isAuthed && !isDemo && (pathname === "/login" || pathname === "/signup")) {
     const dashUrl = request.nextUrl.clone();
     dashUrl.pathname = "/dashboard";
     dashUrl.search = "";

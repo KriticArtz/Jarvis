@@ -7,6 +7,7 @@ import { localDate } from "@/lib/time";
 import { planAcceptSchema, planRequestSchema, uuid } from "@/lib/validation/schemas";
 import type { PlanItem } from "@/lib/types/domain";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
+import { DEMO_LIMITS } from "@/lib/demo/seed";
 
 export type PlanActionResult = ActionResult & { result?: PlanResult };
 
@@ -21,6 +22,10 @@ export async function generatePlan(_prev: PlanActionResult, formData: FormData):
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   if (parsed.data.availableStart && parsed.data.availableEnd && parsed.data.availableEnd <= parsed.data.availableStart) {
     return { ok: false, error: "The end of your free time must be after the start." };
+  }
+  if (session.isDemo) {
+    const { count } = await session.supabase.from("daily_plans").select("id", { count: "exact", head: true }).eq("user_id", session.userId);
+    if ((count ?? 0) >= DEMO_LIMITS.plans) return { ok: false, error: "You've reached the demo's planning limit. Create your own LifePilot to keep going." };
   }
   try {
     const result = await planDay(session.supabase, session.userId, parsed.data);

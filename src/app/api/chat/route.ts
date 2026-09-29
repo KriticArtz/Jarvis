@@ -7,6 +7,7 @@ import { getAI, logAIError } from "@/lib/ai/client";
 import { maybeSummarizeConversation } from "@/lib/ai/memory";
 import { getConversation } from "@/lib/data/queries";
 import { chatRequestSchema } from "@/lib/validation/schemas";
+import { DEMO_LIMITS } from "@/lib/demo/seed";
 
 export const maxDuration = 60;
 
@@ -19,7 +20,7 @@ const RATE_LIMIT_PER_MINUTE = 12;
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { supabase, userId } = session;
+  const { supabase, userId, isDemo } = session;
 
   const body = await request.json().catch(() => null);
   const parsed = chatRequestSchema.safeParse(body);
@@ -34,6 +35,17 @@ export async function POST(request: NextRequest) {
     .gte("created_at", since);
   if ((count ?? 0) >= RATE_LIMIT_PER_MINUTE) {
     return NextResponse.json({ error: "You're sending messages quickly — give it a few seconds." }, { status: 429 });
+  }
+
+  if (isDemo) {
+    const { count: total } = await supabase
+      .from("conversation_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("role", "user");
+    if ((total ?? 0) >= DEMO_LIMITS.chatMessages) {
+      return NextResponse.json({ error: "You've reached the demo's message limit. Create your own LifePilot to keep chatting." }, { status: 429 });
+    }
   }
 
   let conversation = parsed.data.conversationId ? await getConversation(supabase, userId, parsed.data.conversationId) : null;

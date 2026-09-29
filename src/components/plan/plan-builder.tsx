@@ -92,7 +92,7 @@ function PlanEditor({ plan, goals, replacesAccepted }: { plan: DailyPlan; goals:
       ) : (
         <ol className="flex flex-col gap-3">
           {items.map((item, i) => (
-            <li key={i} className="rounded-xl border border-border p-3">
+            <li key={i} className="rounded-[22px] bg-surface-2/60 p-3.5">
               <div className="flex items-start gap-2">
                 <div className="flex-1">
                   <label className="sr-only" htmlFor={`item-title-${i}`}>

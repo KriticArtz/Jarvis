@@ -5,10 +5,13 @@ import { getSessionUser } from "@/lib/auth";
 import { smsMode } from "@/lib/env";
 import { SMS_CONSENT_TEXT } from "@/lib/notifications/consent";
 import { deliverNotification } from "@/lib/notifications/service";
-import { consentConfirmationMessage } from "@/lib/notifications/templates";
+import { consentConfirmationMessage, eveningMessage, taskReminderMessage } from "@/lib/notifications/templates";
+import { localDate, localMinutesNow, timeToMinutes } from "@/lib/time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fieldErrors, notificationPrefsSchema, phoneSchema } from "@/lib/validation/schemas";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
+
+const DEMO_NO_SMS: ActionResult = { ok: false, error: "Text messages aren't available in the demo. Create your own account to get check-ins by text." };
 
 /**
  * Save phone number and (optionally) explicit SMS consent. Consent requires a
@@ -17,6 +20,7 @@ import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 export async function savePhoneAndConsent(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const session = await getSessionUser();
   if (!session) return NOT_SIGNED_IN;
+  if (session.isDemo) return DEMO_NO_SMS;
   const consent = formData.get("sms_consent") === "on";
   const rawPhone = String(formData.get("phone") ?? "").trim();
 
@@ -73,6 +77,7 @@ export async function savePhoneAndConsent(_prev: ActionResult, formData: FormDat
 export async function revokeSmsConsent(): Promise<ActionResult> {
   const session = await getSessionUser();
   if (!session) return NOT_SIGNED_IN;
+  if (session.isDemo) return DEMO_NO_SMS;
   const { error } = await session.supabase
     .from("notification_preferences")
     .update({ sms_enabled: false, sms_consent_at: null, sms_consent_text: null })
@@ -104,6 +109,7 @@ export async function saveNotificationPreferences(_prev: ActionResult, formData:
 export async function sendTestMessage(): Promise<ActionResult> {
   const session = await getSessionUser();
   if (!session) return NOT_SIGNED_IN;
+  if (session.isDemo) return DEMO_NO_SMS;
   if (smsMode() === "disabled") return { ok: false, error: "SMS is disabled on this server (SMS_MODE=disabled)." };
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "The server isn't configured for notifications yet (missing SUPABASE_SERVICE_ROLE_KEY)." };
@@ -120,6 +126,62 @@ export async function sendTestMessage(): Promise<ActionResult> {
       return { ok: true, message: "Recorded in test mode — no real text was sent. See the log below." };
     case "failed":
       return { ok: false, error: "Sending failed. Check the phone number and Twilio settings." };
+    case "skipped":
+      return { ok: false, error: outcome.reason };
+    default:
+      return { ok: false, error: "Already sent." };
+  }
+}
+
+/**
+ * Send an accountability check-in right now (instead of waiting for the
+ * scheduler): a reminder for the next pending task today, or the evening
+ * check-in if nothing is pending. Goes through the same consent-enforcing
+ * delivery path as scheduled messages.
+ */
+export async function sendCheckInNow(): Promise<ActionResult> {
+  const session = await getSessionUser();
+  if (!session) return NOT_SIGNED_IN;
+  if (session.isDemo) return DEMO_NO_SMS;
+  if (smsMode() === "disabled") return { ok: false, error: "SMS is disabled on this server (SMS_MODE=disabled)." };
+  const admin = createAdminClient();
+  if (!admin) return { ok: false, error: "The server isn't configured for notifications yet (missing SUPABASE_SERVICE_ROLE_KEY)." };
+
+  const { data: profile } = await session.supabase.from("profiles").select("timezone, accountability_style").eq("id", session.userId).single();
+  const tz = profile?.timezone || "UTC";
+  const style = profile?.accountability_style ?? "balanced";
+  const { data: tasks } = await session.supabase
+    .from("tasks")
+    .select("id, title, scheduled_start, status")
+    .eq("user_id", session.userId)
+    .eq("task_date", localDate(tz));
+  const pending = (tasks ?? []).filter((t) => t.status === "pending");
+  const now = localMinutesNow(tz);
+  const timed = pending
+    .filter((t) => t.scheduled_start)
+    .sort((a, b) => timeToMinutes(a.scheduled_start as string) - timeToMinutes(b.scheduled_start as string));
+  const next = timed.find((t) => timeToMinutes(t.scheduled_start as string) >= now - 60) ?? timed[0];
+
+  const outcome = next
+    ? await deliverNotification(admin, {
+        userId: session.userId,
+        kind: "task_reminder",
+        body: taskReminderMessage(next.title, String(next.scheduled_start).slice(0, 5), style),
+        relatedTaskId: next.id,
+      })
+    : await deliverNotification(admin, {
+        userId: session.userId,
+        kind: "evening_checkin",
+        body: eveningMessage((tasks ?? []).filter((t) => t.status === "done").length, (tasks ?? []).filter((t) => t.status !== "skipped").length, style),
+      });
+  revalidatePath("/settings");
+  switch (outcome.status) {
+    case "sent":
+      return { ok: true, message: next ? `Check-in about "${next.title}" sent. Reply to it from your phone.` : "Evening check-in sent. Reply to it from your phone." };
+    case "test":
+      return { ok: true, message: "Recorded in test mode — no real text was sent. Set SMS_MODE=live to send it." };
+    case "failed":
+      return { ok: false, error: "Sending failed. Check the phone number and Twilio settings (see the server log)." };
     case "skipped":
       return { ok: false, error: outcome.reason };
     default:

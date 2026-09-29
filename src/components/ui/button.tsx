@@ -6,17 +6,17 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 select-none";
+  "inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 select-none";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-foreground hover:bg-accent-hover shadow-sm",
-  secondary: "border border-border bg-surface text-foreground hover:bg-surface-2",
-  ghost: "text-foreground hover:bg-surface-2",
-  danger: "border border-border bg-surface text-danger hover:bg-danger-soft",
+  primary: "bg-accent text-accent-foreground hover:bg-accent-hover shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
+  secondary: "bg-surface-2 text-foreground hover:bg-[color-mix(in_oklab,var(--surface-2)_85%,var(--foreground))]",
+  ghost: "text-accent hover:bg-accent-soft",
+  danger: "bg-danger-soft text-danger hover:bg-[color-mix(in_oklab,var(--danger-soft)_85%,var(--danger))]",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-11 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  sm: "h-9 px-4 text-sm",
+  md: "h-11 px-5 text-[15px]",
+  lg: "h-[52px] px-7 text-[16px]",
 };
 
 export function buttonClass(variant: Variant = "primary", size: Size = "md", className?: string) {

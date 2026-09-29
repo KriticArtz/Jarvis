@@ -94,29 +94,35 @@ export function Chat({
       <div className="flex-1" aria-live="polite">
         {messages.length === 0 ? (
           <div className="animate-fade-in py-6">
-            <h2 className="text-xl font-semibold tracking-tight">{name ? `Hi ${name}, what's on your mind?` : "What's on your mind?"}</h2>
-            <p className="mt-1 text-muted">I know your goals, schedule and today&apos;s plan. Ask me to plan, prioritize or reflect.</p>
+            <h2 className="text-[26px] font-bold leading-tight">{name ? `Hi ${name}, what's on your mind?` : "What's on your mind?"}</h2>
+            <p className="mt-2 text-[16px] leading-relaxed text-muted">I know your goals, your schedule and today&apos;s plan. Ask me to plan, prioritize or reflect.</p>
             {!aiConfigured ? (
-              <p className="mt-4 rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
+              <p className="mt-4 rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning">
                 Demo mode: no OpenAI API key is configured, so replies only summarize your data.
               </p>
             ) : null}
-            <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => send(s)} className="rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm transition-colors hover:border-accent hover:bg-accent-soft">
+            <div className="mt-7 grid gap-2.5 sm:grid-cols-2">
+              {SUGGESTIONS.map((s, i) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => send(s)}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  className="animate-rise rounded-[20px] bg-surface px-4 py-3.5 text-left text-[15px] shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
+                >
                   {s}
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <ol className="flex flex-col gap-4 pb-4">
+          <ol className="flex flex-col gap-3 pb-4">
             {messages.map((m) => (
-              <li key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+              <li key={m.id} className={cn("flex animate-fade-in", m.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed",
-                    m.role === "user" ? "rounded-br-md bg-accent text-accent-foreground" : "rounded-bl-md border border-border bg-surface",
+                    "max-w-[86%] whitespace-pre-wrap rounded-[22px] px-4 py-2.5 text-[16px] leading-[1.5]",
+                    m.role === "user" ? "rounded-br-[8px] bg-accent text-accent-foreground" : "rounded-bl-[8px] bg-surface shadow-card",
                   )}
                 >
                   {m.role === "assistant" && !m.content ? (
@@ -134,9 +140,9 @@ export function Chat({
         <div ref={endRef} />
       </div>
 
-      <div className="sticky bottom-20 z-10 bg-background pb-2 pt-2 md:bottom-0 md:pb-4">
+      <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-10 bg-gradient-to-t from-background from-70% to-transparent pb-2 pt-4 md:bottom-0 md:pb-5">
         {error ? (
-          <p role="alert" className="mb-2 rounded-xl bg-danger-soft px-3.5 py-2 text-sm text-danger">
+          <p role="alert" className="mb-2 rounded-2xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
             {error}
           </p>
         ) : null}
@@ -145,7 +151,7 @@ export function Chat({
             e.preventDefault();
             void send(input);
           }}
-          className="flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm focus-within:border-accent focus-within:ring-4 focus-within:ring-ring"
+          className="flex items-end gap-2 rounded-[26px] bg-surface p-1.5 pl-3 shadow-lift transition-shadow focus-within:ring-4 focus-within:ring-ring"
         >
           <label htmlFor="chat-input" className="sr-only">
             Message {brand.assistantName}
@@ -164,13 +170,13 @@ export function Chat({
             rows={1}
             maxLength={4000}
             placeholder={`Message ${brand.assistantName}…`}
-            className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] focus:outline-none"
+            className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[16px] focus:outline-none"
             style={{ fieldSizing: "content" } as React.CSSProperties}
           />
           <button
             type="submit"
             disabled={streaming || !input.trim()}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-all active:scale-90 disabled:opacity-30"
             aria-label="Send message"
           >
             {streaming ? <Spinner /> : <ArrowUp className="size-5" />}

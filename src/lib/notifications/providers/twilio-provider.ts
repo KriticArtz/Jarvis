@@ -1,5 +1,5 @@
 import "server-only";
-import type { TwilioConfig } from "@/lib/env";
+import { twilioApiBaseUrl, type TwilioConfig } from "@/lib/env";
 import type { OutboundSms, SendResult, SmsProvider } from "./types";
 
 /**
@@ -24,7 +24,7 @@ export class TwilioSmsProvider implements SmsProvider {
 
     const auth = Buffer.from(`${this.config.accountSid}:${this.config.authToken}`).toString("base64");
     try {
-      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(this.config.accountSid)}/Messages.json`, {
+      const res = await fetch(`${twilioApiBaseUrl()}/2010-04-01/Accounts/${encodeURIComponent(this.config.accountSid)}/Messages.json`, {
         method: "POST",
         headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
         body: params,

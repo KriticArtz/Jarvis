@@ -27,52 +27,54 @@ export function TaskList({ tasks, numbered = false }: { tasks: Row[]; numbered?:
     });
 
   return (
-    <ol className="flex flex-col divide-y divide-border">
+    <ol className="flex flex-col">
       {optimistic.map((t, i) => {
         const done = t.status === "done";
         const skipped = t.status === "skipped";
         return (
-          <li key={t.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+          <li key={t.id} className="group flex items-center gap-3.5 border-b border-hairline py-3.5 last:border-b-0">
             <button
               type="button"
               onClick={() => setStatus(t.id, done ? "pending" : "done")}
               aria-label={done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
               aria-pressed={done}
               className={cn(
-                "flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                done ? "border-success bg-success text-white" : "border-border hover:border-accent",
+                "flex size-[26px] shrink-0 items-center justify-center rounded-full transition-all duration-300 active:scale-90",
+                done ? "bg-brand-gradient text-white shadow-[0_2px_8px_-2px_var(--grad-to)]" : "border-[1.5px] border-muted/40 hover:border-accent",
               )}
             >
-              {done ? <Check className="size-4" strokeWidth={3} /> : numbered ? <span className="text-xs font-semibold text-muted">{i + 1}</span> : null}
+              {done ? (
+                <Check className="size-[15px] animate-fade-in" strokeWidth={3.2} />
+              ) : numbered ? (
+                <span className="text-[11px] font-semibold text-muted">{i + 1}</span>
+              ) : null}
             </button>
-            <div className={cn("min-w-0 flex-1", (done || skipped) && "opacity-55")}>
-              <p className={cn("font-medium", done && "line-through", skipped && "line-through decoration-muted")}>{t.title}</p>
-              <p className="text-sm text-muted">
-                {[
-                  t.scheduled_start ? formatTime12(t.scheduled_start) : null,
-                  formatDuration(t.duration_minutes) || null,
-                  t.goalTitle,
-                  skipped ? "Skipped" : null,
-                ]
+            <div className={cn("min-w-0 flex-1 transition-opacity duration-300", (done || skipped) && "opacity-45")}>
+              <p className={cn("truncate text-[16px] font-medium", (done || skipped) && "line-through decoration-muted/60")}>{t.title}</p>
+              <p className="truncate text-[13px] text-muted">
+                {[t.scheduled_start ? formatTime12(t.scheduled_start) : null, formatDuration(t.duration_minutes) || null, t.goalTitle, skipped ? "Skipped" : null]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
             </div>
             <details className="relative">
-              <summary className="list-none rounded-lg p-2 text-muted hover:bg-surface-2 [&::-webkit-details-marker]:hidden" aria-label={`More actions for ${t.title}`}>
-                <MoreHorizontal className="size-4" />
+              <summary
+                className="flex size-8 list-none items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 [&::-webkit-details-marker]:hidden"
+                aria-label={`More actions for ${t.title}`}
+              >
+                <MoreHorizontal className="size-[18px]" />
               </summary>
-              <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+              <div className="absolute right-0 z-10 mt-1 w-44 animate-fade-in overflow-hidden rounded-2xl bg-surface p-1 shadow-lift">
                 {skipped ? (
-                  <button type="button" onClick={() => setStatus(t.id, "pending")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2">
+                  <button type="button" onClick={() => setStatus(t.id, "pending")} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2">
                     Restore
                   </button>
                 ) : (
-                  <button type="button" onClick={() => setStatus(t.id, "skipped")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2">
+                  <button type="button" onClick={() => setStatus(t.id, "skipped")} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2">
                     <X className="size-4" /> Skip today
                   </button>
                 )}
-                <button type="button" onClick={() => remove(t.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft">
+                <button type="button" onClick={() => remove(t.id)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft">
                   <Trash2 className="size-4" /> Delete
                 </button>
               </div>

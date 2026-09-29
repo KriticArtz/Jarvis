@@ -55,7 +55,7 @@ export function OnboardingFlow({
         </div>
         <div className="flex gap-1.5" aria-hidden>
           {Array.from({ length: TOTAL }, (_, i) => (
-            <div key={i} className={`h-1 flex-1 rounded-full ${i < step ? "bg-accent" : "bg-surface-2"}`} />
+            <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-500 ${i < step ? "bg-brand-gradient" : "bg-border"}`} />
           ))}
         </div>
       </div>
@@ -94,7 +94,7 @@ export function OnboardingFlow({
 function Step({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <section>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+      <h1 className="text-[30px] font-bold leading-tight sm:text-[36px]">{title}</h1>
       {subtitle ? <p className="mb-6 mt-2 text-muted">{subtitle}</p> : <div className="mb-6" />}
       {children}
     </section>
@@ -156,7 +156,7 @@ function GoalsStep({ goals, onDone }: { goals: Goal[]; onDone: () => void }) {
       {goals.length ? (
         <ul className="mb-5 flex flex-col gap-2">
           {goals.map((g) => (
-            <li key={g.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+            <li key={g.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-card">
               <div className="min-w-0">
                 <p className="truncate font-medium">{g.title}</p>
                 <p className="text-sm text-muted">
@@ -179,7 +179,7 @@ function GoalsStep({ goals, onDone }: { goals: Goal[]; onDone: () => void }) {
       ) : null}
 
       {adding ? (
-        <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+        <div className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
           <GoalForm action={createGoal} submitLabel="Add goal" showTemplates onSaved={() => setAdding(false)} />
         </div>
       ) : (

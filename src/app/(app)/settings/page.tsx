@@ -14,6 +14,7 @@ import { StylePicker } from "@/components/settings/style-picker";
 import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
 import { NotificationPrefsForm, SmsActions } from "@/components/settings/notification-settings";
+import { DemoControls } from "@/components/demo/demo-controls";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -24,7 +25,7 @@ const MODE_COPY = {
 } as const;
 
 export default async function SettingsPage() {
-  const { supabase, userId, email, profile } = await requireOnboardedUser();
+  const { supabase, userId, email, profile, isDemo } = await requireOnboardedUser();
   const [commitments, prefs, memories, notifications] = await Promise.all([
     getCommitments(supabase, userId),
     getNotificationPreferences(supabase, userId),
@@ -49,7 +50,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader title="Typical schedule" subtitle="Your assistant never plans over these." />
           <ScheduleForm profile={profile} />
-          <div className="mt-6 border-t border-border pt-5">
+          <div className="mt-6 border-t border-hairline pt-5">
             <h3 className="mb-3 text-sm font-semibold">Recurring commitments</h3>
             <CommitmentsEditor commitments={commitments} />
           </div>
@@ -60,6 +61,15 @@ export default async function SettingsPage() {
           <StylePicker current={profile.accountability_style} />
         </Card>
 
+        {isDemo ? (
+          <Card id="sms">
+            <CardHeader title="Text message check-ins" action={<Badge tone="accent">Your own account</Badge>} />
+            <p className="text-[15px] leading-relaxed text-muted">
+              In your own account, LifePilot texts you — a morning question, a nudge before something you planned, an evening wrap-up — and
+              you can reply to it like a friend. Texting is turned off in this shared demo so no messages go to real phones.
+            </p>
+          </Card>
+        ) : (
         <Card id="sms">
           <CardHeader
             title="Text message check-ins"
@@ -77,16 +87,16 @@ export default async function SettingsPage() {
               <PhoneForm phone={profile.phone} consented={Boolean(prefs?.sms_enabled && prefs.sms_consent_at)} />
             </div>
             {prefs ? (
-              <div className="border-t border-border pt-5">
+              <div className="border-t border-hairline pt-5">
                 <h3 className="mb-3 text-sm font-semibold">What to send</h3>
                 <NotificationPrefsForm prefs={prefs} />
               </div>
             ) : null}
-            <div className="border-t border-border pt-5">
+            <div className="border-t border-hairline pt-5">
               <SmsActions canSend={smsReady && mode !== "disabled" && Boolean(supabaseServiceKey())} />
             </div>
             {notifications.data?.length ? (
-              <div className="border-t border-border pt-5">
+              <div className="border-t border-hairline pt-5">
                 <h3 className="mb-3 text-sm font-semibold">Recent messages</h3>
                 <ul className="flex flex-col gap-2">
                   {(notifications.data as NotificationRecord[]).map((n) => (
@@ -106,19 +116,28 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
+        )}
+
         <Card>
           <CardHeader title="Things your assistant should remember" subtitle="Short facts or preferences it will always take into account." />
           <MemoriesEditor memories={memories} />
         </Card>
 
-        <Card>
-          <CardHeader title="Account" />
-          <form action={signOut}>
-            <SubmitButton variant="secondary" pendingText="Signing out…">
-              Log out
-            </SubmitButton>
-          </form>
-        </Card>
+        {isDemo ? (
+          <Card>
+            <CardHeader title="Demo" subtitle="You're exploring LifePilot with sample data." />
+            <DemoControls />
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader title="Account" />
+            <form action={signOut}>
+              <SubmitButton variant="secondary" pendingText="Signing out…">
+                Log out
+              </SubmitButton>
+            </form>
+          </Card>
+        )}
       </div>
     </>
   );

@@ -44,7 +44,7 @@ export default async function GoalsPage({ searchParams }: PageProps<"/goals">) {
               <section key={group.title}>
                 <h2 className="mb-2 text-sm font-semibold text-muted">{group.title}</h2>
                 <Card className="p-0">
-                  <ul className="divide-y divide-border">
+                  <ul className="divide-y divide-hairline">
                     {group.items.map((g, i) => {
                       const s = summarizeGoalProgress(g, progress, today);
                       return (

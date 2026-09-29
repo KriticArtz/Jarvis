@@ -14,7 +14,7 @@ export function MemoriesEditor({ memories }: { memories: UserMemory[] }) {
   return (
     <div className="flex flex-col gap-3">
       {memories.length ? (
-        <ul className="divide-y divide-border rounded-xl border border-border">
+        <ul className="divide-y divide-hairline rounded-2xl bg-surface-2/60">
           {memories.map((m) => (
             <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <span className="text-[15px]">{m.content}</span>

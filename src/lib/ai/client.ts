@@ -21,8 +21,18 @@ export function isAIConfigured(): boolean {
   return getAI() !== null;
 }
 
-/** Log AI failures without user content. */
+/**
+ * Log AI failures without user content or secrets. OpenAI error messages never
+ * contain the API key; `requestID` helps when contacting OpenAI support.
+ */
 export function logAIError(where: string, err: unknown) {
-  const e = err as { status?: number; code?: string; message?: string };
-  console.error(`[ai] ${where} failed`, { status: e?.status, code: e?.code, message: e?.message?.slice(0, 200) });
+  const e = err as { status?: number; code?: string; type?: string; requestID?: string; message?: string; name?: string };
+  console.error(`[ai] ${where} failed`, {
+    name: e?.name,
+    status: e?.status,
+    code: e?.code,
+    type: e?.type,
+    requestId: e?.requestID,
+    message: e?.message?.replace(/sk-[A-Za-z0-9_-]{8,}/g, "sk-***").slice(0, 300),
+  });
 }

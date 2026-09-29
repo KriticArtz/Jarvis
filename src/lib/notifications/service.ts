@@ -1,6 +1,7 @@
 import "server-only";
 import { appUrl, smsMode, twilioConfig } from "@/lib/env";
 import type { DB } from "@/lib/data/db";
+import { appendMessage, getOrCreateSmsConversation } from "@/lib/assistant/conversation";
 import type { NotificationKind, NotificationPreferences, Profile } from "@/lib/types/domain";
 import { TestSmsProvider } from "./providers/test-provider";
 import { TwilioSmsProvider } from "./providers/twilio-provider";
@@ -46,6 +47,8 @@ export type DeliverOutcome =
   | { status: "skipped"; reason: string }
   | { status: "duplicate" };
 
+const PROACTIVE_KINDS = new Set<NotificationKind>(["morning_checkin", "task_reminder", "evening_checkin"]);
+
 /** `admin` must be the service-role client: notification rows are server-written. */
 export async function deliverNotification(admin: DB, input: DeliverInput): Promise<DeliverOutcome> {
   const provider = getSmsProvider();
@@ -90,6 +93,16 @@ export async function deliverNotification(admin: DB, input: DeliverInput): Promi
       .from("notifications")
       .update({ status, sent_at: now, provider_message_id: result.providerMessageId })
       .eq("id", row.id);
+    if (PROACTIVE_KINDS.has(input.kind)) {
+      // Put proactive texts in the SMS thread so the assistant knows what a reply
+      // like "can't tonight" is answering.
+      try {
+        const conversation = await getOrCreateSmsConversation(admin, input.userId);
+        await appendMessage(admin, input.userId, conversation.id, "assistant", body, "sms");
+      } catch (err) {
+        console.error("[sms] could not add outbound message to thread", { notificationId: row.id, message: (err as Error).message });
+      }
+    }
     return { status, notificationId: row.id };
   }
   await admin.from("notifications").update({ status: "failed", error: result.error.slice(0, 500) }).eq("id", row.id);

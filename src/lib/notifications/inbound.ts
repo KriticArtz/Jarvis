@@ -14,6 +14,28 @@ export interface InboundSms {
 }
 
 /**
+ * Find the account a text belongs to. Phone numbers aren't verified yet, so
+ * several accounts could list the same number: prefer accounts that have
+ * explicitly consented to SMS, and among those the most recent consent.
+ * A STOP/START keyword may come from a number with no active consent, so
+ * fall back to a unique plain match for those.
+ */
+async function identifySender(admin: DB, phone: string): Promise<{ id: string; timezone: string } | null> {
+  const { data: profiles } = await admin.from("profiles").select("id, timezone").eq("phone", phone).limit(20);
+  if (!profiles?.length) return null;
+  const { data: prefs } = await admin
+    .from("notification_preferences")
+    .select("user_id, sms_enabled, sms_consent_at, sms_opted_out_at")
+    .in("user_id", profiles.map((p) => p.id as string));
+  const consented = (prefs ?? [])
+    .filter((p) => p.sms_consent_at)
+    .sort((a, b) => String(b.sms_consent_at).localeCompare(String(a.sms_consent_at)));
+  const chosen = consented[0]?.user_id ?? (profiles.length === 1 ? profiles[0].id : null);
+  const profile = profiles.find((p) => p.id === chosen);
+  return profile ? { id: profile.id as string, timezone: profile.timezone as string } : null;
+}
+
+/**
  * Two-way SMS pipeline (called only after the webhook signature is verified):
  *   inbound SMS -> identify user by phone -> keyword handling (STOP/START)
  *   -> store message -> build user context -> AI reply -> send SMS.
@@ -34,13 +56,14 @@ export async function handleInboundSms(admin: DB, msg: InboundSms): Promise<{ ha
   const finish = (patch: Record<string, unknown>) =>
     admin.from("inbound_messages").update({ processed_at: new Date().toISOString(), ...patch }).eq("id", logRow.id);
 
-  const { data: matches } = await admin.from("profiles").select("id, timezone").eq("phone", msg.from).limit(2);
-  if (!matches || matches.length !== 1) {
-    await finish({ error: matches?.length ? "ambiguous phone" : "unknown phone" });
+  const match = await identifySender(admin, msg.from);
+  if (!match) {
+    console.warn("[sms] inbound text from a number that isn't linked to an account with SMS enabled", { sid: msg.providerMessageId });
+    await finish({ error: "unknown phone" });
     return { handled: false, reason: "unidentified sender" };
   }
-  const userId = matches[0].id as string;
-  const tz = (matches[0].timezone as string) || "UTC";
+  const userId = match.id;
+  const tz = match.timezone || "UTC";
   await admin.from("inbound_messages").update({ user_id: userId }).eq("id", logRow.id);
 
   const keyword = detectKeyword(body);
@@ -69,6 +92,7 @@ export async function handleInboundSms(admin: DB, msg: InboundSms): Promise<{ ha
     .eq("user_id", userId)
     .maybeSingle();
   if (!prefs?.sms_enabled || !prefs.sms_consent_at || prefs.sms_opted_out_at) {
+    console.warn("[sms] inbound text ignored: the account hasn't enabled text check-ins", { sid: msg.providerMessageId });
     await finish({ error: "sms not enabled for user" });
     return { handled: false, reason: "not consented" };
   }

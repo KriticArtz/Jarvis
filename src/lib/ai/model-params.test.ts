@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { completionParams, isReasoningModel } from "./model-params";
+import { isReasoningModel, responseParams } from "./model-params";
 
-describe("completionParams", () => {
+describe("responseParams", () => {
   it("adds reasoning headroom for reasoning models", () => {
     expect(isReasoningModel("gpt-5-mini")).toBe(true);
     expect(isReasoningModel("o4-mini")).toBe(true);
-    expect(completionParams("gpt-5-mini", 300)).toEqual({ max_completion_tokens: 4300, reasoning_effort: "low" });
+    expect(responseParams("gpt-5-mini", 300)).toEqual({ max_output_tokens: 4300, reasoning: { effort: "low" } });
   });
 
   it("leaves non-reasoning models unchanged", () => {
     expect(isReasoningModel("gpt-4.1-mini")).toBe(false);
     expect(isReasoningModel("gpt-5-chat-latest")).toBe(false);
-    expect(completionParams("gpt-4o", 300)).toEqual({ max_completion_tokens: 300 });
+    expect(responseParams("gpt-4o", 300)).toEqual({ max_output_tokens: 300 });
   });
 });

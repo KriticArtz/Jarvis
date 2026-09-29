@@ -27,17 +27,17 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
     <div className="flex flex-col">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{brand.assistantName}</h1>
+          <h1 className="text-[32px] font-bold leading-tight">{brand.assistantName}</h1>
           {current?.title ? <p className="truncate text-sm text-muted">{current.channel === "sms" ? "Text message thread" : current.title}</p> : null}
         </div>
         <div className="flex items-center gap-2">
           {conversations.length ? (
             <details className="relative">
               <summary className={cn(buttonClass("secondary", "sm"), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>History</summary>
-              <ul className="absolute right-0 z-20 mt-2 max-h-80 w-72 overflow-auto rounded-xl border border-border bg-surface py-1 shadow-lg">
+              <ul className="absolute right-0 z-20 mt-2 max-h-80 w-72 animate-fade-in overflow-auto rounded-2xl bg-surface p-1 shadow-lift">
                 {conversations.map((c) => (
                   <li key={c.id}>
-                    <Link href={`/assistant?c=${c.id}`} className={cn("block truncate px-4 py-2.5 text-sm hover:bg-surface-2", c.id === current?.id && "font-semibold text-accent")}>
+                    <Link href={`/assistant?c=${c.id}`} className={cn("block truncate rounded-xl px-3.5 py-2.5 text-sm hover:bg-surface-2", c.id === current?.id && "font-semibold text-accent")}>
                       {c.channel === "sms" ? "📱 Text messages" : c.title || "Conversation"}
                     </Link>
                   </li>
