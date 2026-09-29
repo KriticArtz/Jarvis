@@ -15,9 +15,10 @@ function authorized(request: NextRequest): boolean {
 }
 
 /**
- * Proactive notification dispatcher. Vercel Cron calls this (see vercel.json)
- * with `Authorization: Bearer $CRON_SECRET`. It can also be triggered by any
- * scheduler that sends the same header.
+ * Proactive notification dispatcher, meant to run every 15 minutes. It isn't
+ * scheduled in vercel.json right now (Vercel Hobby only allows daily crons);
+ * any scheduler can call it with `Authorization: Bearer $CRON_SECRET`, as
+ * Vercel Cron does on Pro. See README → Deploying to Vercel.
  */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -105,7 +105,7 @@ npm run db:verify
    - `CRON_SECRET`
    - For SMS: `SMS_MODE=live`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (or `TWILIO_MESSAGING_SERVICE_SID`)
 3. Deploy, then point Twilio's incoming-message webhook at `https://<your-domain>/api/sms/inbound` (see [Twilio setup](#twilio-setup)).
-4. `vercel.json` schedules `/api/cron/dispatch` every 15 minutes, and Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Vercel's Hobby plan only allows daily crons, so use Pro or an external scheduler that sends the same header. Scheduled texts are the only thing that depends on this.
+4. **Scheduled check-ins are not scheduled on Vercel right now.** Vercel Hobby only allows once-a-day crons, and the dispatcher needs to run every 15 minutes, so `vercel.json` has no cron. Everything else works: manual **Settings → Send a check-in now**, two-way SMS and the webhook. To turn automatic check-ins on, either upgrade to Vercel Pro and add `"crons": [{ "path": "/api/cron/dispatch", "schedule": "*/15 * * * *" }]` to `vercel.json`, or have any external scheduler (e.g. cron-job.org, GitHub Actions) call `GET https://<your-domain>/api/cron/dispatch` every 15 minutes with the header `Authorization: Bearer <CRON_SECRET>`.
 5. Share `https://<your-domain>/demo`.
 
 ---
