@@ -1,5 +1,6 @@
 import type { NotificationKind, NotificationPreferences, Profile, Task } from "@/lib/types/domain";
 import { localDate, localMinutesNow, timeToMinutes } from "@/lib/time";
+import { personaFrom, type PersonalizationSource } from "@/lib/personalization";
 import { eveningMessage, morningMessage, taskReminderMessage } from "./templates";
 
 export interface DueNotification {
@@ -38,7 +39,7 @@ function inWindow(target: number, from: number, to: number): boolean {
 export function dueNotifications(input: {
   now: Date;
   windowMinutes: number;
-  profile: Pick<Profile, "timezone" | "display_name" | "accountability_style">;
+  profile: Pick<Profile, "timezone" | "display_name"> & PersonalizationSource;
   prefs: NotificationPreferences;
   todayTasks: Pick<Task, "id" | "title" | "scheduled_start" | "status" | "is_priority">[];
 }): DueNotification[] {
@@ -47,13 +48,14 @@ export function dueNotifications(input: {
   const today = localDate(tz, input.now);
   const nowMin = localMinutesNow(tz, input.now);
   const out: DueNotification[] = [];
+  const persona = personaFrom(profile);
 
   if (inQuietHours(nowMin, prefs.quiet_hours_start, prefs.quiet_hours_end)) return out;
 
   if (prefs.morning_checkin_enabled && inWindow(timeToMinutes(prefs.morning_checkin_time), nowMin - windowMinutes, nowMin)) {
     out.push({
       kind: "morning_checkin",
-      body: morningMessage(profile.display_name, profile.accountability_style),
+      body: morningMessage(profile.display_name, persona),
       dedupeKey: `morning:${today}`,
       relatedTaskId: null,
     });
@@ -67,7 +69,7 @@ export function dueNotifications(input: {
       if (start > nowMin && start <= nowMin + windowMinutes) {
         out.push({
           kind: "task_reminder",
-          body: taskReminderMessage(t.title, t.scheduled_start, profile.accountability_style),
+          body: taskReminderMessage(t.title, t.scheduled_start, persona),
           dedupeKey: `task:${t.id}`,
           relatedTaskId: t.id,
         });
@@ -80,7 +82,7 @@ export function dueNotifications(input: {
     const completed = input.todayTasks.filter((t) => t.status === "done").length;
     out.push({
       kind: "evening_checkin",
-      body: eveningMessage(completed, planned, profile.accountability_style),
+      body: eveningMessage(completed, planned, persona),
       dedupeKey: `evening:${today}`,
       relatedTaskId: null,
     });

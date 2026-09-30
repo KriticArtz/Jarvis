@@ -1,4 +1,4 @@
-import type { AccountabilityStyle, ConversationMessage } from "@/lib/types/domain";
+import type { ConversationMessage } from "@/lib/types/domain";
 import { renderContext } from "./context-format";
 import type { AssistantContext } from "./context-types";
 import { assistantSystemPrompt, type AssistantChannel } from "./prompts";
@@ -18,7 +18,6 @@ export interface ChatMessageParam {
  */
 export function buildChatMessages(opts: {
   context: AssistantContext;
-  style: AccountabilityStyle;
   channel: AssistantChannel;
   conversationSummary: string | null;
   history: Pick<ConversationMessage, "role" | "content">[];
@@ -26,7 +25,7 @@ export function buildChatMessages(opts: {
   tools?: boolean;
 }): ChatMessageParam[] {
   const messages: ChatMessageParam[] = [
-    { role: "system", content: assistantSystemPrompt(opts.style, opts.channel, { tools: opts.tools }) },
+    { role: "system", content: assistantSystemPrompt(opts.context.assistant, opts.channel, { tools: opts.tools }) },
     { role: "system", content: `# User context (from the app's database, current as of now)\n\n${renderContext(opts.context)}` },
   ];
   if (opts.conversationSummary) {

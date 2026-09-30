@@ -5,7 +5,8 @@ import type { AssistantContext } from "./context-types";
 
 const ctx: AssistantContext = {
   now: { date: "2026-09-29", time: "17:45", weekday: "Tuesday", timezone: "America/Chicago" },
-  user: { name: "Derek", accountabilityStyle: "direct" },
+  user: { name: "Derek" },
+  assistant: { name: "Nova", personality: "tough_love" },
   schedule: {
     wake: "06:30",
     sleep: "23:00",
@@ -28,6 +29,7 @@ describe("assistant context", () => {
   it("renders the key facts the assistant needs", () => {
     const text = renderContext(ctx);
     expect(text).toContain("Name: Derek");
+    expect(text).toContain("Their assistant (you): Nova, personality: tough love");
     expect(text).toContain("WGU");
     expect(text).toContain("2/5 hours this week (behind)");
     expect(text).toContain("Kids pickup 5:30 PM–6:00 PM");
@@ -44,11 +46,12 @@ describe("assistant context", () => {
 
   it("bounds conversation history", () => {
     const history = Array.from({ length: 40 }, (_, i) => ({ role: (i % 2 ? "assistant" : "user") as "user" | "assistant", content: `m${i}` }));
-    const msgs = buildChatMessages({ context: ctx, style: "direct", channel: "app", conversationSummary: "Earlier: agreed to study at 7", history });
+    const msgs = buildChatMessages({ context: ctx, channel: "app", conversationSummary: "Earlier: agreed to study at 7", history });
     const nonSystem = msgs.filter((m) => m.role !== "system");
     expect(nonSystem).toHaveLength(HISTORY_WINDOW);
     expect(nonSystem.at(-1)?.content).toBe("m39");
     expect(msgs.some((m) => m.content.includes("agreed to study at 7"))).toBe(true);
-    expect(msgs[0].content).toContain("candid");
+    expect(msgs[0].content).toContain("You are Nova");
+    expect(msgs[0].content).toContain("candidly");
   });
 });

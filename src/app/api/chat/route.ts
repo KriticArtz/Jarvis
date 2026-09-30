@@ -8,6 +8,7 @@ import { maybeSummarizeConversation } from "@/lib/ai/memory";
 import { getConversation } from "@/lib/data/queries";
 import { chatRequestSchema } from "@/lib/validation/schemas";
 import { DEMO_LIMITS } from "@/lib/demo/seed";
+import { brand } from "@/config/brand";
 
 export const maxDuration = 60;
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId)
       .eq("role", "user");
     if ((total ?? 0) >= DEMO_LIMITS.chatMessages) {
-      return NextResponse.json({ error: "You've reached the demo's message limit. Create your own LifePilot to keep chatting." }, { status: 429 });
+      return NextResponse.json({ error: `You've reached the demo's message limit. Create your own ${brand.name} to keep chatting.` }, { status: 429 });
     }
   }
 

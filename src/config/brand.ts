@@ -3,12 +3,13 @@
  * else in the codebase hard-codes the brand.
  */
 export const brand = {
-  name: "LifePilot",
-  assistantName: "LifePilot",
+  name: "Jarvis",
+  /** Default name for a user's assistant until they choose their own (Settings → Your AI). */
+  assistantName: "Jarvis",
   tagline: "Your AI accountability partner.",
   subheadline: "Set your goals. Plan your time. Stay accountable.",
   description:
-    "LifePilot helps you turn the things you want to do into things you actually do. Set your goals, build your day, and get proactive accountability from an AI assistant that remembers what you're working toward.",
+    "Jarvis helps you turn the things you want to do into things you actually do. Set your goals, build your day, and get proactive accountability from an AI assistant that remembers what you're working toward.",
   supportEmail: "support@example.com",
   /**
    * Legal details used by /privacy and /terms. REPLACE before launch:
@@ -16,7 +17,7 @@ export const brand = {
    * governing-law jurisdiction (leave null to omit that clause).
    */
   legal: {
-    entityName: "LifePilot",
+    entityName: "Jarvis",
     privacyEmail: "privacy@example.com",
     governingLaw: null as string | null,
     minimumAge: 13,

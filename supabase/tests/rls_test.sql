@@ -234,4 +234,59 @@ do $$ begin
   if exists (select 1 from public.assistant_actions) then raise exception 'assistant actions survived account deletion'; end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Phase 3A: personalization columns on profiles
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-00000000000d', 'd@example.com'),
+  ('00000000-0000-0000-0000-00000000000e', 'e@example.com');
+do $$ begin
+  -- New and existing users start with no preferences (the app applies defaults)
+  if exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000000d'
+             and (assistant_name is not null or assistant_personality is not null or theme is not null)) then
+    raise exception 'personalization should default to null';
+  end if;
+end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', false);
+update public.profiles set assistant_name = 'Nova', assistant_personality = 'tough_love', theme = 'violet'
+  where id = '00000000-0000-0000-0000-00000000000d';
+do $$ begin
+  if (select assistant_name from public.profiles where id = '00000000-0000-0000-0000-00000000000d') is distinct from 'Nova' then
+    raise exception 'D could not save own personalization';
+  end if;
+  begin
+    update public.profiles set theme = 'neon' where id = '00000000-0000-0000-0000-00000000000d';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set assistant_personality = 'sarcastic' where id = '00000000-0000-0000-0000-00000000000d';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set assistant_name = '' where id = '00000000-0000-0000-0000-00000000000d';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.profiles set assistant_name = 'A name that is far too long for this' where id = '00000000-0000-0000-0000-00000000000d';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+end $$;
+-- D cannot change E's preferences (RLS: 0 rows touched)
+update public.profiles set assistant_name = 'Hacked', theme = 'rose' where id = '00000000-0000-0000-0000-00000000000e';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', false);
+do $$ begin
+  if (select count(*) from public.profiles where assistant_name = 'Nova') <> 0 then raise exception 'E can see D personalization'; end if;
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000000e' and (assistant_name is not null or theme is not null)) then
+    raise exception 'D modified E personalization';
+  end if;
+end $$;
+
 select 'RLS checks passed' as result;

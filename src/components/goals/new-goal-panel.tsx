@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GoalForm } from "./goal-form";
 import { GoalRanker } from "./goal-ranker";
+import { usePersonalization } from "@/components/app/personalization";
 
 export function GoalsToolbar({ activeGoals, startOpen }: { activeGoals: Goal[]; startOpen: boolean }) {
+  const { assistantName } = usePersonalization();
   const [mode, setMode] = useState<"none" | "new" | "rank">(startOpen ? "new" : "none");
   return (
     <div className="mb-5 flex flex-col gap-4">
@@ -30,7 +32,7 @@ export function GoalsToolbar({ activeGoals, startOpen }: { activeGoals: Goal[]; 
       ) : null}
       {mode === "rank" ? (
         <Card className="animate-fade-in">
-          <p className="mb-3 text-sm text-muted">What matters most right now? Your assistant prioritizes the top goals when time is tight.</p>
+          <p className="mb-3 text-sm text-muted">What matters most right now? {assistantName} prioritizes the top goals when time is tight.</p>
           <GoalRanker goals={activeGoals} onSaved={() => setMode("none")} />
         </Card>
       ) : null}

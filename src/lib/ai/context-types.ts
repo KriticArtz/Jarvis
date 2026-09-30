@@ -1,4 +1,4 @@
-import type { AccountabilityStyle } from "@/lib/types/domain";
+import type { AssistantPersona } from "@/lib/personalization";
 
 /**
  * The structured context the assistant receives on every call. It is built
@@ -8,7 +8,9 @@ import type { AccountabilityStyle } from "@/lib/types/domain";
  */
 export interface AssistantContext {
   now: { date: string; time: string; weekday: string; timezone: string };
-  user: { name: string | null; accountabilityStyle: AccountabilityStyle };
+  user: { name: string | null };
+  /** The user's own name for their assistant and its personality (defaults applied). */
+  assistant: AssistantPersona;
   schedule: {
     wake: string | null;
     sleep: string | null;

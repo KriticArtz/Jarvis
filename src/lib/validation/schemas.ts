@@ -34,7 +34,6 @@ export const phoneSchema = z
 
 export const timezoneSchema = z.string().trim().min(1).max(64).refine(isValidTimeZone, "Unknown timezone");
 
-export const accountabilityStyle = z.enum(["gentle", "balanced", "direct"]);
 
 export const nameSchema = z.object({
   display_name: z.string().trim().min(1, "Please enter a name").max(80),

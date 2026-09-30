@@ -8,6 +8,7 @@ import { planAcceptSchema, planRequestSchema, uuid } from "@/lib/validation/sche
 import type { PlanItem } from "@/lib/types/domain";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 import { DEMO_LIMITS } from "@/lib/demo/seed";
+import { brand } from "@/config/brand";
 import { applyPlan } from "@/lib/planning/apply";
 import { errorInfo, logError } from "@/lib/observability/log";
 
@@ -27,7 +28,7 @@ export async function generatePlan(_prev: PlanActionResult, formData: FormData):
   }
   if (session.isDemo) {
     const { count } = await session.supabase.from("daily_plans").select("id", { count: "exact", head: true }).eq("user_id", session.userId);
-    if ((count ?? 0) >= DEMO_LIMITS.plans) return { ok: false, error: "You've reached the demo's planning limit. Create your own LifePilot to keep going." };
+    if ((count ?? 0) >= DEMO_LIMITS.plans) return { ok: false, error: `You've reached the demo's planning limit. Create your own ${brand.name} to keep going.` };
   }
   try {
     const result = await planDay(session.supabase, session.userId, parsed.data);

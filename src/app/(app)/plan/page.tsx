@@ -5,6 +5,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { isAIConfigured } from "@/lib/ai/client";
 import { getGoals, getLatestPlan } from "@/lib/data/queries";
 import { formatLongDate, localDate } from "@/lib/time";
+import { resolvePersonalization } from "@/lib/personalization";
 import { FormMessage } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/card";
 import { PlanBuilder } from "@/components/plan/plan-builder";
@@ -26,7 +27,7 @@ export default async function PlanPage() {
       <Link href="/dashboard" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-foreground">
         <ArrowLeft className="size-4" /> Today
       </Link>
-      <PageHeader title="Plan my day" subtitle={formatLongDate(today)} />
+      <PageHeader title="Plan my day" subtitle={`${formatLongDate(today)} · with ${resolvePersonalization(profile).assistantName}`} />
       {hasAccepted && plan?.status !== "draft" ? (
         <div className="mb-5">
           <FormMessage tone="success">

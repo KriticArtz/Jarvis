@@ -16,7 +16,15 @@ const RATINGS = [
   [5, "Great"],
 ] as const;
 
-export function CheckInCard({ kind, existing }: { kind: "morning" | "evening"; existing: { rating: number | null; content: string | null } | null }) {
+export function CheckInCard({
+  kind,
+  assistantName,
+  existing,
+}: {
+  kind: "morning" | "evening";
+  assistantName: string;
+  existing: { rating: number | null; content: string | null } | null;
+}) {
   const [state, action] = useActionState<ActionResult, FormData>(saveCheckIn, { ok: false });
   const [rating, setRating] = useState<number | null>(existing?.rating ?? null);
   const morning = kind === "morning";
@@ -24,8 +32,8 @@ export function CheckInCard({ kind, existing }: { kind: "morning" | "evening"; e
   return (
     <Card>
       <CardHeader
-        title={morning ? "Morning intention" : "Evening check-in"}
-        subtitle={morning ? "What's the #1 thing you want to accomplish today?" : "How'd today go? Your assistant uses this in your weekly review."}
+        title={morning ? "Morning intention" : "Day review"}
+        subtitle={morning ? `What's the #1 thing you want to accomplish today? ${assistantName} will make it your focus.` : `How'd today go? ${assistantName} uses this in your weekly review.`}
       />
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="kind" value={kind} />

@@ -57,6 +57,126 @@
   }
 }
 
+/*
+ * Themes (user preference, stored on the profile). A theme only overrides
+ * design tokens — every component reads the same variables, so adding a theme
+ * is one block here plus an entry in src/lib/personalization.ts.
+ * "ocean" is the default and uses the :root tokens above. "midnight" is
+ * always dark and "warm" always light; the others follow the OS setting.
+ * Applied with data-theme on <html> and on the app shell.
+ */
+[data-theme="violet"] {
+  --accent: #6d4ae8;
+  --accent-hover: #5b39d6;
+  --accent-foreground: #ffffff;
+  --accent-soft: #f0ecfe;
+  --grad-from: #a26bff;
+  --grad-to: #6a4cf5;
+  --ring: rgba(109, 74, 232, 0.28);
+}
+[data-theme="rose"] {
+  --accent: #d6336c;
+  --accent-hover: #bd2a5d;
+  --accent-foreground: #ffffff;
+  --accent-soft: #fdecf2;
+  --grad-from: #ff7aa2;
+  --grad-to: #e0457b;
+  --ring: rgba(214, 51, 108, 0.26);
+}
+[data-theme="emerald"] {
+  --accent: #0b7d56;
+  --accent-hover: #086946;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e5f5ee;
+  --grad-from: #34d399;
+  --grad-to: #0e9f6e;
+  --ring: rgba(11, 125, 86, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="violet"] {
+    --accent: #a58bff;
+    --accent-hover: #bca8ff;
+    --accent-foreground: #170c3a;
+    --accent-soft: #211a3d;
+    --grad-from: #b48cff;
+    --grad-to: #7c6bff;
+    --ring: rgba(165, 139, 255, 0.35);
+  }
+  [data-theme="rose"] {
+    --accent: #ff7aa2;
+    --accent-hover: #ff9ab8;
+    --accent-foreground: #3a0a1c;
+    --accent-soft: #3a1624;
+    --grad-from: #ff8fb1;
+    --grad-to: #ff5c8a;
+    --ring: rgba(255, 122, 162, 0.35);
+  }
+  [data-theme="emerald"] {
+    --accent: #34d399;
+    --accent-hover: #6ee7b7;
+    --accent-foreground: #04261a;
+    --accent-soft: #0f2e22;
+    --grad-from: #4ade80;
+    --grad-to: #10b981;
+    --ring: rgba(52, 211, 153, 0.35);
+  }
+}
+
+/* Always dark: deep navy with a periwinkle accent. */
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --background: #090d18;
+  --surface: #111727;
+  --surface-2: #1a2236;
+  --border: #252f47;
+  --foreground: #eef1f8;
+  --muted: #96a1b9;
+  --accent: #8199ff;
+  --accent-hover: #a0b2ff;
+  --accent-foreground: #0a1030;
+  --accent-soft: #1a2244;
+  --grad-from: #8199ff;
+  --grad-to: #4f63e6;
+  --success: #4ade80;
+  --success-soft: #11291a;
+  --warning: #fbbf24;
+  --warning-soft: #2e2410;
+  --danger: #f87171;
+  --danger-soft: #331616;
+  --ring: rgba(129, 153, 255, 0.38);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+  --hairline: rgba(255, 255, 255, 0.07);
+}
+
+/* Always light: warm paper tones with an amber accent. */
+[data-theme="warm"] {
+  color-scheme: light;
+  --background: #f7f3ec;
+  --surface: #fffdf9;
+  --surface-2: #f0e9df;
+  --border: #e6dccd;
+  --foreground: #1f1a14;
+  --muted: #74695c;
+  --accent: #b5501a;
+  --accent-hover: #9c4415;
+  --accent-foreground: #ffffff;
+  --accent-soft: #fbeee3;
+  --grad-from: #f5a524;
+  --grad-to: #e0602a;
+  --success: #1a7f45;
+  --success-soft: #e6f3e9;
+  --warning: #a35400;
+  --warning-soft: #fcefdc;
+  --danger: #bf2b2b;
+  --danger-soft: #fcebea;
+  --ring: rgba(181, 80, 26, 0.26);
+  --shadow-card: 0 1px 2px rgba(60, 40, 20, 0.05), 0 10px 30px -14px rgba(60, 40, 20, 0.12);
+  --shadow-lift: 0 2px 4px rgba(60, 40, 20, 0.06), 0 24px 48px -20px rgba(60, 40, 20, 0.2);
+  --hairline: rgba(60, 40, 20, 0.08);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -138,12 +258,34 @@ h3 {
   background: linear-gradient(135deg, var(--grad-from), var(--grad-to));
 }
 
+/* App canvas: the theme's gradient as a faint glow at the top of the page. */
+.bg-canvas {
+  background:
+    radial-gradient(90% 420px at 50% -120px, color-mix(in oklab, var(--grad-from) 13%, transparent), transparent 70%),
+    radial-gradient(60% 360px at 100% -80px, color-mix(in oklab, var(--grad-to) 9%, transparent), transparent 70%),
+    var(--background);
+  background-repeat: no-repeat;
+}
+
 /* Soft tinted wash for the assistant's card. */
 .bg-assistant {
   background:
     radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--grad-from) 14%, transparent), transparent 55%),
     radial-gradient(120% 140% at 100% 100%, color-mix(in oklab, var(--grad-to) 12%, transparent), transparent 55%),
     var(--surface);
+}
+
+/*
+ * Mobile chat: while the composer has focus (keyboard open), hide the tab bar
+ * and dock the composer to the bottom so it sits right above the keyboard.
+ */
+@media (max-width: 767px) {
+  :root[data-composer-focus] .app-bottom-nav {
+    display: none;
+  }
+  :root[data-composer-focus] .chat-composer {
+    bottom: 0;
+  }
 }
 
 .no-scrollbar {

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { brand } from "@/config/brand";
 import { requireOnboardedUser } from "@/lib/auth";
 import { isAIConfigured } from "@/lib/ai/client";
 import { getConversation, getConversations, getRecentMessages } from "@/lib/data/queries";
@@ -10,6 +9,8 @@ import { attachActions, type StoredAction } from "@/lib/assistant/history";
 import { buttonClass } from "@/components/ui/button";
 import { Chat } from "@/components/assistant/chat";
 import { cn } from "@/lib/cn";
+import { PERSONALITY_OPTIONS, resolvePersonalization } from "@/lib/personalization";
+import { AssistantAvatar } from "@/components/app/assistant-avatar";
 
 export const metadata: Metadata = { title: "Assistant" };
 
@@ -17,6 +18,10 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
   const { supabase, userId, profile } = await requireOnboardedUser();
   const params = await searchParams;
   const requested = typeof params.c === "string" && uuid.safeParse(params.c).success ? params.c : null;
+  // A question typed on the Today screen starts a new conversation.
+  const prompt = !requested && typeof params.q === "string" ? params.q.trim().slice(0, 4000) || null : null;
+  const { assistantName, personality } = resolvePersonalization(profile);
+  const personalityTitle = PERSONALITY_OPTIONS.find((p) => p.value === personality)?.title ?? "";
 
   const [conversations, current] = await Promise.all([
     getConversations(supabase, userId, 15),
@@ -37,9 +42,14 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
   return (
     <div className="flex flex-col">
       <header className="mb-4 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[32px] font-bold leading-tight">{brand.assistantName}</h1>
-          {current?.title ? <p className="truncate text-sm text-muted">{current.channel === "sms" ? "Text message thread" : current.title}</p> : null}
+        <div className="flex min-w-0 items-center gap-3">
+          <AssistantAvatar name={assistantName} className="size-11 text-[18px]" />
+          <div className="min-w-0">
+            <h1 className="truncate text-[28px] font-bold leading-tight">{assistantName}</h1>
+            <p className="truncate text-sm text-muted">
+              {current?.title ? (current.channel === "sms" ? "Text message thread" : current.title) : `${personalityTitle} · your accountability assistant`}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {conversations.length ? (
@@ -57,7 +67,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
             </details>
           ) : null}
           <Link href="/assistant" className={buttonClass("secondary", "sm")} aria-label="New conversation">
-            <Plus className="size-4" /> New
+            <Plus className="size-4" aria-hidden /> New
           </Link>
         </div>
       </header>
@@ -67,6 +77,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
         initialMessages={messages.map((m) => ({ id: m.id, role: m.role, content: m.content, actions: actionsByMessage.get(m.id) }))}
         name={profile.display_name}
         aiConfigured={isAIConfigured()}
+        initialPrompt={prompt}
       />
     </div>
   );

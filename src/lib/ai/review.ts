@@ -1,7 +1,7 @@
 import "server-only";
 import type { WeeklyStats } from "@/lib/review/stats";
 import { ruleBasedSummary } from "@/lib/review/stats";
-import type { AccountabilityStyle } from "@/lib/types/domain";
+import type { AssistantPersona } from "@/lib/personalization";
 import { completeReply } from "./chat";
 import { getAI } from "./client";
 import { assistantSystemPrompt } from "./prompts";
@@ -12,7 +12,7 @@ import { assistantSystemPrompt } from "./prompts";
  */
 export async function summarizeWeek(
   stats: WeeklyStats,
-  style: AccountabilityStyle,
+  persona: AssistantPersona,
   name: string | null,
   userId: string,
 ): Promise<{ summary: string; source: "ai" | "rules" }> {
@@ -20,7 +20,7 @@ export async function summarizeWeek(
 
   const summary = await completeReply(
     [
-      { role: "system", content: assistantSystemPrompt(style, "app") },
+      { role: "system", content: assistantSystemPrompt(persona, "app") },
       {
         role: "user",
         content: `Write ${name ? `${name}'s` : "my"} weekly review from these computed statistics (JSON). Rules:

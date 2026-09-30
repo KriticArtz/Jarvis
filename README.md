@@ -1,6 +1,6 @@
-# LifePilot
+# Jarvis
 
-A personal AI accountability assistant: it knows your goals, helps you plan your time, and keeps you accountable. ("LifePilot" is a working name; see [Rebranding](#rebranding).)
+A personal AI accountability assistant: it knows your goals, helps you plan your time, and keeps you accountable. (Formerly "LifePilot" — some technical identifiers such as the npm package name and the local Supabase `project_id` keep that name. Each user can also give their own assistant a personal name; see [Personalization](#personalization) and [Rebranding](#rebranding).)
 
 Built with Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Supabase (Auth + Postgres with Row Level Security) and the OpenAI API. It deploys to Vercel. The SMS architecture is designed for Twilio.
 
@@ -46,7 +46,7 @@ Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the b
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Apply the schema, using either option:
-   - **SQL editor:** paste and run [`supabase/migrations/20260928000000_initial_schema.sql`](supabase/migrations/20260928000000_initial_schema.sql).
+   - **SQL editor:** paste and run each file in [`supabase/migrations/`](supabase/migrations) in filename order (initial schema, production safety, assistant actions, personalization).
    - **CLI:** `npx supabase link --project-ref <ref>` then `npx supabase db push`.
 3. **Auth → URL Configuration:**
    - Site URL: `http://localhost:3000` (and your production URL later).
@@ -60,7 +60,7 @@ Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the b
 
 | Table | Purpose |
 | --- | --- |
-| `profiles` | Name, phone, **timezone**, wake/sleep, work/school hours, accountability style, onboarding state. Created automatically on signup. |
+| `profiles` | Name, phone, **timezone**, wake/sleep, work/school hours, assistant name / personality / theme (null = default), onboarding state. Created automatically on signup. |
 | `recurring_commitments` | Fixed blocks the planner must never schedule over. |
 | `goals` | Recurring ("4×/week") and one-time ("save $300") goals, with priority, rank and status. |
 | `goal_progress` | Append-only progress log (manual, from completed tasks, and later from SMS). |
@@ -121,7 +121,7 @@ npm run db:verify
 
 - **Landing page** with the requested messaging and a "How it works" section.
 - **Auth:** sign up, log in, log out, forgot/reset password, and the email confirmation callback. The proxy (`src/proxy.ts`, Next 16's replacement for middleware) refreshes sessions and redirects signed-out users to `/login`. The authenticated layout sends users to `/onboarding` until it's finished. Redirects after login are restricted to same-site paths.
-- **Onboarding (6 steps):** name (timezone auto-detected), multiple goals (with example templates, any category), schedule (every field skippable) plus recurring commitments, goal ranking, accountability style, and phone number with explicit, unchecked-by-default SMS consent (skippable). Progress is saved per step, so users can resume.
+- **Onboarding (6 steps):** name (timezone auto-detected), multiple goals (with example templates, any category), schedule (every field skippable) plus recurring commitments, goal ranking, **"Your AI"** (name your assistant + pick its personality), and phone number with explicit, unchecked-by-default SMS consent (skippable). Progress is saved per step, so users can resume.
 - **Goals:** create, edit, pause/resume, archive, complete and delete. Recurring goals are per day/week/month, one-time goals can have a due date, and each goal has a priority, a ranking, free-form units, progress history and manual logging. Completing a task linked to a goal logs progress automatically: minutes/hours use the task duration and "times" counts one; other units such as dollars are logged manually.
 - **Dashboard:** greeting in the user's timezone, date, priorities, other tasks (check off, skip, delete, add), goal progress bars with pace ("behind", "on track"), the day's AI insight (loaded after the page renders and cached per day), a morning/evening check-in, and prominent "Chat with Assistant" and "Plan my day" buttons.
 - **AI assistant:** streaming chat with saved conversations and history. Each call receives:
@@ -131,7 +131,7 @@ npm run db:verify
   The full history is never sent. The system prompt states exactly what the assistant can and cannot do. Requests are rate-limited per user.
 - **Daily planning:** computes free windows from wake/sleep, work hours, commitments and already-timed tasks, and never plans in the past. If waking hours are unknown and the user gives no availability, it asks instead of inventing a schedule. The AI returns structured JSON, which the code then validates: items that overlap a commitment, fall outside free time, overlap each other, exceed available time, or reference goals/tasks the user doesn't own are dropped with a visible explanation. Users can edit, add, remove, accept or discard the plan. Accepting creates tasks (or schedules existing ones).
 - **Weekly review:** stats computed only from stored rows — completed, missed (a past day left undone), skipped and still-open tasks, priorities, per-goal amount vs. target, habit consistency, and completion by time of day. The AI summary receives only those numbers and is told not to add any. You can browse previous weeks.
-- **Settings:** profile and timezone, schedule and commitments, accountability style, phone/SMS consent, message schedule and quiet hours, a test message, a log of recent messages, "things to remember", and log out.
+- **Settings:** **Your AI** (assistant name, personality, theme), profile and timezone, schedule and commitments, phone/SMS consent, message schedule and quiet hours, a test message, a log of recent messages, "things to remember", and log out.
 - **SMS architecture**, described in the next section.
 
 ### Demo / test modes (when credentials are missing)
@@ -141,6 +141,14 @@ npm run db:verify
 | `OPENAI_API_KEY` | Chat says clearly that AI isn't configured and only reflects your stored data. Plans come from a deterministic rule-based planner (ranked goals into free windows, ≤70% of free time). Insights and weekly summaries are generated from the numbers without AI. All of these are labelled in the UI. |
 | Twilio credentials (or `SMS_MODE=test`) | Messages go through the same pipeline but are stored with status `test` and **never sent**. Settings shows them as "test — not sent". |
 | `SUPABASE_SERVICE_ROLE_KEY` | Core app works. Sending, recording messages, cron dispatch and the SMS webhook are unavailable, and the UI says so. |
+
+## Personalization
+
+Each user names their own assistant (e.g. "Nova") and picks how it talks — **Supportive, Direct, Motivational, Tough Love or Professional** — plus one of six themes (**Ocean** default, Midnight, Violet, Rose, Emerald, Warm Light). The product keeps its own name (`brand.name`); the assistant's name is per user.
+
+- Stored on `profiles` (`assistant_name`, `assistant_personality`, `theme`; migration `20261003000000_personalization.sql`). Null means "use the default", so existing and demo users need nothing. The older `accountability_style` column is still read as a fallback (gentle/balanced → Supportive, direct → Direct).
+- Read everywhere through `resolvePersonalization()` / `personaFrom()` in `src/lib/personalization.ts`, which validates values and applies defaults. The persona is part of the AI context, so it reaches chat, SMS replies, planning, the daily note and weekly reviews; scheduled texts use it too. Personality only sets tone — the system prompt states it never overrides truthfulness, safety or the action rules.
+- Themes only override CSS tokens (`[data-theme=…]` blocks in `globals.css`). To add one: a token block there, plus an entry in `THEMES` / `THEME_OPTIONS` and the DB check constraint.
 
 ## Assistant actions (tools)
 
@@ -181,7 +189,7 @@ The assistant can make changes in chat and by SMS, through an explicit list of s
 
 ## Shareable demo mode (`/demo`)
 
-Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own LifePilot**, which ends the demo session and opens signup.
+Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own Jarvis**, which ends the demo session and opens signup.
 
 **How isolation works**
 - Each demo visitor becomes a separate **Supabase anonymous user**. This is a real `auth.users` row with `is_anonymous = true` in its JWT, and no email or password.
@@ -220,11 +228,11 @@ Twilio can't reach `localhost`, so expose your local app through a temporary HTT
 4. Add `TWILIO_WEBHOOK_BASE_URL=https://<id>.ngrok-free.app` to `.env.local` and restart the app. The browser can stay on `http://localhost:3000`.
 5. In the Twilio Console, open **Phone Numbers → Manage → Active numbers → (your number) → Messaging configuration**. Under "A message comes in", choose **Webhook**, enter `https://<id>.ngrok-free.app/api/sms/inbound`, set the method to **HTTP POST**, and click Save.
 6. In the app, go to **Settings → Text message check-ins**. Enter **your** mobile number, check the consent box and save; you'll receive the confirmation text.
-7. Text your Twilio number: "What should I focus on tonight?" LifePilot replies within a few seconds, using your goals and schedule.
+7. Text your Twilio number: "What should I focus on tonight?" The assistant replies within a few seconds, using your goals and schedule.
 8. For the accountability exchange:
    - Add a task with a time (e.g. "Workout" at 7:00 PM).
    - Tap **Settings → Send a check-in now**. You'll get "You planned "Workout" at 7:00 PM. Still happening?"
-   - Reply "Can't tonight, work ran late." LifePilot acknowledges it and proposes a new time.
+   - Reply "Can't tonight, work ran late." The assistant acknowledges it and proposes a new time.
 9. Every text also appears in the app under **Assistant → History → Text messages**.
 
 **Rehearse without a phone:** `node scripts/simulate-inbound-sms.mjs "+1YOURNUMBER" "What should I focus on tonight?"` sends a correctly signed fake webhook to `http://localhost:3000/api/sms/inbound`. With `SMS_MODE=live`, the AI reply goes to your real phone.
@@ -294,6 +302,7 @@ supabase/tests/        local RLS verification
 ## Rebranding
 
 - Name, tagline and copy: `src/config/brand.ts`
-- Colors: CSS tokens at the top of `src/app/globals.css` (`--accent` etc., light and dark)
+- Colors: CSS tokens at the top of `src/app/globals.css` (`--accent` etc., light and dark); per-user themes are the `[data-theme]` blocks below them
+- Default assistant name (for users who haven't chosen one): `brand.assistantName`
 - Logo mark: `src/components/logo.tsx` and `src/app/icon.svg`
 - Consent text: `src/lib/notifications/consent.ts` (it uses the brand name)

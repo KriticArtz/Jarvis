@@ -1,5 +1,6 @@
 "use client";
 
+import { usePersonalization } from "@/components/app/personalization";
 import { useActionState, useState } from "react";
 import type { Goal } from "@/lib/types/domain";
 import type { ActionResult } from "@/lib/actions/result";
@@ -52,6 +53,7 @@ export function GoalForm({
   showTemplates?: boolean;
   onSaved?: () => void;
 }) {
+  const { assistantName } = usePersonalization();
   const [values, setValues] = useState<Values>(() => toValues(goal));
   const isPreset = (unit: string) => UNIT_OPTIONS.some((u) => u.value === unit);
   const [customUnit, setCustomUnit] = useState(() => !isPreset(toValues(goal).target_unit));
@@ -184,7 +186,7 @@ export function GoalForm({
         </Field>
       ) : null}
 
-      <Field label="Why it matters / notes" htmlFor="description" hint="Optional — your assistant uses this for context.">
+      <Field label="Why it matters / notes" htmlFor="description" hint={`Optional — ${assistantName} uses this for context.`}>
         <Textarea id="description" name="description" value={values.description} onChange={(e) => set("description", e.target.value)} maxLength={1000} rows={2} />
       </Field>
 

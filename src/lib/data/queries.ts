@@ -139,3 +139,31 @@ export async function getRecentMessages(db: DB, userId: string, conversationId: 
     .limit(limit);
   return (unwrap(res, "messages") as ConversationMessage[]).reverse();
 }
+
+export interface AssistantActivity {
+  /** Changes the assistant made in the last day, newest first. */
+  recent: { id: string; summary: string | null; created_at: string }[];
+  /** Proposals still waiting for the user's OK (not yet expired). */
+  pending: { id: string; summary: string | null; conversationId: string | null }[];
+}
+
+/** Recent assistant actions for the Today screen (from the assistant_actions log). */
+export async function getAssistantActivity(db: DB, userId: string, now: Date = new Date()): Promise<AssistantActivity> {
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await db
+    .from("assistant_actions")
+    .select("id, conversation_id, status, summary, created_at, expires_at")
+    .eq("user_id", userId)
+    .in("status", ["succeeded", "pending_confirmation"])
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const rows = (data ?? []) as { id: string; conversation_id: string | null; status: string; summary: string | null; created_at: string; expires_at: string | null }[];
+  const nowIso = now.toISOString();
+  return {
+    recent: rows.filter((r) => r.status === "succeeded" && r.summary).map((r) => ({ id: r.id, summary: r.summary, created_at: r.created_at })),
+    pending: rows
+      .filter((r) => r.status === "pending_confirmation" && (!r.expires_at || r.expires_at > nowIso))
+      .map((r) => ({ id: r.id, summary: r.summary, conversationId: r.conversation_id })),
+  };
+}

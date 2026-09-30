@@ -20,7 +20,7 @@ export function renderContext(ctx: AssistantContext): string {
   out.push(`## Now\n${ctx.now.weekday}, ${ctx.now.date}, ${formatTime12(ctx.now.time)} (${ctx.now.timezone})`);
 
   out.push(
-    `## User\nName: ${ctx.user.name ?? "unknown"}\nAccountability style: ${ctx.user.accountabilityStyle}`,
+    `## User\nName: ${ctx.user.name ?? "unknown"}\nTheir assistant (you): ${ctx.assistant.name}, personality: ${ctx.assistant.personality.replace("_", " ")}`,
   );
 
   const s = ctx.schedule;

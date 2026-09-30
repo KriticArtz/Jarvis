@@ -1,4 +1,5 @@
 import "server-only";
+import { personaFrom } from "@/lib/personalization";
 import type { DB } from "@/lib/data/db";
 import {
   getCheckIns,
@@ -80,7 +81,8 @@ export async function loadAssistantContext(
 
   const context: AssistantContext = {
     now: { date: today, time: minutesToTime(localMinutesNow(tz, now)), weekday: WEEKDAY_NAMES[weekday], timezone: tz },
-    user: { name: profile.display_name, accountabilityStyle: profile.accountability_style },
+    user: { name: profile.display_name },
+    assistant: personaFrom(profile),
     schedule: {
       wake: profile.wake_time,
       sleep: profile.sleep_time,

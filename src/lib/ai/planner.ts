@@ -164,7 +164,7 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
 
     return completeJSON<AIPlanResponse>(
       [
-        { role: "system", content: assistantSystemPrompt(profile.accountability_style, "app") },
+        { role: "system", content: assistantSystemPrompt(context.assistant, "app") },
         { role: "system", content: `# User context\n\n${renderContext(context)}` },
         {
           role: "user",

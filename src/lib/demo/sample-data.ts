@@ -46,6 +46,11 @@ export const DEMO_PROFILE = {
   work_days: [1, 2, 3, 4, 5],
   work_label: "Work",
   accountability_style: "balanced" as const,
+  // Demo accounts start with (and reset to) the default assistant name,
+  // personality and theme.
+  assistant_name: null,
+  assistant_personality: null,
+  theme: null,
 };
 
 export const DEMO_COMMITMENTS = [

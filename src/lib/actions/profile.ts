@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import {
-  accountabilityStyle,
   commitmentSchema,
   fieldErrors,
   nameSchema,
@@ -12,6 +11,7 @@ import {
   timezoneSchema,
   uuid,
 } from "@/lib/validation/schemas";
+import { updatePersonalization } from "@/lib/data/personalization";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 
 const MAX_STEP = 6;
@@ -89,14 +89,22 @@ export async function deleteCommitment(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function saveAccountabilityStyle(style: string, onboarding = false): Promise<ActionResult> {
+/**
+ * Save any of: assistant name, personality, theme. Only provided fields
+ * change. In onboarding this is the "Your AI" step (step 5).
+ */
+export async function savePersonalization(
+  input: { assistant_name?: string; assistant_personality?: string; theme?: string },
+  opts: { onboarding?: boolean } = {},
+): Promise<ActionResult> {
   const session = await getSessionUser();
   if (!session) return NOT_SIGNED_IN;
-  const parsed = accountabilityStyle.safeParse(style);
-  if (!parsed.success) return GENERIC_ERROR;
-  const { error } = await session.supabase.from("profiles").update({ accountability_style: parsed.data }).eq("id", session.userId);
-  if (error) return GENERIC_ERROR;
-  if (onboarding) await setStep(6);
+  const res = await updatePersonalization(session.supabase, session.userId, input);
+  if (!res.ok) {
+    if (res.reason === "invalid") return { ok: false, fieldErrors: res.fieldErrors, error: Object.values(res.fieldErrors)[0] };
+    return GENERIC_ERROR;
+  }
+  if (opts.onboarding) await setStep(6);
   revalidatePath("/", "layout");
   return { ok: true, message: "Saved." };
 }

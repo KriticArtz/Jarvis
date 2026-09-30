@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireOnboardedUser } from "@/lib/auth";
+import { brand } from "@/config/brand";
 import { signOut } from "@/app/(auth)/actions";
 import { phoneVerificationMode, requirePhoneVerification, smsMode, supabaseServiceKey } from "@/lib/env";
 import { getCommitments, getMemories, getNotificationPreferences } from "@/lib/data/queries";
@@ -10,7 +11,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { ScheduleForm } from "@/components/schedule/schedule-form";
 import { CommitmentsEditor } from "@/components/schedule/commitments-editor";
-import { StylePicker } from "@/components/settings/style-picker";
+import { AssistantIdentityForm, ThemePicker } from "@/components/settings/your-ai";
+import { resolvePersonalization } from "@/lib/personalization";
 import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
 import { NotificationPrefsForm, SmsActions } from "@/components/settings/notification-settings";
@@ -40,6 +42,7 @@ export default async function SettingsPage() {
   const requireVerified = requirePhoneVerification();
   const verificationMode = phoneVerificationMode();
   const smsReady = canReceiveSms(profile, prefs, { requireVerified });
+  const personalization = resolvePersonalization(profile);
   const timezones = Intl.supportedValuesOf("timeZone");
   if (!timezones.includes(profile.timezone)) timezones.unshift(profile.timezone);
 
@@ -47,13 +50,21 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" />
       <div className="flex flex-col gap-5">
+        <Card id="your-ai" className="bg-assistant">
+          <CardHeader title="Your AI" subtitle="Name your assistant and choose how it talks to you. Changes apply everywhere — chat, plans, reviews and texts." />
+          <AssistantIdentityForm name={personalization.assistantName} personality={personalization.personality} />
+          <div className="mt-7 border-t border-hairline pt-6">
+            <ThemePicker current={personalization.theme} />
+          </div>
+        </Card>
+
         <Card>
           <CardHeader title="Profile" />
           <ProfileForm name={profile.display_name ?? ""} email={email ?? profile.email} timezone={profile.timezone} timezones={timezones} />
         </Card>
 
         <Card>
-          <CardHeader title="Typical schedule" subtitle="Your assistant never plans over these." />
+          <CardHeader title="Typical schedule" subtitle={`${personalization.assistantName} never plans over these.`} />
           <ScheduleForm profile={profile} />
           <div className="mt-6 border-t border-hairline pt-5">
             <h3 className="mb-3 text-sm font-semibold">Recurring commitments</h3>
@@ -61,16 +72,11 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
-          <CardHeader title="Accountability style" />
-          <StylePicker current={profile.accountability_style} />
-        </Card>
-
         {isDemo ? (
           <Card id="sms">
             <CardHeader title="Text message check-ins" action={<Badge tone="accent">Your own account</Badge>} />
             <p className="text-[15px] leading-relaxed text-muted">
-              In your own account, LifePilot texts you — a morning question, a nudge before something you planned, an evening wrap-up — and
+              In your own account, {personalization.assistantName} texts you — a morning question, a nudge before something you planned, an evening wrap-up — and
               you can reply to it like a friend. Texting is turned off in this shared demo so no messages go to real phones.
             </p>
           </Card>
@@ -129,7 +135,7 @@ export default async function SettingsPage() {
         )}
 
         <Card>
-          <CardHeader title="Things your assistant should remember" subtitle="Short facts or preferences it will always take into account." />
+          <CardHeader title={`Things ${personalization.assistantName} should remember`} subtitle="Short facts or preferences it will always take into account." />
           <MemoriesEditor memories={memories} />
         </Card>
 
@@ -155,7 +161,7 @@ export default async function SettingsPage() {
 
         {isDemo ? (
           <Card>
-            <CardHeader title="Demo" subtitle="You're exploring LifePilot with sample data." />
+            <CardHeader title="Demo" subtitle={`You're exploring ${brand.name} with sample data.`} />
             <DemoControls />
           </Card>
         ) : (

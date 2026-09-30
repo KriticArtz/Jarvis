@@ -24,7 +24,12 @@ export interface Profile {
   work_end: string | null;
   work_days: number[];
   work_label: string;
+  /** Legacy 3-option style; superseded by assistant_personality (still read as a fallback). */
   accountability_style: AccountabilityStyle;
+  /** Phase 3A personalization — null means "use the default" (see src/lib/personalization.ts). */
+  assistant_name: string | null;
+  assistant_personality: "supportive" | "direct" | "motivational" | "tough_love" | "professional" | null;
+  theme: "ocean" | "midnight" | "violet" | "rose" | "emerald" | "warm" | null;
   onboarding_step: number;
   onboarding_completed_at: string | null;
   created_at: string;

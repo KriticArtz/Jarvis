@@ -10,7 +10,7 @@
  * WEBHOOK_URL (default http://localhost:3000/api/sms/inbound). The signature is
  * computed over WEBHOOK_URL, so it must match what the server expects (by
  * default the server accepts the URL it was called on).
- * The "From" number must be the phone saved (with SMS consent) on a LifePilot account.
+ * The "From" number must be the phone saved (with SMS consent) on a Jarvis account.
  */
 import { createHmac, randomBytes } from "node:crypto";
 import fs from "node:fs";

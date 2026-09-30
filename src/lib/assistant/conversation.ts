@@ -57,13 +57,12 @@ export async function appendMessage(
  * already stored.
  */
 export async function prepareReply(db: DB, userId: string, conversation: Conversation, channel: AssistantChannel) {
-  const [{ context, profile }, history] = await Promise.all([
+  const [{ context }, history] = await Promise.all([
     loadAssistantContext(db, userId, { excludeConversationId: conversation.id }),
     getRecentMessages(db, userId, conversation.id, HISTORY_WINDOW),
   ]);
   const messages = buildChatMessages({
     context,
-    style: profile.accountability_style,
     channel,
     conversationSummary: conversation.summary,
     history,

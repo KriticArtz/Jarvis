@@ -6,6 +6,7 @@ import { loadWeeklyStats } from "@/lib/review/load";
 import { formatAmount } from "@/lib/progress";
 import { addDays, formatShortDate, localDate, weekStart } from "@/lib/time";
 import { isoDate } from "@/lib/validation/schemas";
+import { resolvePersonalization } from "@/lib/personalization";
 import type { WeeklyReviewRecord } from "@/lib/types/domain";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -60,7 +61,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           </div>
 
           <Card>
-            <CardHeader title="Summary" subtitle={review ? `Generated ${new Date(review.updated_at).toLocaleDateString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Based only on your recorded data."} />
+            <CardHeader title={`${resolvePersonalization(profile).assistantName}'s take`} subtitle={review ? `Generated ${new Date(review.updated_at).toLocaleDateString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Based only on your recorded data."} />
             {review?.summary ? <p className="mb-4 whitespace-pre-wrap leading-relaxed">{review.summary}</p> : null}
             {review?.source === "rules" ? <p className="mb-4 text-xs text-muted">Summary generated from your numbers without AI.</p> : null}
             <GenerateReviewButton week={week} hasReview={Boolean(review)} />

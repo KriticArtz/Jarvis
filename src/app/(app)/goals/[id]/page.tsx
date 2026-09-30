@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { resolvePersonalization } from "@/lib/personalization";
 import { requireOnboardedUser } from "@/lib/auth";
 import { deleteProgress } from "@/lib/actions/goals";
 import { getGoal, getProgressSince } from "@/lib/data/queries";
@@ -16,7 +17,7 @@ import { EditGoal } from "@/components/goals/edit-goal";
 
 export const metadata: Metadata = { title: "Goal" };
 
-const SOURCE_LABEL = { manual: "Logged", task: "From task", check_in: "Check-in", sms: "By text", assistant: "Assistant" } as const;
+const SOURCE_LABEL = { manual: "Logged", task: "From task", check_in: "Check-in", sms: "By text", assistant: null } as const;
 
 export default async function GoalDetailPage({ params }: PageProps<"/goals/[id]">) {
   const { id } = await params;
@@ -29,6 +30,7 @@ export default async function GoalDetailPage({ params }: PageProps<"/goals/[id]"
   const entries = await getProgressSince(supabase, userId, "1970-01-01", [goal.id]);
   const s = summarizeGoalProgress(goal, entries, today);
   const unit = goal.target_unit ?? "times";
+  const { assistantName } = resolvePersonalization(profile);
 
   return (
     <div className="flex flex-col gap-5">
@@ -66,7 +68,7 @@ export default async function GoalDetailPage({ params }: PageProps<"/goals/[id]"
                 <div className="min-w-0">
                   <p className="font-medium tabular-nums">{formatAmount(e.amount, unit)}</p>
                   <p className="truncate text-sm text-muted">
-                    {formatShortDate(e.logged_for)} · {SOURCE_LABEL[e.source]}
+                    {formatShortDate(e.logged_for)} · {SOURCE_LABEL[e.source] ?? `By ${assistantName}`}
                     {e.note ? ` · ${e.note}` : ""}
                   </p>
                 </div>

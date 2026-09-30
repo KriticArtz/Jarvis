@@ -1,4 +1,5 @@
 import "server-only";
+import { PERSONA_COLUMNS, type PersonalizationSource } from "@/lib/personalization";
 import type { DB } from "@/lib/data/db";
 import { localDate } from "@/lib/time";
 import type { NotificationPreferences, Profile, Task } from "@/lib/types/domain";
@@ -34,11 +35,11 @@ export async function runDispatch(admin: DB, now = new Date(), windowMinutes = 1
   const userIds = prefsRows.map((p) => p.user_id as string);
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, phone, phone_verified_at, timezone, display_name, accountability_style")
+    .select(`id, phone, phone_verified_at, timezone, display_name, ${PERSONA_COLUMNS}`)
     .in("id", userIds)
     .not("phone", "is", null);
   // (deliverNotification enforces REQUIRE_PHONE_VERIFICATION for each send.)
-  const byId = new Map((profiles ?? []).map((p) => [p.id as string, p as Pick<Profile, "id" | "phone" | "timezone" | "display_name" | "accountability_style">]));
+  const byId = new Map((profiles ?? []).map((p) => [p.id as string, p as Pick<Profile, "id" | "phone" | "timezone" | "display_name"> & PersonalizationSource]));
 
   for (const prefs of prefsRows as NotificationPreferences[]) {
     const profile = byId.get(prefs.user_id);

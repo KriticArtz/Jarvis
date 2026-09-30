@@ -16,7 +16,8 @@ import { GoalForm } from "@/components/goals/goal-form";
 import { GoalRanker } from "@/components/goals/goal-ranker";
 import { ScheduleForm } from "@/components/schedule/schedule-form";
 import { CommitmentsEditor } from "@/components/schedule/commitments-editor";
-import { StylePicker } from "@/components/settings/style-picker";
+import { AssistantIdentityForm } from "@/components/settings/your-ai";
+import { resolvePersonalization } from "@/lib/personalization";
 import { PhoneForm } from "@/components/settings/phone-form";
 
 const TOTAL = 6;
@@ -82,8 +83,17 @@ export function OnboardingFlow({
         </Step>
       )}
       {step === 5 && (
-        <Step title="How do you want me to hold you accountable?" subtitle="You can change this anytime in Settings.">
-          <StylePicker current={profile.accountability_style} onboarding submitLabel="Continue" onSaved={() => go(6)} />
+        <Step
+          title="What would you like to call your AI assistant?"
+          subtitle="Your assistant will use this name everywhere — in chat, your daily plan, reviews and texts. Then pick how it should talk to you. You can change both anytime in Settings."
+        >
+          <AssistantIdentityForm
+            name={profile.assistant_name ?? ""}
+            personality={resolvePersonalization(profile).personality}
+            onboarding
+            submitLabel="Continue"
+            onSaved={() => go(6)}
+          />
         </Step>
       )}
       {step === 6 && <PhoneStep phone={profile.phone} consented={smsConsented} />}

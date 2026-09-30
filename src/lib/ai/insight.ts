@@ -31,7 +31,7 @@ export function ruleInsight(ctx: AssistantContext): string {
  * Today's short dashboard insight, cached per user per day in daily_insights.
  */
 export async function getOrCreateInsight(db: DB, userId: string, opts: { refresh?: boolean } = {}) {
-  const { today, context, profile } = await loadAssistantContext(db, userId);
+  const { today, context } = await loadAssistantContext(db, userId);
 
   if (!opts.refresh) {
     const { data } = await db
@@ -48,7 +48,7 @@ export async function getOrCreateInsight(db: DB, userId: string, opts: { refresh
   if (getAI()) {
     content = await completeReply(
       [
-        { role: "system", content: assistantSystemPrompt(profile.accountability_style, "app") },
+        { role: "system", content: assistantSystemPrompt(context.assistant, "app") },
         { role: "system", content: `# User context\n\n${renderContext(context)}` },
         {
           role: "user",

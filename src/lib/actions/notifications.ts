@@ -1,5 +1,6 @@
 "use server";
 
+import { PERSONA_COLUMNS, personaFrom } from "@/lib/personalization";
 import { revalidatePath } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { smsMode } from "@/lib/env";
@@ -147,9 +148,9 @@ export async function sendCheckInNow(): Promise<ActionResult> {
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "The server isn't configured for notifications yet (missing SUPABASE_SERVICE_ROLE_KEY)." };
 
-  const { data: profile } = await session.supabase.from("profiles").select("timezone, accountability_style").eq("id", session.userId).single();
+  const { data: profile } = await session.supabase.from("profiles").select(`timezone, ${PERSONA_COLUMNS}`).eq("id", session.userId).single();
   const tz = profile?.timezone || "UTC";
-  const style = profile?.accountability_style ?? "balanced";
+  const persona = personaFrom(profile);
   const { data: tasks } = await session.supabase
     .from("tasks")
     .select("id, title, scheduled_start, status")
@@ -166,13 +167,13 @@ export async function sendCheckInNow(): Promise<ActionResult> {
     ? await deliverNotification(admin, {
         userId: session.userId,
         kind: "task_reminder",
-        body: taskReminderMessage(next.title, String(next.scheduled_start).slice(0, 5), style),
+        body: taskReminderMessage(next.title, String(next.scheduled_start).slice(0, 5), persona),
         relatedTaskId: next.id,
       })
     : await deliverNotification(admin, {
         userId: session.userId,
         kind: "evening_checkin",
-        body: eveningMessage((tasks ?? []).filter((t) => t.status === "done").length, (tasks ?? []).filter((t) => t.status !== "skipped").length, style),
+        body: eveningMessage((tasks ?? []).filter((t) => t.status === "done").length, (tasks ?? []).filter((t) => t.status !== "skipped").length, persona),
       });
   revalidatePath("/settings");
   switch (outcome.status) {
