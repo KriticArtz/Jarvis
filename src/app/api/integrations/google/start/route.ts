@@ -4,6 +4,7 @@ import { googleOAuthConfig, integrationsEncryptionKey, supabaseServiceKey } from
 import { buildAuthorizeUrl } from "@/lib/integrations/calendar/google";
 import { OAUTH_COOKIE, OAUTH_STATE_TTL_SECONDS, startOAuth } from "@/lib/integrations/oauth-state";
 import { backToSettings, googleRedirectUri, OAUTH_COOKIE_PATH } from "@/lib/integrations/google-oauth-route";
+import { logInfo } from "@/lib/observability/log";
 
 /**
  * Begin connecting Google Calendar (read-only). Requires a signed-in,
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
   if (!cfg || !key || !supabaseServiceKey()) return backToSettings(request, "not_configured");
 
   const flow = startOAuth(key, session.userId);
-  const res = NextResponse.redirect(buildAuthorizeUrl(cfg, { redirectUri: googleRedirectUri(request), state: flow.state, codeChallenge: flow.codeChallenge }));
+  const redirectUri = googleRedirectUri(request);
+  logInfo("integrations", "google oauth start", { redirectUri, requestOrigin: request.nextUrl.origin, clientIdSuffix: cfg.clientId.slice(-24) });
+  const res = NextResponse.redirect(buildAuthorizeUrl(cfg, { redirectUri, state: flow.state, codeChallenge: flow.codeChallenge }));
   res.cookies.set({
     name: OAUTH_COOKIE,
     value: flow.cookieValue,

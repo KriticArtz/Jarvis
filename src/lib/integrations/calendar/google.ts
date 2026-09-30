@@ -46,7 +46,20 @@ export interface GoogleTokens {
   scopes: string[];
 }
 
-export type TokenResult = { ok: true; tokens: GoogleTokens } | { ok: false; reason: "invalid_grant" | "error" };
+/**
+ * Why a token request failed, safe to log: HTTP status and Google's error code
+ * and description (e.g. "invalid_client", "Malformed auth code."). Never the
+ * request body, code, secret or tokens.
+ */
+export interface TokenFailureDetail {
+  httpStatus: number | null;
+  googleError: string | null;
+  googleErrorDescription: string | null;
+  missingAccess?: boolean;
+  network?: boolean;
+}
+
+export type TokenResult = { ok: true; tokens: GoogleTokens } | { ok: false; reason: "invalid_grant" | "error"; detail: TokenFailureDetail };
 
 async function tokenRequest(params: Record<string, string>, fetchImpl: Fetch, now: number): Promise<TokenResult> {
   try {
@@ -55,8 +68,26 @@ async function tokenRequest(params: Record<string, string>, fetchImpl: Fetch, no
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(params),
     });
-    const json = (await res.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; error?: string };
-    if (!res.ok || !json.access_token) return { ok: false, reason: json.error === "invalid_grant" ? "invalid_grant" : "error" };
+    const json = (await res.json().catch(() => ({}))) as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      scope?: string;
+      error?: string;
+      error_description?: string;
+    };
+    if (!res.ok || !json.access_token) {
+      return {
+        ok: false,
+        reason: json.error === "invalid_grant" ? "invalid_grant" : "error",
+        detail: {
+          httpStatus: res.status,
+          googleError: typeof json.error === "string" ? json.error.slice(0, 100) : null,
+          googleErrorDescription: typeof json.error_description === "string" ? json.error_description.slice(0, 200) : null,
+          missingAccess: res.ok && !json.access_token,
+        },
+      };
+    }
     return {
       ok: true,
       tokens: {
@@ -67,7 +98,7 @@ async function tokenRequest(params: Record<string, string>, fetchImpl: Fetch, no
       },
     };
   } catch {
-    return { ok: false, reason: "error" };
+    return { ok: false, reason: "error", detail: { httpStatus: null, googleError: null, googleErrorDescription: null, network: true } };
   }
 }
 

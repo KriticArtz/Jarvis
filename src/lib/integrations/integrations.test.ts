@@ -294,3 +294,32 @@ describe("before the integrations migration is applied", () => {
     expect(await loadFitnessSummary(missingTables(), "u", { tz: "UTC", today: "2026-10-01", days: 7 })).toBeNull();
   });
 });
+
+describe("token exchange failure details (for logs)", () => {
+  const cfg = { clientId: "cid.apps.googleusercontent.com", clientSecret: "SUPER-SECRET-VALUE" };
+
+  it("reports Google's status and error without the code, verifier, secret or tokens", async () => {
+    const { exchangeCode } = await import("./calendar/google");
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ error: "invalid_client", error_description: "Unauthorized" }), { status: 401 })) as unknown as typeof fetch;
+    const res = await exchangeCode(cfg, { code: "4/AUTH-CODE", codeVerifier: "VERIFIER-XYZ", redirectUri: "https://app.test/cb" }, fetchImpl);
+    expect(res).toEqual({ ok: false, reason: "error", detail: { httpStatus: 401, googleError: "invalid_client", googleErrorDescription: "Unauthorized", missingAccess: false } });
+    expect(JSON.stringify(res)).not.toMatch(/SUPER-SECRET|AUTH-CODE|VERIFIER-XYZ/);
+
+    const invalidGrant = (async () => new Response(JSON.stringify({ error: "invalid_grant", error_description: "Bad Request" }), { status: 400 })) as unknown as typeof fetch;
+    expect(await exchangeCode(cfg, { code: "c", codeVerifier: "v", redirectUri: "r" }, invalidGrant)).toMatchObject({ reason: "invalid_grant", detail: { httpStatus: 400, googleError: "invalid_grant" } });
+
+    const down = (async () => {
+      throw new Error("ECONNRESET");
+    }) as unknown as typeof fetch;
+    expect(await exchangeCode(cfg, { code: "c", codeVerifier: "v", redirectUri: "r" }, down)).toMatchObject({ reason: "error", detail: { network: true } });
+  });
+
+  it("log sanitizing keeps these fields readable (none of their keys look like secrets)", async () => {
+    const { log } = await import("@/lib/observability/log");
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const entry = log("error", "integrations", "google oauth callback", { step: "token_exchange", httpStatus: 401, googleError: "invalid_client", hasRefresh: false, redirectUri: "https://app.test/cb" });
+    expect(entry.context).toMatchObject({ httpStatus: 401, googleError: "invalid_client", hasRefresh: false, redirectUri: "https://app.test/cb" });
+    spy.mockRestore();
+  });
+});

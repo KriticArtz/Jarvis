@@ -2,7 +2,7 @@ import "server-only";
 import { googleOAuthConfig, integrationsEncryptionKey, type GoogleOAuthConfig } from "@/lib/env";
 import type { DB } from "@/lib/data/db";
 import { addDays, localDate, zonedTimeToUtc } from "@/lib/time";
-import { logError, logInfo } from "@/lib/observability/log";
+import { logError, logInfo, logWarn } from "@/lib/observability/log";
 import { seal, unseal } from "../crypto";
 import { GOOGLE_CALENDAR_SCOPE, listEvents, refreshAccessToken, revokeToken, type GoogleTokens } from "./google";
 import { CALENDAR_SYNC_DAYS } from "./types";
@@ -37,7 +37,16 @@ function resolve(deps: IntegrationDeps) {
   };
 }
 
-export type ConnectOutcome = { ok: true } | { ok: false; reason: "not_configured" | "scope_denied" | "no_refresh_token" | "error" };
+/** Where saving failed, safe to log (Supabase error code/message only — never row values). */
+export interface ConnectFailureDetail {
+  failedAt: "connection_upsert" | "credentials_upsert";
+  code: string | null;
+  message: string | null;
+}
+
+export type ConnectOutcome =
+  | { ok: true }
+  | { ok: false; reason: "not_configured" | "scope_denied" | "no_refresh_token" | "error"; detail?: ConnectFailureDetail };
 
 /** Store a fresh OAuth grant (after the callback verified state + PKCE). */
 export async function saveGoogleConnection(admin: DB, userId: string, tokens: GoogleTokens, deps: IntegrationDeps = {}): Promise<ConnectOutcome> {
@@ -54,7 +63,9 @@ export async function saveGoogleConnection(admin: DB, userId: string, tokens: Go
     )
     .select("id")
     .single();
-  if (error || !conn) return { ok: false, reason: "error" };
+  if (error || !conn) {
+    return { ok: false, reason: "error", detail: { failedAt: "connection_upsert", code: error?.code ?? null, message: error?.message?.slice(0, 200) ?? "no row returned" } };
+  }
   const { error: credError } = await admin.from("integration_credentials").upsert(
     {
       connection_id: conn.id,
@@ -65,7 +76,9 @@ export async function saveGoogleConnection(admin: DB, userId: string, tokens: Go
     },
     { onConflict: "connection_id" },
   );
-  if (credError) return { ok: false, reason: "error" };
+  if (credError) {
+    return { ok: false, reason: "error", detail: { failedAt: "credentials_upsert", code: credError.code ?? null, message: credError.message?.slice(0, 200) ?? null } };
+  }
   logInfo("integrations", "google calendar connected", { userId });
   return { ok: true };
 }
@@ -99,7 +112,10 @@ async function accessToken(admin: DB, userId: string, connectionId: string, r: R
   const refresh = unseal(r.key, purpose("refresh", userId), cred.refresh_token_enc as string | null);
   if (!refresh) return { ok: false, reason: "reauth_required" };
   const refreshed = await refreshAccessToken(r.config, refresh, r.fetch, r.now.getTime());
-  if (!refreshed.ok) return { ok: false, reason: refreshed.reason === "invalid_grant" ? "reauth_required" : "error" };
+  if (!refreshed.ok) {
+    logWarn("integrations", "google access refresh failed", { userId, reason: refreshed.reason, ...refreshed.detail });
+    return { ok: false, reason: refreshed.reason === "invalid_grant" ? "reauth_required" : "error" };
+  }
   await admin
     .from("integration_credentials")
     .update({
@@ -148,6 +164,7 @@ export async function syncGoogleCalendar(admin: DB, userId: string, deps: Integr
     }
   }
   if (!list.ok) {
+    logWarn("integrations", "google calendar list failed", { userId, reason: list.reason });
     await admin.from("integration_connections").update({ last_error: "sync_failed" }).eq("id", conn.id);
     return { ok: false, reason: "error" };
   }
