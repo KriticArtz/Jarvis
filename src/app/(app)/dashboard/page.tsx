@@ -19,6 +19,10 @@ import { GoalTile } from "@/components/dashboard/goal-tile";
 import { CheckInCard } from "@/components/dashboard/check-in-card";
 import { RecentActions } from "@/components/dashboard/recent-actions";
 import { cn } from "@/lib/cn";
+import { after } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { loadCalendar } from "@/lib/integrations/calendar/context";
+import { syncIfStale } from "@/lib/integrations/calendar/sync";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -33,7 +37,7 @@ export default async function DashboardPage() {
   const part = dayPart(tz);
   const nowMinutes = localMinutesNow(tz);
 
-  const [tasks, goals, progress, checkIns, plan, prefs, activity] = await Promise.all([
+  const [tasks, goals, progress, checkIns, plan, prefs, activity, calendar] = await Promise.all([
     getTasksForDate(supabase, userId, today),
     getGoals(supabase, userId, ["active"]),
     getProgressSince(supabase, userId, [monthStart(today), weekStart(today), addDays(today, -1)].sort()[0]),
@@ -41,7 +45,17 @@ export default async function DashboardPage() {
     getLatestPlan(supabase, userId, today),
     getNotificationPreferences(supabase, userId),
     getAssistantActivity(supabase, userId),
+    loadCalendar(supabase, userId, { tz, from: today, days: 1 }),
   ]);
+  const todaysEvents = calendar?.days[0]?.events ?? [];
+
+  // Keep a connected calendar fresh without making the page wait on Google.
+  if (!isDemo) {
+    after(async () => {
+      const admin = createAdminClient();
+      if (admin) await syncIfStale(admin, userId, 60).catch(() => {});
+    });
+  }
 
   const goalTitle = new Map(goals.map((g) => [g.id, g.title]));
   const rows = tasks.map((t) => ({ ...t, goalTitle: t.goal_id ? (goalTitle.get(t.goal_id) ?? null) : null }));
@@ -125,6 +139,28 @@ export default async function DashboardPage() {
           }
         />
         <div className="rounded-[28px] bg-surface px-5 shadow-card">
+          {calendar ? (
+            <div className="border-b border-hairline py-4">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">On your calendar</p>
+              {todaysEvents.length ? (
+                <ul className="mt-2 flex flex-col gap-1.5" aria-label="Today's calendar events">
+                  {todaysEvents.map((e, i) => (
+                    <li key={`${e.title}-${e.start}-${i}`} className="flex items-baseline gap-3 text-[15px]">
+                      <span className="w-[5.5rem] shrink-0 text-[13px] font-medium tabular-nums text-muted">
+                        {e.allDay ? "All day" : formatTime12(e.start)}
+                      </span>
+                      <span className={cn("min-w-0 flex-1 truncate", !e.busy && "text-muted")}>
+                        {e.title}
+                        {e.tentative ? <span className="text-muted"> · tentative</span> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1.5 text-[14px] text-muted">Nothing on your calendar today.</p>
+              )}
+            </div>
+          ) : null}
           {rows.length === 0 ? (
             <div className="py-5">
               <EmptyState

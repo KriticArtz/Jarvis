@@ -1,4 +1,5 @@
 import "server-only";
+import { busyEventsForDay } from "@/lib/integrations/calendar/local";
 import type { DB } from "@/lib/data/db";
 import { getCommitments, getProgressSince } from "@/lib/data/queries";
 import { busyBlocks, dayBounds, describeBlocks, freeWindows, totalMinutes, type Block } from "@/lib/planning/availability";
@@ -98,7 +99,8 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
   }
 
   const pending = todayTasks.filter((t) => t.status === "pending");
-  const busy = busyBlocks(today, profile, commitments, req.reflow ? [] : pending.filter((t) => t.scheduled_start));
+  // Calendar events are fixed constraints: never planned over (read-only).
+  const busy = busyBlocks(today, profile, commitments, req.reflow ? [] : pending.filter((t) => t.scheduled_start), busyEventsForDay(context.calendar?.days[0]));
   const windows = freeWindows(bounds.start, bounds.end, busy);
   if (windows.length === 0 || totalMinutes(windows) < 20) {
     return {

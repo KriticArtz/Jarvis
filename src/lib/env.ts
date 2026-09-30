@@ -120,3 +120,32 @@ export function cronSecret(): string | undefined {
 export function appUrl(): string | undefined {
   return read("NEXT_PUBLIC_APP_URL")?.replace(/\/$/, "");
 }
+
+export interface GoogleOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+}
+
+/** Google OAuth client (Google Cloud Console → Credentials → OAuth client ID, type "Web application"). */
+export function googleOAuthConfig(): GoogleOAuthConfig | null {
+  const clientId = read("GOOGLE_CLIENT_ID");
+  const clientSecret = read("GOOGLE_CLIENT_SECRET");
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+/**
+ * 32-byte key (base64 or hex) used to encrypt OAuth tokens and OAuth state
+ * with AES-256-GCM. Generate with `openssl rand -base64 32`. Server-only.
+ * Rotating it invalidates stored tokens (users reconnect).
+ */
+export function integrationsEncryptionKey(): Buffer | null {
+  const raw = read("INTEGRATIONS_ENCRYPTION_KEY");
+  if (!raw) return null;
+  const key = /^[0-9a-f]{64}$/i.test(raw) ? Buffer.from(raw, "hex") : Buffer.from(raw, "base64");
+  return key.length === 32 ? key : null;
+}
+
+/** Override for all Google endpoints. Only for automated tests against a mock server. */
+export function googleTestBaseUrl(): string | undefined {
+  return read("GOOGLE_API_TEST_BASE_URL")?.replace(/\/$/, "");
+}

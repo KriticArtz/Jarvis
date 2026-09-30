@@ -13,6 +13,9 @@ import { ScheduleForm } from "@/components/schedule/schedule-form";
 import { CommitmentsEditor } from "@/components/schedule/commitments-editor";
 import { AssistantIdentityForm } from "@/components/settings/your-ai";
 import { AppearanceSettings } from "@/components/settings/appearance";
+import { IntegrationsSettings, type FitnessState } from "@/components/settings/integrations";
+import { getConnections } from "@/lib/integrations/connections";
+import { googleOAuthConfig, integrationsEncryptionKey } from "@/lib/env";
 import { resolvePersonalization } from "@/lib/personalization";
 import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
@@ -30,14 +33,24 @@ const MODE_COPY = {
   disabled: { label: "Off", tone: "neutral", body: "Text messaging is disabled on this server." },
 } as const;
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const { supabase, userId, email, profile, isDemo } = await requireOnboardedUser();
-  const [commitments, prefs, memories, notifications] = await Promise.all([
+  const [commitments, prefs, memories, notifications, connections, upcomingEvents, params] = await Promise.all([
     getCommitments(supabase, userId),
     getNotificationPreferences(supabase, userId),
     getMemories(supabase, userId, 50),
     supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+    getConnections(supabase, userId),
+    supabase.from("calendar_events").select("id", { count: "exact", head: true }).eq("user_id", userId).neq("status", "cancelled").gte("ends_at", new Date().toISOString()),
+    searchParams,
   ]);
+  const syncedLabel = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
+  const google = connections.find((c) => c.provider === "google_calendar");
+  const fitness: FitnessState[] = (["apple_health", "health_connect"] as const).map((provider) => {
+    const c = connections.find((x) => x.provider === provider);
+    return { provider, connected: c?.status === "connected", lastSynced: syncedLabel(c?.lastSyncedAt ?? null) };
+  });
   const mode = smsMode();
   const modeCopy = MODE_COPY[mode];
   const requireVerified = requirePhoneVerification();
@@ -59,6 +72,21 @@ export default async function SettingsPage() {
         <Card id="appearance">
           <CardHeader title="Appearance" subtitle="Mode and color theme are independent — mix and match." />
           <AppearanceSettings theme={personalization.theme} appearance={personalization.appearance} />
+        </Card>
+
+        <Card id="integrations">
+          <CardHeader title="Integrations" subtitle="Connect your calendar and, with the mobile apps, your fitness data. Everything is private to you and can be disconnected anytime." />
+          <IntegrationsSettings
+            isDemo={isDemo}
+            flash={typeof params.calendar === "string" ? params.calendar : null}
+            calendar={{
+              configured: Boolean(googleOAuthConfig() && integrationsEncryptionKey() && supabaseServiceKey()),
+              status: google ? (google.status === "connected" ? "connected" : "error") : "not_connected",
+              lastSynced: syncedLabel(google?.lastSyncedAt ?? null),
+              upcoming: upcomingEvents.count ?? 0,
+            }}
+            fitness={fitness}
+          />
         </Card>
 
         <Card>

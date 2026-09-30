@@ -20,6 +20,8 @@ export function busyBlocks(
   profile: Pick<Profile, "work_start" | "work_end" | "work_days" | "work_label">,
   commitments: Pick<RecurringCommitment, "title" | "days_of_week" | "start_time" | "end_time">[],
   tasks: Pick<Task, "title" | "scheduled_start" | "duration_minutes" | "status">[],
+  /** Timed, busy calendar events on this day ("HH:MM", end may be "24:00"). */
+  events: { title: string; start: string; end: string }[] = [],
 ): Block[] {
   const weekday = isoWeekday(date);
   const blocks: Block[] = [];
@@ -39,6 +41,12 @@ export function busyBlocks(
     if (!t.scheduled_start || t.status === "skipped") continue;
     const s = timeToMinutes(t.scheduled_start);
     blocks.push({ start: s, end: Math.min(DAY_END, s + (t.duration_minutes ?? 30)), label: t.title });
+  }
+
+  for (const e of events) {
+    const s = timeToMinutes(e.start);
+    const end = e.end === "24:00" ? DAY_END : timeToMinutes(e.end);
+    if (end > s) blocks.push({ start: s, end: Math.min(DAY_END, end), label: e.title });
   }
 
   return blocks.sort((a, b) => a.start - b.start);

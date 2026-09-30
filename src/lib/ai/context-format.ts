@@ -47,6 +47,23 @@ export function renderContext(ctx: AssistantContext): string {
   }
   out.push(`## Schedule\n${sched.join("\n")}`);
 
+  if (ctx.calendar) {
+    const label = (date: string, i: number) => (i === 0 ? `Today (${date})` : i === 1 ? `Tomorrow (${date})` : date);
+    const days = ctx.calendar.days.map((d, i) => {
+      const lines = d.events.map(
+        (e) =>
+          `- ${e.allDay ? "All day" : `${formatTime12(e.start)}–${e.end === "24:00" ? "midnight" : formatTime12(e.end)}`}: ${e.title}${e.location ? ` @ ${e.location}` : ""}${e.tentative ? " (tentative)" : ""}${e.busy ? "" : " (marked free)"}`,
+      );
+      return `${label(d.date, i)}:\n${lines.length ? lines.join("\n") : "- No events"}`;
+    });
+    out.push(`## Calendar (${ctx.calendar.provider}, read-only; fixed commitments already counted in free windows above)\n${days.join("\n")}`);
+  } else {
+    out.push("## Calendar\nNot connected.");
+  }
+  if (ctx.fitness) {
+    out.push(`## Fitness\nConnected: ${ctx.fitness.sources.join(", ")}. Use get_fitness_summary only when the request needs activity data.`);
+  }
+
   if (ctx.goals.length) {
     out.push(
       `## Active goals (ranked, 1 = most important)\n${ctx.goals

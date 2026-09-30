@@ -1,4 +1,5 @@
 import type { AssistantPersona } from "@/lib/personalization";
+import type { CalendarDay } from "@/lib/integrations/calendar/local";
 
 /**
  * The structured context the assistant receives on every call. It is built
@@ -43,5 +44,16 @@ export interface AssistantContext {
     lastWeeklyReview: string | null;
   };
   memories: { id?: string; content: string }[];
+  /**
+   * Connected calendar (read-only): today and the next two days. Events are
+   * fixed constraints. Null when no calendar is connected.
+   */
+  calendar?: { provider: string; lastSyncedAt: string | null; days: CalendarDay[] } | null;
+  /**
+   * Connected fitness sources only — no health data is placed in the
+   * context. The assistant fetches aggregates on demand with a read-only
+   * tool when a request actually needs them.
+   */
+  fitness?: { sources: string[] } | null;
   otherConversationSummaries: string[];
 }

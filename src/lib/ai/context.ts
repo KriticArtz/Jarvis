@@ -16,6 +16,9 @@ import { describeTarget, summarizeGoalProgress } from "@/lib/progress";
 import { addDays, isoWeekday, localDate, localMinutesNow, minutesToTime, monthStart, weekStart } from "@/lib/time";
 import type { Goal, Profile, Task } from "@/lib/types/domain";
 import type { AssistantContext } from "./context-types";
+import { loadCalendar } from "@/lib/integrations/calendar/context";
+import { busyEventsForDay } from "@/lib/integrations/calendar/local";
+import { getConnections, PROVIDER_LABEL } from "@/lib/integrations/connections";
 
 const WEEKDAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -45,7 +48,7 @@ export async function loadAssistantContext(
   const weekAgo = addDays(today, -6);
   const progressSince = [monthStart(today), weekStart(today), weekAgo].sort()[0];
 
-  const [goals, commitments, recentTasks, progress, checkIns, memories, plan, review, convs] = await Promise.all([
+  const [goals, commitments, recentTasks, progress, checkIns, memories, plan, review, convs, calendar, connections] = await Promise.all([
     getGoals(db, userId, ["active"]),
     getCommitments(db, userId),
     getTasksBetween(db, userId, weekAgo, today),
@@ -67,13 +70,16 @@ export async function loadAssistantContext(
       .not("summary", "is", null)
       .order("updated_at", { ascending: false })
       .limit(4),
+    loadCalendar(db, userId, { tz, from: today, days: 3 }),
+    getConnections(db, userId),
   ]);
+  const fitnessSources = connections.filter((c) => c.kind === "fitness" && c.status === "connected").map((c) => PROVIDER_LABEL[c.provider]);
 
   const todayTasks = recentTasks.filter((t) => t.task_date === today);
   const weekday = isoWeekday(today);
   const goalTitle = new Map(goals.map((g) => [g.id, g.title]));
 
-  const busy = busyBlocks(today, profile, commitments, todayTasks.filter((t) => t.status === "pending"));
+  const busy = busyBlocks(today, profile, commitments, todayTasks.filter((t) => t.status === "pending"), busyEventsForDay(calendar?.days[0]));
   const bounds = dayBounds(profile, null, localMinutesNow(tz, now));
   const windows = bounds ? freeWindows(bounds.start, bounds.end, busy) : null;
 
@@ -137,6 +143,8 @@ export async function loadAssistantContext(
       lastWeeklyReview: review.data?.summary ? `Week of ${review.data.week_start}: ${String(review.data.summary).slice(0, 600)}` : null,
     },
     memories: memories.map((m) => ({ id: m.id, content: m.content })),
+    calendar,
+    fitness: fitnessSources.length ? { sources: fitnessSources } : null,
     otherConversationSummaries: (convs.data ?? [])
       .filter((c) => c.id !== opts.excludeConversationId && c.summary)
       .slice(0, 3)

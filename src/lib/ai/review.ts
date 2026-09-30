@@ -28,6 +28,7 @@ export async function summarizeWeek(
 - "missed" = planned tasks left undone on a past day; "open" = still pending today or later in the week.
 - consistency is a 0–1 ratio (show as a percentage). timeOfDay shows planned vs completed tasks by when they were scheduled.
 - If the week is still in progress (throughDate before weekEnd), say so.
+- If "calendar" is present, it summarizes their calendar that week (events and busy hours); you may mention how busy the week was. Don't invent meetings.
 - Structure: 1) headline result in one sentence, 2) what went well, 3) what slipped, 4) one or two concrete recommendations for next week.
 - Max ~150 words, plain text, short paragraphs.
 

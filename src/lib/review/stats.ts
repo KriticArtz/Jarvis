@@ -48,6 +48,8 @@ export interface WeeklyStats {
   timeOfDay: { morning: TimeOfDayStats; afternoon: TimeOfDayStats; evening: TimeOfDayStats };
   checkIns: number;
   hasData: boolean;
+  /** From a connected calendar (read-only): events that week and hours they blocked. */
+  calendar?: { events: number; busyHours: number };
 }
 
 function round(n: number): number {

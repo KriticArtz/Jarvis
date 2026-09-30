@@ -34,7 +34,7 @@ describe("tool registry", () => {
       [
         "cancel_task", "complete_task", "confirm_action", "create_goal", "create_task", "decline_action", "delete_goal",
         "delete_memory", "get_goal_progress", "list_tasks", "record_progress", "replan_today", "reschedule_task",
-        "save_memory", "set_goal_status", "update_goal", "update_memory",
+        "save_memory", "set_goal_status", "update_goal", "update_memory", "list_calendar_events", "get_fitness_summary",
       ].sort(),
     );
     expect(new Set(TOOL_NAMES).size).toBe(TOOL_NAMES.length);
@@ -55,6 +55,10 @@ describe("tool registry", () => {
     }
     expect(risk.list_tasks).toBe("read");
     expect(isMutating("list_tasks")).toBe(false);
+    // Integrations are read-only: no tool can create, change or delete calendar events or health data.
+    expect(risk.list_calendar_events).toBe("read");
+    expect(risk.get_fitness_summary).toBe("read");
+    expect(TOOL_NAMES.filter((n) => /calendar|event|fitness|health|workout/.test(n)).sort()).toEqual(["get_fitness_summary", "list_calendar_events"]);
     expect(isMutating("confirm_action")).toBe(true);
   });
 

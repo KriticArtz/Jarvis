@@ -1,7 +1,7 @@
 /** Route groups shared by the proxy and layouts. */
 export const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/auth", "/demo", "/privacy", "/terms", "/account-deleted"];
-// Authenticated by Twilio signature / CRON_SECRET instead of a user session.
-export const API_PUBLIC_PATHS = ["/api/sms", "/api/cron"];
+// Authenticated by Twilio signature / CRON_SECRET / native-app bearer token instead of a session cookie.
+export const API_PUBLIC_PATHS = ["/api/sms", "/api/cron", "/api/integrations/fitness"];
 
 export function isPublicPath(pathname: string): boolean {
   if (API_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;

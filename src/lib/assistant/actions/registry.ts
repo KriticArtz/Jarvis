@@ -5,6 +5,7 @@ import { checkConfirmation, PROPOSAL_TTL_MINUTES, type ProposalRow } from "./con
 import { createGoal, deleteGoal, getGoalProgress, recordProgress, setGoalStatus, updateGoal } from "./goals";
 import { deleteMemory, saveMemory, updateMemory } from "./memories";
 import { replanToday } from "./planning";
+import { getFitnessSummary, listCalendarEvents } from "./integrations";
 import { J, zId } from "./schema";
 import { cancelTask, completeTask, createTask, listTasks, rescheduleTask } from "./tasks";
 import { fail, ok, type ToolContext, type ToolDefinition, type ToolResult } from "./types";
@@ -29,6 +30,8 @@ export const ACTION_TOOLS: ToolDefinition[] = [
   updateMemory,
   deleteMemory,
   replanToday,
+  listCalendarEvents,
+  getFitnessSummary,
 ] as ToolDefinition[];
 
 const confirmInput = z.object({ confirmation_id: zId });

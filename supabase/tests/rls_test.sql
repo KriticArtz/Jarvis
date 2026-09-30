@@ -297,4 +297,122 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Integrations: calendar + fitness (sensitive data, server-written only)
+-- ---------------------------------------------------------------------------
+reset role;
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-00000000000f', 'f@example.com'),
+  ('00000000-0000-0000-0000-000000000010', 'g@example.com');
+-- The server (service role / owner) writes connections, credentials and data.
+insert into public.integration_connections (id, user_id, provider, kind) values
+  ('40000000-0000-0000-0000-00000000000f', '00000000-0000-0000-0000-00000000000f', 'google_calendar', 'calendar'),
+  ('41000000-0000-0000-0000-00000000000f', '00000000-0000-0000-0000-00000000000f', 'apple_health', 'fitness'),
+  ('40000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000010', 'google_calendar', 'calendar');
+insert into public.integration_credentials (connection_id, user_id, access_token_enc, refresh_token_enc) values
+  ('40000000-0000-0000-0000-00000000000f', '00000000-0000-0000-0000-00000000000f', 'v1.enc-access', 'v1.enc-refresh');
+insert into public.calendar_events (user_id, connection_id, provider, provider_event_id, calendar_id, title, starts_at, ends_at) values
+  ('00000000-0000-0000-0000-00000000000f', '40000000-0000-0000-0000-00000000000f', 'google_calendar', 'evt1', 'primary', 'Dentist', now(), now() + interval '1 hour'),
+  ('00000000-0000-0000-0000-000000000010', '40000000-0000-0000-0000-000000000010', 'google_calendar', 'evt1', 'primary', 'G meeting', now(), now() + interval '1 hour');
+insert into public.fitness_daily_summaries (user_id, connection_id, provider, summary_date, steps) values
+  ('00000000-0000-0000-0000-00000000000f', '41000000-0000-0000-0000-00000000000f', 'apple_health', current_date, 8000);
+insert into public.fitness_workouts (user_id, connection_id, provider, provider_workout_id, activity_type, started_at, ended_at, duration_minutes) values
+  ('00000000-0000-0000-0000-00000000000f', '41000000-0000-0000-0000-00000000000f', 'apple_health', 'w1', 'running', now() - interval '30 minutes', now(), 30);
+do $$ begin
+  -- the same provider event id for two users is fine (idempotency key is per user)
+  if (select count(*) from public.calendar_events where provider_event_id = 'evt1') <> 2 then raise exception 'per-user event keys'; end if;
+  -- a duplicate for the same user is rejected (syncs upsert on this key)
+  begin
+    insert into public.calendar_events (user_id, connection_id, provider, provider_event_id, calendar_id, title, starts_at, ends_at)
+      values ('00000000-0000-0000-0000-00000000000f', '40000000-0000-0000-0000-00000000000f', 'google_calendar', 'evt1', 'primary', 'dup', now(), now());
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when unique_violation then null;
+  end;
+  -- provider/kind must match
+  begin
+    insert into public.integration_connections (user_id, provider, kind) values ('00000000-0000-0000-0000-00000000000f', 'health_connect', 'calendar');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+end $$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000f', false);
+do $$ begin
+  -- F sees only F's data
+  if (select count(*) from public.calendar_events) <> 1 then raise exception 'F sees other users calendar events'; end if;
+  if (select count(*) from public.integration_connections) <> 2 then raise exception 'F connections visibility'; end if;
+  if (select count(*) from public.fitness_daily_summaries) <> 1 then raise exception 'F fitness visibility'; end if;
+  if (select count(*) from public.fitness_workouts) <> 1 then raise exception 'F workouts visibility'; end if;
+  -- tokens are never readable through the API, not even your own
+  begin
+    perform 1 from public.integration_credentials;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  -- no client writes: events, fitness data, connections
+  begin
+    insert into public.calendar_events (user_id, connection_id, provider, provider_event_id, calendar_id, title, starts_at, ends_at)
+      values ('00000000-0000-0000-0000-00000000000f', '40000000-0000-0000-0000-00000000000f', 'google_calendar', 'x', 'primary', 'x', now(), now());
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.calendar_events set title = 'changed';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.fitness_daily_summaries (user_id, connection_id, provider, summary_date, steps)
+      values ('00000000-0000-0000-0000-00000000000f', '41000000-0000-0000-0000-00000000000f', 'apple_health', current_date - 1, 1);
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.integration_connections set status = 'connected', last_error = null;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from public.fitness_workouts;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000010', false);
+do $$ begin
+  if (select count(*) from public.calendar_events where title = 'Dentist') <> 0 then raise exception 'G sees F calendar'; end if;
+  if (select count(*) from public.fitness_daily_summaries) <> 0 then raise exception 'G sees F fitness'; end if;
+  if (select count(*) from public.fitness_workouts) <> 0 then raise exception 'G sees F workouts'; end if;
+  if (select count(*) from public.integration_connections) <> 1 then raise exception 'G connections visibility'; end if;
+end $$;
+set role anon;
+do $$ begin
+  begin
+    perform 1 from public.calendar_events;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+-- Disconnecting (deleting the connection) removes its tokens and data
+delete from public.integration_connections where id = '41000000-0000-0000-0000-00000000000f';
+do $$ begin
+  if exists (select 1 from public.fitness_daily_summaries where user_id = '00000000-0000-0000-0000-00000000000f') then raise exception 'fitness data survived disconnect'; end if;
+  if exists (select 1 from public.fitness_workouts where user_id = '00000000-0000-0000-0000-00000000000f') then raise exception 'workouts survived disconnect'; end if;
+end $$;
+delete from public.integration_connections where id = '40000000-0000-0000-0000-000000000010';
+do $$ begin
+  if exists (select 1 from public.calendar_events where user_id = '00000000-0000-0000-0000-000000000010') then raise exception 'events survived disconnect'; end if;
+end $$;
+-- Account deletion removes everything
+delete from auth.users where id = '00000000-0000-0000-0000-00000000000f';
+do $$ begin
+  if exists (select 1 from public.integration_connections where user_id = '00000000-0000-0000-0000-00000000000f')
+     or exists (select 1 from public.integration_credentials where user_id = '00000000-0000-0000-0000-00000000000f')
+     or exists (select 1 from public.calendar_events where user_id = '00000000-0000-0000-0000-00000000000f') then
+    raise exception 'integration data survived account deletion';
+  end if;
+end $$;
+
 select 'RLS checks passed' as result;
