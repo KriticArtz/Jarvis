@@ -11,7 +11,8 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { ScheduleForm } from "@/components/schedule/schedule-form";
 import { CommitmentsEditor } from "@/components/schedule/commitments-editor";
-import { AssistantIdentityForm, ThemePicker } from "@/components/settings/your-ai";
+import { AssistantIdentityForm } from "@/components/settings/your-ai";
+import { AppearanceSettings } from "@/components/settings/appearance";
 import { resolvePersonalization } from "@/lib/personalization";
 import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
@@ -53,9 +54,11 @@ export default async function SettingsPage() {
         <Card id="your-ai" className="bg-assistant">
           <CardHeader title="Your AI" subtitle="Name your assistant and choose how it talks to you. Changes apply everywhere — chat, plans, reviews and texts." />
           <AssistantIdentityForm name={personalization.assistantName} personality={personalization.personality} />
-          <div className="mt-7 border-t border-hairline pt-6">
-            <ThemePicker current={personalization.theme} />
-          </div>
+        </Card>
+
+        <Card id="appearance">
+          <CardHeader title="Appearance" subtitle="Mode and color theme are independent — mix and match." />
+          <AppearanceSettings theme={personalization.theme} appearance={personalization.appearance} />
         </Card>
 
         <Card>

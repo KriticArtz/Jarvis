@@ -7,11 +7,13 @@ import { DemoBanner } from "@/components/demo/demo-banner";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { profile, isDemo } = await requireOnboardedUser();
-  const { assistantName, theme } = resolvePersonalization(profile);
+  const { assistantName, theme, appearance } = resolvePersonalization(profile);
   const initial = (profile.display_name ?? profile.email ?? "?").trim().charAt(0).toUpperCase();
 
   return (
-    <PersonalizationShell assistantName={assistantName} theme={theme} className="min-h-dvh">
+    <PersonalizationShell assistantName={assistantName} theme={theme} appearance={appearance} className="min-h-dvh">
+      {/* Match <html> (page background, scrollbars) before hydration to avoid a flash. Values are validated enums. */}
+      <script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme=${JSON.stringify(theme)};document.documentElement.dataset.mode=${JSON.stringify(appearance)};` }} />
       {isDemo ? <DemoBanner /> : null}
       <div className="min-h-dvh md:grid md:grid-cols-[256px_1fr]">
         <aside className={isDemo ? "sticky top-10 hidden h-[calc(100dvh-40px)] flex-col px-4 py-6 md:flex" : "sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex"}>

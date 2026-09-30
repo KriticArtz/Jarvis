@@ -90,11 +90,11 @@ export async function deleteCommitment(id: string): Promise<ActionResult> {
 }
 
 /**
- * Save any of: assistant name, personality, theme. Only provided fields
+ * Save any of: assistant name, personality, theme, appearance mode. Only provided fields
  * change. In onboarding this is the "Your AI" step (step 5).
  */
 export async function savePersonalization(
-  input: { assistant_name?: string; assistant_personality?: string; theme?: string },
+  input: { assistant_name?: string; assistant_personality?: string; theme?: string; appearance?: string },
   opts: { onboarding?: boolean } = {},
 ): Promise<ActionResult> {
   const session = await getSessionUser();

@@ -51,6 +51,7 @@ export const DEMO_PROFILE = {
   assistant_name: null,
   assistant_personality: null,
   theme: null,
+  appearance: null,
 };
 
 export const DEMO_COMMITMENTS = [

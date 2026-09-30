@@ -30,6 +30,7 @@ export interface Profile {
   assistant_name: string | null;
   assistant_personality: "supportive" | "direct" | "motivational" | "tough_love" | "professional" | null;
   theme: "ocean" | "midnight" | "violet" | "rose" | "emerald" | "warm" | null;
+  appearance: "light" | "dark" | "system" | null;
   onboarding_step: number;
   onboarding_completed_at: string | null;
   created_at: string;

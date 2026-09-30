@@ -243,13 +243,13 @@ insert into auth.users (id, email) values
 do $$ begin
   -- New and existing users start with no preferences (the app applies defaults)
   if exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000000d'
-             and (assistant_name is not null or assistant_personality is not null or theme is not null)) then
+             and (assistant_name is not null or assistant_personality is not null or theme is not null or appearance is not null)) then
     raise exception 'personalization should default to null';
   end if;
 end $$;
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', false);
-update public.profiles set assistant_name = 'Nova', assistant_personality = 'tough_love', theme = 'violet'
+update public.profiles set assistant_name = 'Nova', assistant_personality = 'tough_love', theme = 'violet', appearance = 'dark'
   where id = '00000000-0000-0000-0000-00000000000d';
 do $$ begin
   if (select assistant_name from public.profiles where id = '00000000-0000-0000-0000-00000000000d') is distinct from 'Nova' then
@@ -257,6 +257,14 @@ do $$ begin
   end if;
   begin
     update public.profiles set theme = 'neon' where id = '00000000-0000-0000-0000-00000000000d';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+  if (select appearance from public.profiles where id = '00000000-0000-0000-0000-00000000000d') is distinct from 'dark' then
+    raise exception 'D could not save own appearance';
+  end if;
+  begin
+    update public.profiles set appearance = 'dim' where id = '00000000-0000-0000-0000-00000000000d';
     raise exception 'EXPECTED_FAILURE_NOT_RAISED';
   exception when check_violation then null;
   end;
@@ -277,14 +285,14 @@ do $$ begin
   end;
 end $$;
 -- D cannot change E's preferences (RLS: 0 rows touched)
-update public.profiles set assistant_name = 'Hacked', theme = 'rose' where id = '00000000-0000-0000-0000-00000000000e';
+update public.profiles set assistant_name = 'Hacked', theme = 'rose', appearance = 'light' where id = '00000000-0000-0000-0000-00000000000e';
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000e', false);
 do $$ begin
   if (select count(*) from public.profiles where assistant_name = 'Nova') <> 0 then raise exception 'E can see D personalization'; end if;
 end $$;
 reset role;
 do $$ begin
-  if exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000000e' and (assistant_name is not null or theme is not null)) then
+  if exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-00000000000e' and (assistant_name is not null or theme is not null or appearance is not null)) then
     raise exception 'D modified E personalization';
   end if;
 end $$;

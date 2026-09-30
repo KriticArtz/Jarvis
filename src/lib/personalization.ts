@@ -15,6 +15,16 @@ export type Personality = (typeof PERSONALITIES)[number];
 export const THEMES = ["ocean", "midnight", "violet", "rose", "emerald", "warm"] as const;
 export type Theme = (typeof THEMES)[number];
 
+/** Light/dark appearance, independent of the color theme. */
+export const APPEARANCES = ["light", "dark", "system"] as const;
+export type Appearance = (typeof APPEARANCES)[number];
+
+export const APPEARANCE_OPTIONS: { value: Appearance; title: string }[] = [
+  { value: "light", title: "Light" },
+  { value: "dark", title: "Dark" },
+  { value: "system", title: "System" },
+];
+
 export const DEFAULT_ASSISTANT_NAME: string = brand.assistantName;
 export const DEFAULT_PERSONALITY: Personality = "supportive";
 export const DEFAULT_THEME: Theme = "ocean";
@@ -56,6 +66,7 @@ export const assistantNameSchema = z
       .regex(/^[\p{L}\p{N}][\p{L}\p{N}\p{M} '’.-]*$/u, "Use letters, numbers, spaces, apostrophes or hyphens."),
   );
 export const personalitySchema = z.enum(PERSONALITIES);
+export const appearanceSchema = z.enum(APPEARANCES);
 export const themeSchema = z.enum(THEMES);
 
 /** Older 3-option accountability style → closest personality. */
@@ -69,20 +80,32 @@ export interface Personalization {
   assistantName: string;
   personality: Personality;
   theme: Theme;
+  appearance: Appearance;
 }
 
-export type PersonalizationSource = Partial<Pick<Profile, "assistant_name" | "assistant_personality" | "theme" | "accountability_style">>;
+export type PersonalizationSource = Partial<Pick<Profile, "assistant_name" | "assistant_personality" | "theme" | "appearance" | "accountability_style">>;
+
+/**
+ * Appearance when the user hasn't chosen one: each theme's original behavior
+ * (Midnight was always dark, Warm Light always light; the rest followed the
+ * OS), so nothing changes for users who picked a theme before modes existed.
+ */
+export function defaultAppearance(theme: Theme): Appearance {
+  return theme === "midnight" ? "dark" : theme === "warm" ? "light" : "system";
+}
 
 /** Safe, validated personalization for any profile (including null or partially selected rows). */
 export function resolvePersonalization(profile: PersonalizationSource | null | undefined): Personalization {
   const name = assistantNameSchema.safeParse(profile?.assistant_name ?? "");
   const personality = personalitySchema.safeParse(profile?.assistant_personality);
   const theme = themeSchema.safeParse(profile?.theme);
+  const appearance = appearanceSchema.safeParse(profile?.appearance);
   const legacy = profile?.accountability_style ? LEGACY_STYLE[profile.accountability_style] : undefined;
   return {
     assistantName: name.success ? name.data : DEFAULT_ASSISTANT_NAME,
     personality: personality.success ? personality.data : (legacy ?? DEFAULT_PERSONALITY),
     theme: theme.success ? theme.data : DEFAULT_THEME,
+    appearance: appearance.success ? appearance.data : defaultAppearance(theme.success ? theme.data : DEFAULT_THEME),
   };
 }
 

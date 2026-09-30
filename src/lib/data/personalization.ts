@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { DB } from "@/lib/data/db";
-import { assistantNameSchema, personalitySchema, resolvePersonalization, themeSchema, type Personalization } from "@/lib/personalization";
+import { appearanceSchema, assistantNameSchema, personalitySchema, resolvePersonalization, themeSchema, type Personalization } from "@/lib/personalization";
 
 /** A partial update — only the provided fields change. Unknown keys are rejected. */
 export const personalizationUpdateSchema = z
@@ -8,6 +8,7 @@ export const personalizationUpdateSchema = z
     assistant_name: assistantNameSchema.optional(),
     assistant_personality: personalitySchema.optional(),
     theme: themeSchema.optional(),
+    appearance: appearanceSchema.optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, "Nothing to update.");
@@ -38,7 +39,7 @@ export async function updatePersonalization(db: DB, userId: string, input: unkno
     .from("profiles")
     .update(parsed.data)
     .eq("id", userId)
-    .select("assistant_name, assistant_personality, theme, accountability_style")
+    .select("assistant_name, assistant_personality, theme, appearance, accountability_style")
     .maybeSingle();
   if (error || !data) return { ok: false, reason: "server_error" };
   return { ok: true, personalization: resolvePersonalization(data) };
@@ -48,7 +49,7 @@ export async function updatePersonalization(db: DB, userId: string, input: unkno
 export async function getPersonalization(db: DB, userId: string): Promise<Personalization> {
   const { data } = await db
     .from("profiles")
-    .select("assistant_name, assistant_personality, theme, accountability_style")
+    .select("assistant_name, assistant_personality, theme, appearance, accountability_style")
     .eq("id", userId)
     .maybeSingle();
   return resolvePersonalization(data);

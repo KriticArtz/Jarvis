@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPEARANCES,
+  APPEARANCE_OPTIONS,
   DEFAULT_ASSISTANT_NAME,
   DEFAULT_PERSONALITY,
   DEFAULT_THEME,
@@ -7,7 +9,9 @@ import {
   PERSONALITY_OPTIONS,
   THEMES,
   THEME_OPTIONS,
+  appearanceSchema,
   assistantNameSchema,
+  defaultAppearance,
   personaFrom,
   personalitySchema,
   resolvePersonalization,
@@ -65,7 +69,7 @@ describe("personality and theme values", () => {
 });
 
 describe("resolvePersonalization (safe defaults)", () => {
-  const defaults = { assistantName: DEFAULT_ASSISTANT_NAME, personality: DEFAULT_PERSONALITY, theme: DEFAULT_THEME };
+  const defaults = { assistantName: DEFAULT_ASSISTANT_NAME, personality: DEFAULT_PERSONALITY, theme: DEFAULT_THEME, appearance: "system" };
 
   it("gives defaults for missing profiles and existing users without preferences", () => {
     expect(resolvePersonalization(null)).toEqual(defaults);
@@ -90,18 +94,49 @@ describe("resolvePersonalization (safe defaults)", () => {
       assistantName: "Nova",
       personality: "professional",
       theme: "midnight",
+      appearance: "dark",
     });
   });
 
   it("falls back to defaults for invalid stored values", () => {
-    const bad = { assistant_name: "<b>x</b>", assistant_personality: "sarcastic", theme: "neon" } as never;
+    const bad = { assistant_name: "<b>x</b>", assistant_personality: "sarcastic", theme: "neon", appearance: "dim" } as never;
     expect(resolvePersonalization(bad)).toEqual(defaults);
+  });
+});
+
+describe("appearance mode", () => {
+  it("offers exactly light, dark and system", () => {
+    expect([...APPEARANCES]).toEqual(["light", "dark", "system"]);
+    expect(APPEARANCE_OPTIONS.map((o) => o.title)).toEqual(["Light", "Dark", "System"]);
+  });
+
+  it.each(["", "auto", "Dark", "night", null, 1])("rejects appearance %j", (v) => {
+    expect(appearanceSchema.safeParse(v).success).toBe(false);
+  });
+
+  it("is independent of the color theme once chosen", () => {
+    for (const theme of THEMES) {
+      for (const appearance of APPEARANCES) {
+        expect(resolvePersonalization({ theme, appearance })).toMatchObject({ theme, appearance });
+      }
+    }
+  });
+
+  it("keeps each theme's original look for users who haven't chosen a mode", () => {
+    expect(defaultAppearance("midnight")).toBe("dark");
+    expect(defaultAppearance("warm")).toBe("light");
+    for (const theme of ["ocean", "violet", "rose", "emerald"] as const) expect(defaultAppearance(theme)).toBe("system");
+    expect(resolvePersonalization({ theme: "midnight", appearance: null }).appearance).toBe("dark");
+    expect(resolvePersonalization({ theme: "warm" }).appearance).toBe("light");
+    expect(resolvePersonalization({ theme: "violet" }).appearance).toBe("system");
   });
 });
 
 describe("personalization update input", () => {
   it("accepts partial updates", () => {
     expect(personalizationUpdateSchema.parse({ theme: "rose" })).toEqual({ theme: "rose" });
+    expect(personalizationUpdateSchema.parse({ appearance: "dark" })).toEqual({ appearance: "dark" });
+    expect(personalizationUpdateSchema.parse({ theme: "warm", appearance: "dark" })).toEqual({ theme: "warm", appearance: "dark" });
     expect(personalizationUpdateSchema.parse({ assistant_name: " Nova ", assistant_personality: "direct" })).toEqual({ assistant_name: "Nova", assistant_personality: "direct" });
   });
 
@@ -114,6 +149,7 @@ describe("personalization update input", () => {
 
   it("rejects invalid values", () => {
     expect(personalizationUpdateSchema.safeParse({ theme: "neon" }).success).toBe(false);
+    expect(personalizationUpdateSchema.safeParse({ appearance: "auto" }).success).toBe(false);
     expect(personalizationUpdateSchema.safeParse({ assistant_personality: "mean" }).success).toBe(false);
     expect(personalizationUpdateSchema.safeParse({ assistant_name: "" }).success).toBe(false);
   });

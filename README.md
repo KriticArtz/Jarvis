@@ -46,7 +46,7 @@ Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the b
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Apply the schema, using either option:
-   - **SQL editor:** paste and run each file in [`supabase/migrations/`](supabase/migrations) in filename order (initial schema, production safety, assistant actions, personalization).
+   - **SQL editor:** paste and run each file in [`supabase/migrations/`](supabase/migrations) in filename order (initial schema, production safety, assistant actions, personalization, appearance mode).
    - **CLI:** `npx supabase link --project-ref <ref>` then `npx supabase db push`.
 3. **Auth → URL Configuration:**
    - Site URL: `http://localhost:3000` (and your production URL later).
@@ -60,7 +60,7 @@ Secrets are read only in `src/lib/env.ts`, which imports `server-only`, so the b
 
 | Table | Purpose |
 | --- | --- |
-| `profiles` | Name, phone, **timezone**, wake/sleep, work/school hours, assistant name / personality / theme (null = default), onboarding state. Created automatically on signup. |
+| `profiles` | Name, phone, **timezone**, wake/sleep, work/school hours, assistant name / personality / color theme / appearance mode (null = default), onboarding state. Created automatically on signup. |
 | `recurring_commitments` | Fixed blocks the planner must never schedule over. |
 | `goals` | Recurring ("4×/week") and one-time ("save $300") goals, with priority, rank and status. |
 | `goal_progress` | Append-only progress log (manual, from completed tasks, and later from SMS). |
@@ -144,11 +144,11 @@ npm run db:verify
 
 ## Personalization
 
-Each user names their own assistant (e.g. "Nova") and picks how it talks — **Supportive, Direct, Motivational, Tough Love or Professional** — plus one of six themes (**Ocean** default, Midnight, Violet, Rose, Emerald, Warm Light). The product keeps its own name (`brand.name`); the assistant's name is per user.
+Each user names their own assistant (e.g. "Nova") and picks how it talks — **Supportive, Direct, Motivational, Tough Love or Professional** — plus one of six color themes (**Ocean** default, Midnight, Violet, Rose, Emerald, Warm Light) and, independently, an appearance mode (**Light / Dark / System**). The product keeps its own name (`brand.name`); the assistant's name is per user.
 
-- Stored on `profiles` (`assistant_name`, `assistant_personality`, `theme`; migration `20261003000000_personalization.sql`). Null means "use the default", so existing and demo users need nothing. The older `accountability_style` column is still read as a fallback (gentle/balanced → Supportive, direct → Direct).
+- Stored on `profiles` (`assistant_name`, `assistant_personality`, `theme`, `appearance`; migrations `20261003000000_personalization.sql` and `20261004000000_appearance_mode.sql`). Null means "use the default", so existing and demo users need nothing. The older `accountability_style` column is still read as a fallback (gentle/balanced → Supportive, direct → Direct).
 - Read everywhere through `resolvePersonalization()` / `personaFrom()` in `src/lib/personalization.ts`, which validates values and applies defaults. The persona is part of the AI context, so it reaches chat, SMS replies, planning, the daily note and weekly reviews; scheduled texts use it too. Personality only sets tone — the system prompt states it never overrides truthfulness, safety or the action rules.
-- Themes only override CSS tokens (`[data-theme=…]` blocks in `globals.css`). To add one: a token block there, plus an entry in `THEMES` / `THEME_OPTIONS` and the DB check constraint.
+- Themes only override CSS tokens: `data-mode` (light/dark/system) selects the neutral palette and `data-theme` the accent, with a light and a dark variant per theme (`globals.css`). Both are server-rendered on the app shell, so the first paint is correct. A user who hasn't picked a mode keeps their theme's original look (Midnight dark, Warm Light light, others follow the OS). To add a theme: its light + dark blocks there, an entry in `THEMES` / `THEME_OPTIONS`, and the DB check constraint.
 
 ## Assistant actions (tools)
 

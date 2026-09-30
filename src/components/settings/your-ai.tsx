@@ -7,13 +7,10 @@ import {
   ASSISTANT_NAME_MAX,
   ASSISTANT_NAME_SUGGESTIONS,
   PERSONALITY_OPTIONS,
-  THEME_OPTIONS,
   assistantNameSchema,
   type Personality,
-  type Theme,
 } from "@/lib/personalization";
 import { savePersonalization } from "@/lib/actions/profile";
-import { usePersonalization } from "@/components/app/personalization";
 import { AssistantAvatar } from "@/components/app/assistant-avatar";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/field";
@@ -151,63 +148,5 @@ export function AssistantIdentityForm({
         {pending ? "Saving…" : submitLabel}
       </Button>
     </form>
-  );
-}
-
-/** Theme swatches. Applies instantly, then saves to the profile. */
-export function ThemePicker({ current }: { current: Theme }) {
-  const router = useRouter();
-  const { previewTheme } = usePersonalization();
-  const [selected, setSelected] = useState<Theme>(current);
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [, startTransition] = useTransition();
-
-  const choose = (theme: Theme) => {
-    const previous = selected;
-    setSelected(theme);
-    previewTheme(theme);
-    setStatus(null);
-    startTransition(async () => {
-      const res = await savePersonalization({ theme });
-      if (!res.ok) {
-        setSelected(previous);
-        previewTheme(previous);
-        setStatus({ ok: false, text: "Couldn't save your theme. Please try again." });
-        return;
-      }
-      setStatus({ ok: true, text: "Theme saved." });
-      router.refresh();
-    });
-  };
-
-  return (
-    <fieldset>
-      <legend className="mb-3 text-[15px] font-medium">Appearance</legend>
-      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-        {THEME_OPTIONS.map((t) => (
-          <label key={t.value} className="group cursor-pointer">
-            <input type="radio" name="theme" value={t.value} checked={selected === t.value} onChange={() => choose(t.value)} className="peer sr-only" />
-            <span
-              className={cn(
-                "flex flex-col items-center gap-2 rounded-[18px] border-2 px-2 py-3 text-center transition-all peer-focus-visible:ring-4 peer-focus-visible:ring-ring",
-                selected === t.value ? "border-accent bg-accent-soft" : "border-transparent bg-surface-2 group-hover:bg-surface-2/70",
-              )}
-            >
-              <span
-                className="relative flex size-9 items-center justify-center rounded-full shadow-card"
-                style={{ background: `linear-gradient(135deg, ${t.from}, ${t.to})` }}
-                aria-hidden
-              >
-                {selected === t.value ? <Check className="size-4 text-white" strokeWidth={3} /> : null}
-              </span>
-              <span className="text-[13px] font-medium leading-tight">{t.title}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <div className="mt-3 min-h-5" aria-live="polite">
-        {status ? <FormMessage tone={status.ok ? "success" : "error"}>{status.text}</FormMessage> : null}
-      </div>
-    </fieldset>
   );
 }

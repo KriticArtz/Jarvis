@@ -4,8 +4,18 @@
  * Design tokens. Calm, light, premium: near-white canvas, white surfaces with
  * soft shadows, one teal-blue accent, gradients only in small doses.
  * Change --accent / --grad-* here to rebrand.
+ *
+ * Two independent user preferences (stored on the profile) select tokens:
+ *   data-mode  = light | dark | system   → neutral surfaces, text, shadows
+ *   data-theme = ocean | midnight | …    → accent colors, in a light and a
+ *                                          dark variant each
+ * Both attributes are set together on the app shell (server-rendered, so the
+ * first paint is right) and on <html>. Pages without them (landing, auth)
+ * follow the OS, as before. The default "ocean" theme is the tokens below.
  */
-:root {
+:root,
+[data-mode="light"],
+[data-mode="system"] {
   --background: #f5f6f7;
   --surface: #ffffff;
   --surface-2: #eef0f2;
@@ -30,8 +40,34 @@
   --hairline: rgba(0, 0, 0, 0.06);
 }
 
+[data-mode="dark"] {
+  --background: #0b0c0d;
+  --surface: #161819;
+  --surface-2: #222528;
+  --border: #2b2f33;
+  --foreground: #f1f2f3;
+  --muted: #9aa1a8;
+  --accent: #3cc3de;
+  --accent-hover: #6fd6ea;
+  --accent-foreground: #03232b;
+  --accent-soft: #0f2a33;
+  --grad-from: #2dd4bf;
+  --grad-to: #38a8f5;
+  --success: #4ade80;
+  --success-soft: #11291a;
+  --warning: #fbbf24;
+  --warning-soft: #2e2410;
+  --danger: #f87171;
+  --danger-soft: #331616;
+  --ring: rgba(60, 195, 222, 0.35);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
+  --hairline: rgba(255, 255, 255, 0.07);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-mode]),
+  [data-mode="system"] {
     --background: #0b0c0d;
     --surface: #161819;
     --surface-2: #222528;
@@ -57,13 +93,22 @@
   }
 }
 
+[data-mode="light"] {
+  color-scheme: light;
+}
+[data-mode="dark"] {
+  color-scheme: dark;
+}
+[data-mode="system"] {
+  color-scheme: light dark;
+}
+
 /*
- * Themes (user preference, stored on the profile). A theme only overrides
- * design tokens — every component reads the same variables, so adding a theme
- * is one block here plus an entry in src/lib/personalization.ts.
- * "ocean" is the default and uses the :root tokens above. "midnight" is
- * always dark and "warm" always light; the others follow the OS setting.
- * Applied with data-theme on <html> and on the app shell.
+ * Color themes. Each overrides only accent tokens (Midnight and Warm Light
+ * also tint the neutrals). The light variant applies by default; the dark
+ * variant (higher specificity) applies in dark mode, or in system mode when
+ * the OS is dark. Adding a theme = blocks here + an entry in
+ * src/lib/personalization.ts (THEMES/THEME_OPTIONS) + the DB check.
  */
 [data-theme="violet"] {
   --accent: #6d4ae8;
@@ -92,65 +137,16 @@
   --grad-to: #0e9f6e;
   --ring: rgba(11, 125, 86, 0.28);
 }
-
-@media (prefers-color-scheme: dark) {
-  [data-theme="violet"] {
-    --accent: #a58bff;
-    --accent-hover: #bca8ff;
-    --accent-foreground: #170c3a;
-    --accent-soft: #211a3d;
-    --grad-from: #b48cff;
-    --grad-to: #7c6bff;
-    --ring: rgba(165, 139, 255, 0.35);
-  }
-  [data-theme="rose"] {
-    --accent: #ff7aa2;
-    --accent-hover: #ff9ab8;
-    --accent-foreground: #3a0a1c;
-    --accent-soft: #3a1624;
-    --grad-from: #ff8fb1;
-    --grad-to: #ff5c8a;
-    --ring: rgba(255, 122, 162, 0.35);
-  }
-  [data-theme="emerald"] {
-    --accent: #34d399;
-    --accent-hover: #6ee7b7;
-    --accent-foreground: #04261a;
-    --accent-soft: #0f2e22;
-    --grad-from: #4ade80;
-    --grad-to: #10b981;
-    --ring: rgba(52, 211, 153, 0.35);
-  }
-}
-
-/* Always dark: deep navy with a periwinkle accent. */
 [data-theme="midnight"] {
-  color-scheme: dark;
-  --background: #090d18;
-  --surface: #111727;
-  --surface-2: #1a2236;
-  --border: #252f47;
-  --foreground: #eef1f8;
-  --muted: #96a1b9;
-  --accent: #8199ff;
-  --accent-hover: #a0b2ff;
-  --accent-foreground: #0a1030;
-  --accent-soft: #1a2244;
+  --accent: #3f56d9;
+  --accent-hover: #3246c2;
+  --accent-foreground: #ffffff;
+  --accent-soft: #eceffd;
   --grad-from: #8199ff;
   --grad-to: #4f63e6;
-  --success: #4ade80;
-  --success-soft: #11291a;
-  --warning: #fbbf24;
-  --warning-soft: #2e2410;
-  --danger: #f87171;
-  --danger-soft: #331616;
-  --ring: rgba(129, 153, 255, 0.38);
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
-  --hairline: rgba(255, 255, 255, 0.07);
+  --ring: rgba(63, 86, 217, 0.28);
 }
-
-/* Always light: warm paper tones with an amber accent. */
+/* Warm paper tones with an amber accent. */
 [data-theme="warm"] {
   color-scheme: light;
   --background: #f7f3ec;
@@ -175,6 +171,165 @@
   --shadow-card: 0 1px 2px rgba(60, 40, 20, 0.05), 0 10px 30px -14px rgba(60, 40, 20, 0.12);
   --shadow-lift: 0 2px 4px rgba(60, 40, 20, 0.06), 0 24px 48px -20px rgba(60, 40, 20, 0.2);
   --hairline: rgba(60, 40, 20, 0.08);
+}
+
+/* Dark variants. Midnight's is its deep navy canvas. */
+[data-theme="violet"][data-mode="dark"] {
+  --accent: #a58bff;
+  --accent-hover: #bca8ff;
+  --accent-foreground: #170c3a;
+  --accent-soft: #211a3d;
+  --grad-from: #b48cff;
+  --grad-to: #7c6bff;
+  --ring: rgba(165, 139, 255, 0.35);
+}
+[data-theme="rose"][data-mode="dark"] {
+  --accent: #ff7aa2;
+  --accent-hover: #ff9ab8;
+  --accent-foreground: #3a0a1c;
+  --accent-soft: #3a1624;
+  --grad-from: #ff8fb1;
+  --grad-to: #ff5c8a;
+  --ring: rgba(255, 122, 162, 0.35);
+}
+[data-theme="emerald"][data-mode="dark"] {
+  --accent: #34d399;
+  --accent-hover: #6ee7b7;
+  --accent-foreground: #04261a;
+  --accent-soft: #0f2e22;
+  --grad-from: #4ade80;
+  --grad-to: #10b981;
+  --ring: rgba(52, 211, 153, 0.35);
+}
+[data-theme="midnight"][data-mode="dark"] {
+  color-scheme: dark;
+  --background: #090d18;
+  --surface: #111727;
+  --surface-2: #1a2236;
+  --border: #252f47;
+  --foreground: #eef1f8;
+  --muted: #96a1b9;
+  --accent: #8199ff;
+  --accent-hover: #a0b2ff;
+  --accent-foreground: #0a1030;
+  --accent-soft: #1a2244;
+  --grad-from: #8199ff;
+  --grad-to: #4f63e6;
+  --success: #4ade80;
+  --success-soft: #11291a;
+  --warning: #fbbf24;
+  --warning-soft: #2e2410;
+  --danger: #f87171;
+  --danger-soft: #331616;
+  --ring: rgba(129, 153, 255, 0.38);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+  --hairline: rgba(255, 255, 255, 0.07);
+}
+[data-theme="warm"][data-mode="dark"] {
+  color-scheme: dark;
+  --background: #12100d;
+  --surface: #1c1915;
+  --surface-2: #28231d;
+  --border: #362f27;
+  --foreground: #f4eee6;
+  --muted: #a99d8e;
+  --accent: #f2a65a;
+  --accent-hover: #f7bd82;
+  --accent-foreground: #2b1504;
+  --accent-soft: #33240f;
+  --grad-from: #f5a524;
+  --grad-to: #e0602a;
+  --success: #4ade80;
+  --success-soft: #11291a;
+  --warning: #fbbf24;
+  --warning-soft: #2e2410;
+  --danger: #f87171;
+  --danger-soft: #331616;
+  --ring: rgba(242, 166, 90, 0.35);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+  --hairline: rgba(255, 255, 255, 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="violet"][data-mode="system"] {
+    --accent: #a58bff;
+    --accent-hover: #bca8ff;
+    --accent-foreground: #170c3a;
+    --accent-soft: #211a3d;
+    --grad-from: #b48cff;
+    --grad-to: #7c6bff;
+    --ring: rgba(165, 139, 255, 0.35);
+  }
+  [data-theme="rose"][data-mode="system"] {
+    --accent: #ff7aa2;
+    --accent-hover: #ff9ab8;
+    --accent-foreground: #3a0a1c;
+    --accent-soft: #3a1624;
+    --grad-from: #ff8fb1;
+    --grad-to: #ff5c8a;
+    --ring: rgba(255, 122, 162, 0.35);
+  }
+  [data-theme="emerald"][data-mode="system"] {
+    --accent: #34d399;
+    --accent-hover: #6ee7b7;
+    --accent-foreground: #04261a;
+    --accent-soft: #0f2e22;
+    --grad-from: #4ade80;
+    --grad-to: #10b981;
+    --ring: rgba(52, 211, 153, 0.35);
+  }
+  [data-theme="midnight"][data-mode="system"] {
+    color-scheme: dark;
+    --background: #090d18;
+    --surface: #111727;
+    --surface-2: #1a2236;
+    --border: #252f47;
+    --foreground: #eef1f8;
+    --muted: #96a1b9;
+    --accent: #8199ff;
+    --accent-hover: #a0b2ff;
+    --accent-foreground: #0a1030;
+    --accent-soft: #1a2244;
+    --grad-from: #8199ff;
+    --grad-to: #4f63e6;
+    --success: #4ade80;
+    --success-soft: #11291a;
+    --warning: #fbbf24;
+    --warning-soft: #2e2410;
+    --danger: #f87171;
+    --danger-soft: #331616;
+    --ring: rgba(129, 153, 255, 0.38);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+    --hairline: rgba(255, 255, 255, 0.07);
+  }
+  [data-theme="warm"][data-mode="system"] {
+    color-scheme: dark;
+    --background: #12100d;
+    --surface: #1c1915;
+    --surface-2: #28231d;
+    --border: #362f27;
+    --foreground: #f4eee6;
+    --muted: #a99d8e;
+    --accent: #f2a65a;
+    --accent-hover: #f7bd82;
+    --accent-foreground: #2b1504;
+    --accent-soft: #33240f;
+    --grad-from: #f5a524;
+    --grad-to: #e0602a;
+    --success: #4ade80;
+    --success-soft: #11291a;
+    --warning: #fbbf24;
+    --warning-soft: #2e2410;
+    --danger: #f87171;
+    --danger-soft: #331616;
+    --ring: rgba(242, 166, 90, 0.35);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
+    --hairline: rgba(255, 255, 255, 0.07);
+  }
 }
 
 @theme inline {

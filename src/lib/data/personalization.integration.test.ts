@@ -20,7 +20,7 @@ const reachable = await fetch(`${URL}/auth/v1/health`, { headers: { apikey: PUBL
 const enabled = reachable && Boolean(PUBLISHABLE && SECRET);
 
 type DB = SupabaseClient;
-const DEFAULTS = { assistantName: DEFAULT_ASSISTANT_NAME, personality: DEFAULT_PERSONALITY, theme: DEFAULT_THEME };
+const DEFAULTS = { assistantName: DEFAULT_ASSISTANT_NAME, personality: DEFAULT_PERSONALITY, theme: DEFAULT_THEME, appearance: "system" };
 
 let admin: DB;
 const users: Record<"a" | "b", { id: string; db: DB }> = {} as never;
@@ -49,43 +49,61 @@ describe.skipIf(!enabled)("personalization (real Supabase, RLS)", () => {
     expect(await getPersonalization(users.a.db, users.a.id)).toEqual(DEFAULTS);
     const { data } = await users.a.db.from("profiles").select("assistant_name, assistant_personality, theme").eq("id", users.a.id).single();
     expect(data).toEqual({ assistant_name: null, assistant_personality: null, theme: null });
+    const { data: mode } = await users.a.db.from("profiles").select("appearance").eq("id", users.a.id).single();
+    expect(mode).toEqual({ appearance: null });
   });
 
   it("persists the assistant name, personality and theme", async () => {
     const res = await updatePersonalization(users.a.db, users.a.id, { assistant_name: "  Nova ", assistant_personality: "tough_love", theme: "violet" });
-    expect(res).toEqual({ ok: true, personalization: { assistantName: "Nova", personality: "tough_love", theme: "violet" } });
+    expect(res).toEqual({ ok: true, personalization: { assistantName: "Nova", personality: "tough_love", theme: "violet", appearance: "system" } });
     // A fresh client (new "device") sees the same values: stored on the account, not in the browser.
     const fresh = client();
     const { data: link } = await admin.auth.admin.getUserById(users.a.id);
     await fresh.auth.signInWithPassword({ email: link.user!.email!, password: "integration-pass-1" });
-    expect(await getPersonalization(fresh, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "violet" });
+    expect(await getPersonalization(fresh, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "violet", appearance: "system" });
   });
 
   it("partial updates only change the given field", async () => {
+    await updatePersonalization(users.a.db, users.a.id, { theme: "midnight", appearance: "light" });
+    expect(await getPersonalization(users.a.db, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "midnight", appearance: "light" });
+  });
+
+  it("appearance mode persists across sign-out/sign-in, independent of the color theme", async () => {
+    for (const [theme, appearance] of [["warm", "dark"], ["midnight", "light"], ["ocean", "system"], ["rose", "dark"]] as const) {
+      expect(await updatePersonalization(users.a.db, users.a.id, { theme, appearance })).toMatchObject({ ok: true });
+      const { data: link } = await admin.auth.admin.getUserById(users.a.id);
+      await users.a.db.auth.signOut();
+      await users.a.db.auth.signInWithPassword({ email: link.user!.email!, password: "integration-pass-1" });
+      expect(await getPersonalization(users.a.db, users.a.id)).toMatchObject({ theme, appearance });
+    }
+    // Changing only the mode keeps the color theme, and vice versa.
+    await updatePersonalization(users.a.db, users.a.id, { appearance: "light" });
+    expect(await getPersonalization(users.a.db, users.a.id)).toMatchObject({ theme: "rose", appearance: "light" });
     await updatePersonalization(users.a.db, users.a.id, { theme: "midnight" });
-    expect(await getPersonalization(users.a.db, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "midnight" });
+    expect(await getPersonalization(users.a.db, users.a.id)).toMatchObject({ theme: "midnight", appearance: "light" });
   });
 
   it("rejects invalid values without writing anything", async () => {
-    for (const bad of [{ theme: "neon" }, { assistant_personality: "sarcastic" }, { assistant_name: "" }, { assistant_name: "x".repeat(40) }, { assistant_name: "<script>" }, {}]) {
+    for (const bad of [{ appearance: "auto" }, { theme: "neon" }, { assistant_personality: "sarcastic" }, { assistant_name: "" }, { assistant_name: "x".repeat(40) }, { assistant_name: "<script>" }, {}]) {
       expect(await updatePersonalization(users.a.db, users.a.id, bad)).toMatchObject({ ok: false, reason: "invalid" });
     }
-    expect(await getPersonalization(users.a.db, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "midnight" });
+    expect(await getPersonalization(users.a.db, users.a.id)).toEqual({ assistantName: "Nova", personality: "tough_love", theme: "midnight", appearance: "light" });
   });
 
   it("the database enforces the allowed values too (even bypassing the app)", async () => {
     const { error: theme } = await users.a.db.from("profiles").update({ theme: "neon" }).eq("id", users.a.id);
     const { error: personality } = await users.a.db.from("profiles").update({ assistant_personality: "mean" }).eq("id", users.a.id);
     const { error: name } = await users.a.db.from("profiles").update({ assistant_name: " padded " }).eq("id", users.a.id);
-    expect([theme?.code, personality?.code, name?.code]).toEqual(["23514", "23514", "23514"]);
+    const { error: mode } = await users.a.db.from("profiles").update({ appearance: "dim" }).eq("id", users.a.id);
+    expect([theme?.code, personality?.code, name?.code, mode?.code]).toEqual(["23514", "23514", "23514", "23514"]);
   });
 
   it("isolates users: A can neither read nor change B's preferences", async () => {
     await updatePersonalization(users.b.db, users.b.id, { assistant_name: "Atlas", theme: "rose" });
     // A's session aimed at B's row: RLS matches no row, so nothing is written.
-    expect(await updatePersonalization(users.a.db, users.b.id, { assistant_name: "Hacked", theme: "emerald" })).toEqual({ ok: false, reason: "server_error" });
+    expect(await updatePersonalization(users.a.db, users.b.id, { assistant_name: "Hacked", theme: "emerald", appearance: "dark" })).toEqual({ ok: false, reason: "server_error" });
     expect(await getPersonalization(users.a.db, users.b.id)).toEqual(DEFAULTS); // can't see B's row at all
-    expect(await getPersonalization(users.b.db, users.b.id)).toEqual({ assistantName: "Atlas", personality: DEFAULT_PERSONALITY, theme: "rose" });
+    expect(await getPersonalization(users.b.db, users.b.id)).toEqual({ assistantName: "Atlas", personality: DEFAULT_PERSONALITY, theme: "rose", appearance: "system" });
     // and B's changes didn't touch A
     expect((await getPersonalization(users.a.db, users.a.id)).assistantName).toBe("Nova");
   });
@@ -111,7 +129,7 @@ describe.skipIf(!enabled)("personalization (real Supabase, RLS)", () => {
     expect(await getPersonalization(demo, id)).toEqual(DEFAULTS);
     expect((await loadAssistantContext(demo, id)).context.assistant).toEqual({ name: DEFAULT_ASSISTANT_NAME, personality: DEFAULT_PERSONALITY });
 
-    await updatePersonalization(demo, id, { assistant_name: "Friday", theme: "warm" });
+    await updatePersonalization(demo, id, { assistant_name: "Friday", theme: "warm", appearance: "dark" });
     expect((await getPersonalization(demo, id)).assistantName).toBe("Friday");
     await resetDemoAccount(demo, id, { name: "Guest", timezone: "UTC" });
     expect(await getPersonalization(demo, id)).toEqual(DEFAULTS);
