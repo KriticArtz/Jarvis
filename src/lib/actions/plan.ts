@@ -8,6 +8,7 @@ import { planAcceptSchema, planRequestSchema, uuid } from "@/lib/validation/sche
 import type { PlanItem } from "@/lib/types/domain";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 import { DEMO_LIMITS } from "@/lib/demo/seed";
+import { applyPlan } from "@/lib/planning/apply";
 import { errorInfo, logError } from "@/lib/observability/log";
 
 export type PlanActionResult = ActionResult & { result?: PlanResult };
@@ -49,42 +50,17 @@ export async function acceptPlan(input: { planId: string; items: PlanItem[] }): 
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { supabase, userId } = session;
 
-  const { data: plan } = await supabase
-    .from("daily_plans")
-    .select("id, plan_date, status")
-    .eq("id", parsed.data.planId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!plan || plan.status !== "draft") return { ok: false, error: "This plan is no longer available. Generate a new one." };
-
   const { data: profile } = await supabase.from("profiles").select("timezone").eq("id", userId).single();
-  if (plan.plan_date !== localDate(profile?.timezone || "UTC")) return { ok: false, error: "This plan was for a different day." };
-
-  const { data: goals } = await supabase.from("goals").select("id").eq("user_id", userId);
-  const goalIds = new Set((goals ?? []).map((g) => g.id as string));
-
-  for (const [i, item] of parsed.data.items.entries()) {
-    const fields = {
-      title: item.title,
-      goal_id: item.goal_id && goalIds.has(item.goal_id) ? item.goal_id : null,
-      scheduled_start: item.start_time,
-      duration_minutes: item.duration_minutes,
-      is_priority: item.is_priority,
-      sort_order: i,
-      daily_plan_id: plan.id,
-    };
-    if (item.task_id) {
-      const { error } = await supabase.from("tasks").update(fields).eq("id", item.task_id).eq("user_id", userId);
-      if (error) return GENERIC_ERROR;
-    } else {
-      const { error } = await supabase.from("tasks").insert({ ...fields, user_id: userId, task_date: plan.plan_date });
-      if (error) return GENERIC_ERROR;
-    }
+  const result = await applyPlan(supabase, userId, {
+    planId: parsed.data.planId,
+    items: parsed.data.items,
+    today: localDate(profile?.timezone || "UTC"),
+  });
+  if (!result.ok) {
+    if (result.reason === "wrong_day") return { ok: false, error: "This plan was for a different day." };
+    if (result.reason === "server_error") return GENERIC_ERROR;
+    return { ok: false, error: "This plan is no longer available. Generate a new one." };
   }
-
-  await supabase.from("daily_plans").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("id", plan.id).eq("user_id", userId);
-  // Today's insight should reflect the new plan.
-  await supabase.from("daily_insights").delete().eq("user_id", userId).eq("insight_date", plan.plan_date);
   revalidatePath("/", "layout");
   return { ok: true, message: "Plan saved to today." };
 }

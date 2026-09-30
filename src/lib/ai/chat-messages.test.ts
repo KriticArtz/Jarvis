@@ -20,7 +20,7 @@ const ctx: AssistantContext = {
   ],
   today: { tasks: [{ title: "Gym", start: "18:30", durationMinutes: 60, status: "pending", isPriority: true, goal: null }], planAccepted: true, checkIns: [] },
   recent: { last7Days: { planned: 10, completed: 7, missed: 3 }, lastWeeklyReview: null },
-  memories: ["Prefers studying before workouts"],
+  memories: [{ id: "m1", content: "Prefers studying before workouts" }],
   otherConversationSummaries: [],
 };
 

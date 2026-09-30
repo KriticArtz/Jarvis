@@ -52,7 +52,7 @@ export function renderContext(ctx: AssistantContext): string {
       `## Active goals (ranked, 1 = most important)\n${ctx.goals
         .map(
           (g) =>
-            `${g.rank + 1}. ${g.title} [${g.category}, ${g.priority} priority, ${g.type === "recurring" ? "recurring" : "one-time"}] target: ${g.target || "none set"}; progress: ${g.progress}${g.pace !== "not_applicable" ? ` (${g.pace.replace("_", " ")})` : ""}${g.dueDate ? `; due ${g.dueDate}` : ""}${g.description ? `\n   Notes: ${g.description}` : ""}`,
+            `${g.rank + 1}. ${g.title}${g.id ? ` (goal id: ${g.id})` : ""} [${g.category}, ${g.priority} priority, ${g.type === "recurring" ? "recurring" : "one-time"}] target: ${g.target || "none set"}; progress: ${g.progress}${g.pace !== "not_applicable" ? ` (${g.pace.replace("_", " ")})` : ""}${g.dueDate ? `; due ${g.dueDate}` : ""}${g.description ? `\n   Notes: ${g.description}` : ""}`,
         )
         .join("\n")}`,
     );
@@ -67,7 +67,7 @@ export function renderContext(ctx: AssistantContext): string {
         ? t.tasks
             .map(
               (task) =>
-                `- [${task.status}] ${task.title}${task.start ? ` at ${formatTime12(task.start)}` : ""}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}${task.isPriority ? " — priority" : ""}${task.goal ? ` → ${task.goal}` : ""}`,
+                `- [${task.status}] ${task.title}${task.start ? ` at ${formatTime12(task.start)}` : ""}${task.durationMinutes ? ` (${task.durationMinutes} min)` : ""}${task.isPriority ? " — priority" : ""}${task.goal ? ` → ${task.goal}` : ""}${task.id ? ` (task id: ${task.id})` : ""}`,
             )
             .join("\n")
         : "No tasks planned yet."
@@ -84,7 +84,7 @@ export function renderContext(ctx: AssistantContext): string {
   out.push(`## Last 7 days\nTasks planned: ${r.planned}, completed: ${r.completed}, missed: ${r.missed}`);
   if (ctx.recent.lastWeeklyReview) out.push(`## Last weekly review\n${ctx.recent.lastWeeklyReview}`);
 
-  if (ctx.memories.length) out.push(`## Things the user asked you to remember\n${ctx.memories.map((m) => `- ${m}`).join("\n")}`);
+  if (ctx.memories.length) out.push(`## Things the user asked you to remember\n${ctx.memories.map((m) => `- ${m.content}${m.id ? ` (memory id: ${m.id})` : ""}`).join("\n")}`);
   if (ctx.otherConversationSummaries.length) {
     out.push(`## Recent earlier conversations (summaries)\n${ctx.otherConversationSummaries.map((m) => `- ${m}`).join("\n")}`);
   }

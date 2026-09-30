@@ -115,6 +115,7 @@ export async function loadAssistantContext(
     }),
     today: {
       tasks: todayTasks.map((t) => ({
+        id: t.id,
         title: t.title,
         start: t.scheduled_start ? t.scheduled_start.slice(0, 5) : null,
         durationMinutes: t.duration_minutes,
@@ -133,7 +134,7 @@ export async function loadAssistantContext(
       },
       lastWeeklyReview: review.data?.summary ? `Week of ${review.data.week_start}: ${String(review.data.summary).slice(0, 600)}` : null,
     },
-    memories: memories.map((m) => m.content),
+    memories: memories.map((m) => ({ id: m.id, content: m.content })),
     otherConversationSummaries: (convs.data ?? [])
       .filter((c) => c.id !== opts.excludeConversationId && c.summary)
       .slice(0, 3)

@@ -1,8 +1,8 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { appendMessage, createConversation, prepareReply } from "@/lib/assistant/conversation";
+import { appendMessage, buildToolContext, createConversation, prepareReply } from "@/lib/assistant/conversation";
 import { demoReply } from "@/lib/ai/chat-messages";
-import { streamReply } from "@/lib/ai/chat";
+import { runAssistantTurn } from "@/lib/ai/agent";
 import { getAI, logAIError } from "@/lib/ai/client";
 import { maybeSummarizeConversation } from "@/lib/ai/memory";
 import { getConversation } from "@/lib/data/queries";
@@ -14,8 +14,10 @@ export const maxDuration = 60;
 const RATE_LIMIT_PER_MINUTE = 12;
 
 /**
- * Send a message to the assistant. Streams the reply as plain text and
- * persists both messages. The conversation id is returned in a header.
+ * Send a message to the assistant. Streams newline-delimited JSON events —
+ * {"t":"text","v":"…"} for reply text and {"t":"action",…} for actions the
+ * assistant takes — and persists both messages. The conversation id is
+ * returned in a header.
  */
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
@@ -52,36 +54,51 @@ export async function POST(request: NextRequest) {
   if (parsed.data.conversationId && !conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   if (!conversation) conversation = await createConversation(supabase, userId, "app", parsed.data.message.slice(0, 60));
 
-  await appendMessage(supabase, userId, conversation.id, "user", parsed.data.message, "app");
+  const userMessage = await appendMessage(supabase, userId, conversation.id, "user", parsed.data.message, "app");
   const { messages, context } = await prepareReply(supabase, userId, conversation, "app");
   const conv = conversation;
   const headers = {
-    "Content-Type": "text/plain; charset=utf-8",
+    "Content-Type": "application/x-ndjson; charset=utf-8",
     "Cache-Control": "no-store",
     "X-Conversation-Id": conv.id,
     "X-AI-Mode": getAI() ? "live" : "demo",
   };
 
+  const encoder = new TextEncoder();
+  const line = (event: Record<string, unknown>) => encoder.encode(`${JSON.stringify(event)}\n`);
+
   if (!getAI()) {
     const text = demoReply(context);
     await appendMessage(supabase, userId, conv.id, "assistant", text, "app");
-    return new Response(text, { headers });
+    return new Response(line({ t: "text", v: text }), { headers });
   }
 
-  const encoder = new TextEncoder();
+  const ctx = buildToolContext(supabase, userId, conv, "app", context, userMessage.created_at);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
+      let streamed = "";
       try {
-        for await (const delta of streamReply(messages, { userId, feature: "chat" })) {
-          full += delta;
-          controller.enqueue(encoder.encode(delta));
-        }
+        const outcome = await runAssistantTurn({
+          messages,
+          ctx,
+          meta: { userId, feature: "chat" },
+          stream: true,
+          maxOutputTokens: 2000,
+          onEvent(event) {
+            if (event.type === "text") {
+              streamed += event.delta;
+              controller.enqueue(line({ t: "text", v: event.delta }));
+            }
+            else controller.enqueue(line({ t: "action", id: event.callId, status: event.status, label: event.label }));
+          },
+        });
+        full = outcome.text;
       } catch (err) {
-        logAIError("chat stream", err);
-        const note = full ? "\n\n(My reply was cut off — please try again.)" : "Sorry — I couldn't reply just now. Please try again in a moment.";
-        full += note;
-        controller.enqueue(encoder.encode(note));
+        logAIError("chat turn", err);
+        const note = "Sorry — I couldn't finish that just now. Please try again in a moment.";
+        full = streamed ? `${streamed}\n\n${note}` : note;
+        controller.enqueue(line({ t: "text", v: streamed ? `\n\n${note}` : note }));
       }
       try {
         await appendMessage(supabase, userId, conv.id, "assistant", full || "(no reply)", "app");

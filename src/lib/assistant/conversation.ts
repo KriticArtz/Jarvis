@@ -2,8 +2,10 @@ import "server-only";
 import type { DB } from "@/lib/data/db";
 import { getRecentMessages } from "@/lib/data/queries";
 import { buildChatMessages, demoReply, HISTORY_WINDOW } from "@/lib/ai/chat-messages";
-import { completeReply } from "@/lib/ai/chat";
-import { getAI } from "@/lib/ai/client";
+import { getAI, logAIError } from "@/lib/ai/client";
+import { runAssistantTurn } from "@/lib/ai/agent";
+import type { AssistantContext } from "@/lib/ai/context-types";
+import type { ToolContext } from "@/lib/assistant/actions/types";
 import { loadAssistantContext } from "@/lib/ai/context";
 import type { AssistantChannel } from "@/lib/ai/prompts";
 import type { Conversation } from "@/lib/types/domain";
@@ -38,13 +40,16 @@ export async function appendMessage(
   role: "user" | "assistant",
   content: string,
   channel: AssistantChannel,
-) {
-  const { error } = await db
+): Promise<{ id: string; created_at: string }> {
+  const { data, error } = await db
     .from("conversation_messages")
-    .insert({ user_id: userId, conversation_id: conversationId, role, content: content.slice(0, 8000), channel });
-  if (error) throw new Error("Could not save message");
+    .insert({ user_id: userId, conversation_id: conversationId, role, content: content.slice(0, 8000), channel })
+    .select("id, created_at")
+    .single();
+  if (error || !data) throw new Error("Could not save message");
   // Bump updated_at for ordering.
   await db.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", userId);
+  return data as { id: string; created_at: string };
 }
 
 /**
@@ -62,16 +67,50 @@ export async function prepareReply(db: DB, userId: string, conversation: Convers
     channel,
     conversationSummary: conversation.summary,
     history,
+    tools: Boolean(getAI()),
   });
   return { messages, context };
 }
 
-/** Non-streaming reply (SMS). Falls back to an honest demo reply without AI. */
-export async function generateReply(db: DB, userId: string, conversation: Conversation, channel: AssistantChannel): Promise<string> {
+/**
+ * Server-side context for assistant actions. `userId` is the authenticated
+ * user (app) or the verified SMS sender — never a value from the model.
+ */
+export function buildToolContext(
+  db: DB,
+  userId: string,
+  conversation: Conversation,
+  channel: AssistantChannel,
+  context: AssistantContext,
+  turnStartedAt: string,
+): ToolContext {
+  return { db, userId, timezone: context.now.timezone, today: context.now.date, channel, conversationId: conversation.id, turnStartedAt };
+}
+
+/**
+ * Non-streaming reply (SMS), with the same actions as in-app chat. Falls back
+ * to an honest demo reply without AI.
+ */
+export async function generateReply(
+  db: DB,
+  userId: string,
+  conversation: Conversation,
+  channel: AssistantChannel,
+  turnStartedAt: string,
+): Promise<string> {
   const { messages, context } = await prepareReply(db, userId, conversation, channel);
   if (!getAI()) return demoReply(context);
-  return (
-    (await completeReply(messages, { userId, feature: channel === "sms" ? "sms_reply" : "chat" }, channel === "sms" ? 400 : 2000)) ??
-    "Sorry — I couldn't generate a reply just now. Please try again in a minute."
-  );
+  try {
+    const outcome = await runAssistantTurn({
+      messages,
+      ctx: buildToolContext(db, userId, conversation, channel, context, turnStartedAt),
+      meta: { userId, feature: channel === "sms" ? "sms_reply" : "chat" },
+      stream: false,
+      maxOutputTokens: channel === "sms" ? 400 : 2000,
+    });
+    return outcome.text;
+  } catch (err) {
+    logAIError("generateReply", err);
+    return "Sorry — I couldn't generate a reply just now. Please try again in a minute.";
+  }
 }

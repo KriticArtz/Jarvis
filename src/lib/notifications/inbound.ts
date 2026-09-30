@@ -128,8 +128,8 @@ export async function handleInboundSms(admin: DB, msg: InboundSms): Promise<{ ha
   }
 
   const conversation = await getOrCreateSmsConversation(admin, userId);
-  await appendMessage(admin, userId, conversation.id, "user", body, "sms");
-  const reply = await generateReply(admin, userId, conversation, "sms");
+  const stored = await appendMessage(admin, userId, conversation.id, "user", body, "sms");
+  const reply = await generateReply(admin, userId, conversation, "sms", stored.created_at);
   await appendMessage(admin, userId, conversation.id, "assistant", reply, "sms");
   await deliverNotification(admin, { userId, kind: "assistant_reply", body: reply, dedupeKey: `reply:${msg.providerMessageId}` });
   await maybeSummarizeConversation(admin, userId, conversation);

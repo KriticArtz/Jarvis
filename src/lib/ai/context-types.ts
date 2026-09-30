@@ -32,7 +32,7 @@ export interface AssistantContext {
     dueDate: string | null;
   }[];
   today: {
-    tasks: { title: string; start: string | null; durationMinutes: number | null; status: string; isPriority: boolean; goal: string | null }[];
+    tasks: { id?: string; title: string; start: string | null; durationMinutes: number | null; status: string; isPriority: boolean; goal: string | null }[];
     planAccepted: boolean;
     checkIns: { kind: string; rating: number | null; content: string | null }[];
   };
@@ -40,6 +40,6 @@ export interface AssistantContext {
     last7Days: { planned: number; completed: number; missed: number };
     lastWeeklyReview: string | null;
   };
-  memories: string[];
+  memories: { id?: string; content: string }[];
   otherConversationSummaries: string[];
 }

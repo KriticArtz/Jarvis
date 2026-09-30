@@ -6,6 +6,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { isAIConfigured } from "@/lib/ai/client";
 import { getConversation, getConversations, getRecentMessages } from "@/lib/data/queries";
 import { uuid } from "@/lib/validation/schemas";
+import { attachActions, type StoredAction } from "@/lib/assistant/history";
 import { buttonClass } from "@/components/ui/button";
 import { Chat } from "@/components/assistant/chat";
 import { cn } from "@/lib/cn";
@@ -22,6 +23,16 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
     requested ? getConversation(supabase, userId, requested) : Promise.resolve(null),
   ]);
   const messages = current ? await getRecentMessages(supabase, userId, current.id, 100) : [];
+  const { data: loggedActions } = current
+    ? await supabase
+        .from("assistant_actions")
+        .select("id, status, summary, created_at, resolved_at")
+        .eq("user_id", userId)
+        .eq("conversation_id", current.id)
+        .order("created_at")
+        .limit(200)
+    : { data: [] };
+  const actionsByMessage = attachActions(messages, (loggedActions ?? []) as StoredAction[]);
 
   return (
     <div className="flex flex-col">
@@ -53,7 +64,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
       <Chat
         key={current?.id ?? "new"}
         conversationId={current?.id ?? null}
-        initialMessages={messages.map((m) => ({ id: m.id, role: m.role, content: m.content }))}
+        initialMessages={messages.map((m) => ({ id: m.id, role: m.role, content: m.content, actions: actionsByMessage.get(m.id) }))}
         name={profile.display_name}
         aiConfigured={isAIConfigured()}
       />

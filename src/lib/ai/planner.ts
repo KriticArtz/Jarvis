@@ -17,6 +17,12 @@ export interface PlanRequest {
   availableStart?: string | null;
   availableEnd?: string | null;
   note?: string | null;
+  /**
+   * Re-flow the whole day: today's already-timed pending tasks are treated as
+   * movable (not as fixed busy blocks), so they can be rescheduled around a new
+   * constraint. Used by the assistant's replan action.
+   */
+  reflow?: boolean;
 }
 
 export type PlanResult =
@@ -92,7 +98,7 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
   }
 
   const pending = todayTasks.filter((t) => t.status === "pending");
-  const busy = busyBlocks(today, profile, commitments, pending.filter((t) => t.scheduled_start));
+  const busy = busyBlocks(today, profile, commitments, req.reflow ? [] : pending.filter((t) => t.scheduled_start));
   const windows = freeWindows(bounds.start, bounds.end, busy);
   if (windows.length === 0 || totalMinutes(windows) < 20) {
     return {
@@ -103,7 +109,7 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
   }
 
   const summaries = new Map(goals.map((g) => [g.id, summarizeGoalProgress(g, progress, today)]));
-  const unscheduled = pending.filter((t) => !t.scheduled_start);
+  const unscheduled = req.reflow ? pending : pending.filter((t) => !t.scheduled_start);
   let items: PlanItem[];
   let summary: string;
   let source: "ai" | "rules" = "ai";
@@ -173,7 +179,7 @@ HARD RULES
 - start_time must be 24h "HH:MM" inside a free window, or null if timing is flexible.
 - If you truly lack information to plan, set needs_more_info=true with one short question and no items.
 
-Existing unscheduled tasks for today:
+${req.reflow ? "Today's pending tasks — reschedule them to fit the new constraint (reuse their task_id); leave out the least important if they don't fit:" : "Existing unscheduled tasks for today:"}
 ${taskText}
 
 Goals:

@@ -6,11 +6,14 @@ import { ArrowUp } from "lucide-react";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/cn";
 import { Spinner } from "@/components/ui/spinner";
+import { applyActionEvent, parseStreamChunk, type ChatAction } from "@/lib/assistant/stream-protocol";
+import { ActionChips } from "./action-chips";
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  actions?: ChatAction[];
 }
 
 const SUGGESTIONS = [
@@ -72,11 +75,19 @@ export function Chat({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
+      let actions: ChatAction[] = [];
+      let buffer = "";
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
+        const parsed = parseStreamChunk(buffer + decoder.decode(value, { stream: true }));
+        buffer = parsed.rest;
+        for (const event of parsed.events) {
+          if (event.t === "text") acc += event.v;
+          else actions = applyActionEvent(actions, event);
+        }
+        const snapshot = { content: acc, actions };
+        setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, ...snapshot } : msg)));
       }
       router.refresh();
     } catch (err) {
@@ -118,21 +129,24 @@ export function Chat({
         ) : (
           <ol className="flex flex-col gap-3 pb-4">
             {messages.map((m) => (
-              <li key={m.id} className={cn("flex animate-fade-in", m.role === "user" ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[86%] whitespace-pre-wrap rounded-[22px] px-4 py-2.5 text-[16px] leading-[1.5]",
-                    m.role === "user" ? "rounded-br-[8px] bg-accent text-accent-foreground" : "rounded-bl-[8px] bg-surface shadow-card",
-                  )}
-                >
-                  {m.role === "assistant" && !m.content ? (
-                    <span className="inline-flex items-center gap-2 text-muted">
-                      <Spinner /> Thinking…
-                    </span>
-                  ) : (
-                    m.content
-                  )}
-                </div>
+              <li key={m.id} className={cn("flex animate-fade-in", m.role === "user" ? "justify-end" : "flex-col items-start")}>
+                {m.role === "assistant" && m.actions?.length ? <ActionChips actions={m.actions} /> : null}
+                {m.role === "assistant" && !m.content && m.actions?.length ? null : (
+                  <div
+                    className={cn(
+                      "max-w-[86%] whitespace-pre-wrap rounded-[22px] px-4 py-2.5 text-[16px] leading-[1.5]",
+                      m.role === "user" ? "rounded-br-[8px] bg-accent text-accent-foreground" : "rounded-bl-[8px] bg-surface shadow-card",
+                    )}
+                  >
+                    {m.role === "assistant" && !m.content ? (
+                      <span className="inline-flex items-center gap-2 text-muted">
+                        <Spinner /> Thinking…
+                      </span>
+                    ) : (
+                      m.content
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ol>

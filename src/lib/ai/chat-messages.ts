@@ -22,9 +22,11 @@ export function buildChatMessages(opts: {
   channel: AssistantChannel;
   conversationSummary: string | null;
   history: Pick<ConversationMessage, "role" | "content">[];
+  /** Whether the assistant can take actions (tool-enabled chat/SMS). */
+  tools?: boolean;
 }): ChatMessageParam[] {
   const messages: ChatMessageParam[] = [
-    { role: "system", content: assistantSystemPrompt(opts.style, opts.channel) },
+    { role: "system", content: assistantSystemPrompt(opts.style, opts.channel, { tools: opts.tools }) },
     { role: "system", content: `# User context (from the app's database, current as of now)\n\n${renderContext(opts.context)}` },
   ];
   if (opts.conversationSummary) {

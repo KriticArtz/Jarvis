@@ -94,6 +94,7 @@ npm run db:verify
 | `npm run typecheck` | Route type generation + `tsc` |
 | `npm test` | Vitest unit tests |
 | `npm run db:verify` | Apply migrations + RLS isolation tests on a temporary Postgres |
+| `npm run test:integration` | Assistant-action tests against a running local Supabase (see Assistant actions) |
 | `npm run check` | lint + typecheck + tests |
 | `node scripts/simulate-inbound-sms.mjs "+1…" "text"` | Send a signed fake Twilio webhook to the local server |
 
@@ -140,6 +141,29 @@ npm run db:verify
 | `OPENAI_API_KEY` | Chat says clearly that AI isn't configured and only reflects your stored data. Plans come from a deterministic rule-based planner (ranked goals into free windows, ≤70% of free time). Insights and weekly summaries are generated from the numbers without AI. All of these are labelled in the UI. |
 | Twilio credentials (or `SMS_MODE=test`) | Messages go through the same pipeline but are stored with status `test` and **never sent**. Settings shows them as "test — not sent". |
 | `SUPABASE_SERVICE_ROLE_KEY` | Core app works. Sending, recording messages, cron dispatch and the SMS webhook are unavailable, and the UI says so. |
+
+## Assistant actions (tools)
+
+The assistant can make changes in chat and by SMS, through an explicit list of server-side tools. It has no database access of its own and cannot run SQL.
+
+| Area | Tools | Needs the user's OK? |
+| --- | --- | --- |
+| Tasks | `create_task`, `complete_task`, `reschedule_task` (another day or within today), `cancel_task` (skip/delete), `list_tasks` | only `cancel_task` |
+| Goals | `create_goal`, `update_goal`, `set_goal_status` (pause/resume/complete), `delete_goal`, `record_progress`, `get_goal_progress` | `delete_goal`; `update_goal` only when the target, unit, period or due date changes |
+| Memory | `save_memory`, `update_memory`, `delete_memory` | only `delete_memory` |
+| Planning | `replan_today`: rebuilds or rearranges today, optionally around a new constraint | always |
+| Confirmation | `confirm_action`, `decline_action` | — |
+
+**How it works** (`src/lib/assistant/actions/`, `src/lib/ai/agent.ts`):
+1. The model receives strict JSON-schema tool definitions. No tool accepts a user id.
+2. The model's arguments are validated with Zod on the server.
+3. Every query filters by the user id from the session. For SMS, that's the verified sender, not a value from the model.
+4. Changes that need confirmation are stored as a proposal in `assistant_actions`. A proposal only runs if the user approves it in a later message of the same conversation, before it expires (30 minutes), and only once. It runs with the stored arguments.
+5. Every change, successful or failed, is recorded in `assistant_actions`, which is owner-readable and can't be deleted by the user.
+6. The chat stream carries `{"t":"action"}` events, which the UI shows as small status chips.
+7. If every attempted change failed but the reply still claims success, the server appends a correction.
+
+**Tests:** `npm test` covers the unit tests. `npm run test:integration` runs every tool against a local Supabase stack with real RLS. It needs `supabase start`, plus `INTEGRATION_SUPABASE_PUBLISHABLE_KEY` and `INTEGRATION_SUPABASE_SECRET_KEY` set to the local keys.
 
 ## Privacy, safety and operations
 
@@ -243,7 +267,6 @@ Inbound:  SMS → Twilio → POST /api/sms/inbound → verify X-Twilio-Signature
 ## Intentionally not implemented yet
 
 - **Production phone verification.** The verification foundation, enforcement switch and development test mode exist. Sending real verification codes needs a Twilio Verify provider (see above).
-- **The assistant changing data from chat or SMS.** It gives advice only, and says so. It will propose a new time for a missed task, but the user moves the task in the app. Saving plans happens on the "Plan my day" screen.
 - **Automatic memory extraction.** "Things to remember" are entered by the user. The `user_memories.source = 'assistant'` value is reserved for this.
 - Calendar, finance or fitness integrations, voice, billing and native apps: the architecture leaves room for them (provider interfaces, structured context, a channel column on conversations and messages), but there are no placeholder buttons.
 - Multi-day or future-date planning. Planning covers the rest of today.

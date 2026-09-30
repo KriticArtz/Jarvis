@@ -187,4 +187,51 @@ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Phase 2: assistant_actions
+-- ---------------------------------------------------------------------------
+insert into public.conversations (id, user_id) values ('30000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000b');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+insert into public.conversations (id, user_id) values ('30000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000a');
+insert into public.assistant_actions (user_id, conversation_id, tool, status)
+  values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000a', 'create_task', 'succeeded');
+do $$ begin
+  -- cannot write an action for another user
+  begin
+    insert into public.assistant_actions (user_id, tool, status) values ('00000000-0000-0000-0000-00000000000b', 'x', 'succeeded');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  -- cannot attach an action to another user's conversation
+  begin
+    insert into public.assistant_actions (user_id, conversation_id, tool, status)
+      values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000b', 'x', 'pending_confirmation');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  -- cannot delete audit rows
+  begin
+    delete from public.assistant_actions;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin
+  if (select count(*) from public.assistant_actions) <> 0 then raise exception 'B can see A assistant actions'; end if;
+end $$;
+update public.assistant_actions set status = 'cancelled';
+reset role;
+do $$ begin
+  if (select status from public.assistant_actions where tool = 'create_task') <> 'succeeded' then
+    raise exception 'B modified A assistant action';
+  end if;
+end $$;
+-- deleted with the account
+delete from auth.users where id = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  if exists (select 1 from public.assistant_actions) then raise exception 'assistant actions survived account deletion'; end if;
+end $$;
+
 select 'RLS checks passed' as result;
