@@ -52,11 +52,12 @@ export function renderContext(ctx: AssistantContext): string {
     const days = ctx.calendar.days.map((d, i) => {
       const lines = d.events.map(
         (e) =>
-          `- ${e.allDay ? "All day" : `${formatTime12(e.start)}–${e.end === "24:00" ? "midnight" : formatTime12(e.end)}`}: ${e.title}${e.location ? ` @ ${e.location}` : ""}${e.tentative ? " (tentative)" : ""}${e.busy ? "" : " (marked free)"}`,
+          `- ${e.allDay ? "All day" : `${formatTime12(e.start)}–${e.end === "24:00" ? "midnight" : formatTime12(e.end)}`}: ${e.title}${e.location ? ` @ ${e.location}` : ""}${e.tentative ? " (tentative)" : ""}${e.busy ? "" : " (marked free)"}${e.recurring ? " (repeats)" : ""}${e.editable === false ? " (invited — can't edit)" : ""}${e.id ? ` (event id: ${e.id})` : ""}`,
       );
       return `${label(d.date, i)}:\n${lines.length ? lines.join("\n") : "- No events"}`;
     });
-    out.push(`## Calendar (${ctx.calendar.provider}, read-only; fixed commitments already counted in free windows above)\n${days.join("\n")}`);
+    const access = ctx.calendar.writable ? "editable with the user's OK" : "read-only connection";
+    out.push(`## Calendar (${ctx.calendar.provider}, ${access}; fixed commitments already counted in free windows above)\n${days.join("\n")}`);
   } else {
     out.push("## Calendar\nNot connected.");
   }

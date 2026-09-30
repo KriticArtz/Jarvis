@@ -34,6 +34,14 @@ export interface NormalizedCalendarEvent {
   status: CalendarEventStatus;
   /** False when the event is marked "free" and doesn't block time. */
   isBusy: boolean;
+  /** Provider color ("1".."11" for Google); null = calendar default. */
+  colorId?: string | null;
+  /** Series id when this is one occurrence of a recurring event. */
+  recurringEventId?: string | null;
+  /** False when the user was invited rather than organizing (can't edit). */
+  isOrganizer?: boolean;
+  /** Number of guests other than the user. */
+  attendeeCount?: number;
 }
 
 export interface CalendarWindow {

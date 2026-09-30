@@ -362,6 +362,15 @@ do $$ begin
     raise exception 'EXPECTED_FAILURE_NOT_RAISED';
   exception when insufficient_privilege then null;
   end;
+  -- Calendar phase 2 metadata is server-written too (a client can't make an invited event "editable").
+  begin
+    update public.calendar_events set is_organizer = true, color_id = '1';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  if (select count(*) from public.calendar_events where is_organizer and attendee_count = 0 and color_id is null and recurring_event_id is null) <> 1 then
+    raise exception 'calendar phase 2 column defaults';
+  end if;
   begin
     insert into public.fitness_daily_summaries (user_id, connection_id, provider, summary_date, steps)
       values ('00000000-0000-0000-0000-00000000000f', '41000000-0000-0000-0000-00000000000f', 'apple_health', current_date - 1, 1);
@@ -395,6 +404,19 @@ do $$ begin
   end;
 end $$;
 reset role;
+-- Calendar phase 2 column constraints
+do $$ begin
+  begin
+    update public.calendar_events set color_id = 'red' where user_id = '00000000-0000-0000-0000-00000000000f';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.calendar_events set attendee_count = -1 where user_id = '00000000-0000-0000-0000-00000000000f';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
+end $$;
 -- Disconnecting (deleting the connection) removes its tokens and data
 delete from public.integration_connections where id = '41000000-0000-0000-0000-00000000000f';
 do $$ begin

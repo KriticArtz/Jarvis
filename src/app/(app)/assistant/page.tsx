@@ -31,7 +31,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
   const { data: loggedActions } = current
     ? await supabase
         .from("assistant_actions")
-        .select("id, status, summary, created_at, resolved_at")
+        .select("id, status, summary, created_at, resolved_at, expires_at")
         .eq("user_id", userId)
         .eq("conversation_id", current.id)
         .order("created_at")

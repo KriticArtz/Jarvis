@@ -6,6 +6,7 @@ import { createGoal, deleteGoal, getGoalProgress, recordProgress, setGoalStatus,
 import { deleteMemory, saveMemory, updateMemory } from "./memories";
 import { replanToday } from "./planning";
 import { getFitnessSummary, listCalendarEvents } from "./integrations";
+import { CALENDAR_TOOLS } from "./calendar";
 import { J, zId } from "./schema";
 import { cancelTask, completeTask, createTask, listTasks, rescheduleTask } from "./tasks";
 import { fail, ok, type ToolContext, type ToolDefinition, type ToolResult } from "./types";
@@ -31,6 +32,7 @@ export const ACTION_TOOLS: ToolDefinition[] = [
   deleteMemory,
   replanToday,
   listCalendarEvents,
+  ...CALENDAR_TOOLS,
   getFitnessSummary,
 ] as ToolDefinition[];
 

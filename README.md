@@ -152,7 +152,7 @@ Each user names their own assistant (e.g. "Nova") and picks how it talks — **S
 
 ## Integrations (calendar + fitness)
 
-- **Google Calendar (works now, read-only):** Settings → Integrations → Connect. OAuth with PKCE and `state`, scope `calendar.events.readonly`, primary calendar, next 30 days. Tokens are encrypted server-side and never reach the browser. Events are fixed constraints for chat, planning, the Today screen and weekly reviews. The assistant can't create or change events yet and says so. Includes Sync now and Disconnect (revokes access at Google and deletes synced events).
+- **Google Calendar:** Settings → Integrations → Connect. OAuth with PKCE and `state`, scope `calendar.events` (events only), primary calendar. Tokens are encrypted server-side and never reach the browser. Events are fixed constraints for chat, planning, the Today screen and weekly reviews. The **Calendar** page (day/week/month, mobile agenda) can create, edit, move and delete events; the assistant can too, but only after the user confirms each change (Confirm/Cancel in the chat). Older read-only connections keep syncing and show "Reconnect to enable editing". Includes Sync now and Disconnect (revokes access at Google and deletes synced events). See `docs/integrations.md`.
 - **Apple Calendar, Apple Health, Health Connect:** these need the native iOS/Android apps; a website can't read them. The normalized data model and the authenticated ingestion API for native apps are ready (`/api/integrations/fitness/*`).
 - Full details, the security model and the native-app contract: [`docs/integrations.md`](docs/integrations.md). Migration: `20261005000000_integrations.sql`. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `INTEGRATIONS_ENCRYPTION_KEY`.
 

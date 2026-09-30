@@ -84,6 +84,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               status: google ? (google.status === "connected" ? "connected" : "error") : "not_connected",
               lastSynced: syncedLabel(google?.lastSyncedAt ?? null),
               upcoming: upcomingEvents.count ?? 0,
+              writable: Boolean(google?.writable),
             }}
             fitness={fitness}
           />

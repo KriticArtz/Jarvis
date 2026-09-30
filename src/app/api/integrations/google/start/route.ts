@@ -7,7 +7,7 @@ import { backToSettings, googleRedirectUri, OAUTH_COOKIE_PATH } from "@/lib/inte
 import { logInfo } from "@/lib/observability/log";
 
 /**
- * Begin connecting Google Calendar (read-only). Requires a signed-in,
+ * Begin connecting Google Calendar (events scope; also used to upgrade a read-only connection). Requires a signed-in,
  * non-demo user. Sets a single-use, encrypted, httpOnly state cookie bound to
  * this user (CSRF state + PKCE verifier) and redirects to Google.
  */

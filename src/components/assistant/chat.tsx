@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { Spinner } from "@/components/ui/spinner";
 import { applyActionEvent, parseStreamChunk, type ChatAction } from "@/lib/assistant/stream-protocol";
 import { ActionChips } from "./action-chips";
+import { answerProposal } from "@/lib/actions/assistant";
 import { usePersonalization } from "@/components/app/personalization";
 import { AssistantAvatar } from "@/components/app/assistant-avatar";
 
@@ -51,6 +52,7 @@ export function Chat({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answering, setAnswering] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -115,6 +117,36 @@ export function Chat({
     }
   }
 
+  /** Confirm or cancel a pending change from its chip (same server-side confirmation as replying "yes"). */
+  async function answer(action: ChatAction, decision: "confirm" | "decline") {
+    if (!conversationId || !action.confirmationId || answering || streaming) return;
+    setError(null);
+    setAnswering(action.confirmationId);
+    try {
+      const res = await answerProposal({ conversationId, confirmationId: action.confirmationId, decision });
+      setMessages((m) => [
+        ...m.map((msg) =>
+          msg.actions?.some((a) => a.id === action.id)
+            ? {
+                ...msg,
+                actions:
+                  decision === "decline" && res.ok
+                    ? msg.actions.filter((a) => a.id !== action.id)
+                    : msg.actions.map((a) => (a.id === action.id ? { id: a.id, status: res.status, label: res.message } : a)),
+              }
+            : msg,
+        ),
+        { id: `u-${m.length}`, role: "user", content: decision === "confirm" ? "Yes, go ahead." : "No, cancel that." },
+        { id: `a-${m.length + 1}`, role: "assistant", content: res.message },
+      ]);
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setAnswering(null);
+    }
+  }
+
   useEffect(() => {
     if (!initialPrompt || sentInitial.current) return;
     sentInitial.current = true;
@@ -157,7 +189,7 @@ export function Chat({
           <ol className="flex flex-col gap-3 pb-4">
             {messages.map((m) => (
               <li key={m.id} className={cn("flex animate-fade-in", m.role === "user" ? "justify-end" : "flex-col items-start")}>
-                {m.role === "assistant" && m.actions?.length ? <ActionChips actions={m.actions} /> : null}
+                {m.role === "assistant" && m.actions?.length ? <ActionChips actions={m.actions} onAnswer={answer} busyId={answering} /> : null}
                 {m.role === "assistant" && !m.content && m.actions?.length ? null : (
                   <div
                     className={cn(

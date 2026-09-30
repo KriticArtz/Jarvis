@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Home, MessageCircle, Settings, Target } from "lucide-react";
+import { BarChart3, CalendarDays, Home, MessageCircle, Settings, Target } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePersonalization } from "./personalization";
 import { AssistantAvatar } from "./assistant-avatar";
 
-const ITEMS = [
-  { href: "/dashboard", label: "Today", icon: Home, match: ["/dashboard", "/plan"] },
-  { href: "/goals", label: "Goals", icon: Target, match: ["/goals"] },
-  { href: "/assistant", label: null, icon: MessageCircle, match: ["/assistant"] },
-  { href: "/review", label: "Review", icon: BarChart3, match: ["/review"] },
-  { href: "/settings", label: "Settings", icon: Settings, match: ["/settings"] },
-];
+const TODAY = { href: "/dashboard", label: "Today", icon: Home, match: ["/dashboard", "/plan"] };
+const CALENDAR = { href: "/calendar", label: "Calendar", icon: CalendarDays, match: ["/calendar"] };
+const GOALS = { href: "/goals", label: "Goals", icon: Target, match: ["/goals"] };
+const ASSISTANT = { href: "/assistant", label: null, icon: MessageCircle, match: ["/assistant"] };
+const REVIEW = { href: "/review", label: "Review", icon: BarChart3, match: ["/review"] };
+const SETTINGS = { href: "/settings", label: "Settings", icon: Settings, match: ["/settings"] };
+
+const ITEMS = [TODAY, CALENDAR, GOALS, ASSISTANT, REVIEW, SETTINGS];
+/** Five tabs with the assistant in the middle; Settings is reached from the header avatar on mobile. */
+const TAB_ITEMS = [TODAY, CALENDAR, ASSISTANT, GOALS, REVIEW];
 
 function useActive() {
   const pathname = usePathname();
@@ -63,7 +66,7 @@ export function BottomNav() {
       className="app-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
-        {ITEMS.map((item) => {
+        {TAB_ITEMS.map((item) => {
           const active = isActive(item.match);
           const isAssistant = !item.label;
           return (

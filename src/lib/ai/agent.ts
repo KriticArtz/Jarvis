@@ -20,7 +20,7 @@ export const MAX_TOOL_CALLS = 8;
 
 export type AgentEvent =
   | { type: "text"; delta: string }
-  | { type: "action"; callId: string; tool: string; status: "running" | ToolResult["status"]; label: string };
+  | { type: "action"; callId: string; tool: string; status: "running" | ToolResult["status"]; label: string; confirmationId?: string };
 
 export interface AgentAction {
   tool: string;
@@ -155,7 +155,7 @@ export async function runAssistantTurn(opts: {
           result = { status: "failed", error: "server_error", message: "Something went wrong on my side, so I didn't make that change." };
         }
         if (result.status !== "info") {
-          emit({ type: "action", callId: call.call_id, tool: call.name, status: result.status, label: result.message });
+          emit({ type: "action", callId: call.call_id, tool: call.name, status: result.status, label: result.message, confirmationId: result.confirmationId });
         } else {
           emit({ type: "action", callId: call.call_id, tool: call.name, status: "info", label: "" });
         }

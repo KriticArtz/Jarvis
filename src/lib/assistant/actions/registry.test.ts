@@ -35,6 +35,8 @@ describe("tool registry", () => {
         "cancel_task", "complete_task", "confirm_action", "create_goal", "create_task", "decline_action", "delete_goal",
         "delete_memory", "get_goal_progress", "list_tasks", "record_progress", "replan_today", "reschedule_task",
         "save_memory", "set_goal_status", "update_goal", "update_memory", "list_calendar_events", "get_fitness_summary",
+        "find_calendar_events", "get_calendar_event", "find_free_time",
+        "create_calendar_event", "reschedule_calendar_event", "update_calendar_event", "delete_calendar_event",
       ].sort(),
     );
     expect(new Set(TOOL_NAMES).size).toBe(TOOL_NAMES.length);
@@ -55,10 +57,15 @@ describe("tool registry", () => {
     }
     expect(risk.list_tasks).toBe("read");
     expect(isMutating("list_tasks")).toBe(false);
-    // Integrations are read-only: no tool can create, change or delete calendar events or health data.
-    expect(risk.list_calendar_events).toBe("read");
-    expect(risk.get_fitness_summary).toBe("read");
-    expect(TOOL_NAMES.filter((n) => /calendar|event|fitness|health|workout/.test(n)).sort()).toEqual(["get_fitness_summary", "list_calendar_events"]);
+    // Calendar reads are free; EVERY calendar change is a proposal the user must confirm. Health data is read-only.
+    for (const name of ["list_calendar_events", "find_calendar_events", "get_calendar_event", "find_free_time", "get_fitness_summary"]) expect(risk[name]).toBe("read");
+    for (const name of ["create_calendar_event", "reschedule_calendar_event", "update_calendar_event", "delete_calendar_event"]) {
+      expect(risk[name]).toBe("confirm");
+      expect(isMutating(name)).toBe(true);
+    }
+    const calendarOrHealth = ACTION_TOOLS.filter((t) => /calendar|event|free_time|fitness|health|workout/.test(t.name));
+    for (const t of calendarOrHealth) expect(["read", "confirm"]).toContain(t.risk);
+    expect(TOOL_NAMES.filter((n) => /fitness|health|workout/.test(n))).toEqual(["get_fitness_summary"]);
     expect(isMutating("confirm_action")).toBe(true);
   });
 

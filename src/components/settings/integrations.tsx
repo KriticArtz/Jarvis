@@ -16,6 +16,8 @@ export interface CalendarState {
   status: "not_connected" | "connected" | "error";
   lastSynced: string | null;
   upcoming: number;
+  /** The grant allows creating/changing events; false = connected read-only (Phase 1 grant). */
+  writable: boolean;
 }
 
 export interface FitnessState {
@@ -29,7 +31,7 @@ const FLASH: Record<string, { ok: boolean; text: string }> = {
   connected: { ok: true, text: "Google Calendar connected. Your upcoming events are synced." },
   connected_sync_failed: { ok: false, text: "Connected, but the first sync failed. Try “Sync now”." },
   denied: { ok: false, text: "Google Calendar wasn't connected — access was declined." },
-  scope_denied: { ok: false, text: "Calendar access is needed to connect. Please try again and allow viewing your calendar events." },
+  scope_denied: { ok: false, text: "Calendar access wasn't granted, so nothing changed. To connect or enable editing, try again and allow access to your calendar events." },
   invalid_state: { ok: false, text: "That connection attempt couldn't be verified. Please try again." },
   expired: { ok: false, text: "That connection attempt expired. Please try again." },
   not_configured: { ok: false, text: "Calendar sync isn't configured on this server yet." },
@@ -94,7 +96,11 @@ export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { cal
           title="Google Calendar"
           status={
             connected ? (
-              <Badge tone="success">Connected</Badge>
+              calendar.writable ? (
+                <Badge tone="success">Connected</Badge>
+              ) : (
+                <Badge tone="warning">Read-only</Badge>
+              )
             ) : needsReconnect ? (
               <Badge tone="warning">Needs reconnecting</Badge>
             ) : (
@@ -107,14 +113,23 @@ export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { cal
               : !calendar.configured
                 ? "Not configured on this server yet."
                 : connected
-                  ? `Read-only. ${calendar.upcoming} event${calendar.upcoming === 1 ? "" : "s"} in the next 30 days${calendar.lastSynced ? ` · synced ${calendar.lastSynced}` : ""}. Your assistant plans around them but can't change your calendar.`
+                  ? `${calendar.upcoming} event${calendar.upcoming === 1 ? "" : "s"} in the next 30 days${calendar.lastSynced ? ` · synced ${calendar.lastSynced}` : ""}. ${
+                      calendar.writable
+                        ? "You can add and change events from the Calendar page, and your assistant can too — only after you confirm each change."
+                        : "Connected read-only, so events can't be added or changed from here. Reconnect to enable editing — Google will ask you to allow it."
+                    }`
                   : needsReconnect
                     ? "Google access was revoked or expired. Reconnect to keep your events up to date."
-                    : "Read-only access to your primary calendar, so your assistant can plan around your real commitments. It never creates or changes events."
+                    : `Your primary calendar's events, so your assistant can plan around your real commitments. You can add and change events from ${brand.name}; your assistant always asks before changing anything.`
           }
         >
           {isDemo || !calendar.configured ? null : connected ? (
             <>
+              {!calendar.writable ? (
+                <a href="/api/integrations/google/start" className={buttonClass("primary", "sm")}>
+                  Reconnect to enable editing
+                </a>
+              ) : null}
               <Button size="sm" variant="secondary" disabled={pending} onClick={() => run("sync", syncCalendarNow)}>
                 <RefreshCw className={cn("size-4", busy === "sync" && "animate-spin")} aria-hidden /> {busy === "sync" ? "Syncing…" : "Sync now"}
               </Button>

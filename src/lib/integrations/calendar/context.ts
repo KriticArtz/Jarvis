@@ -3,14 +3,17 @@ import { addDays, zonedTimeToUtc } from "@/lib/time";
 import { PROVIDER_LABEL, type IntegrationProvider } from "../connections";
 import { groupByLocalDay, type CalendarDay, type CalendarEventRow } from "./local";
 import { CALENDAR_SYNC_DAYS } from "./types";
+import { hasCalendarWriteAccess } from "./scopes";
 
 export interface CalendarContext {
   provider: string;
   lastSyncedAt: string | null;
   days: CalendarDay[];
+  /** True when the grant allows creating/changing events (calendar.events scope). */
+  writable: boolean;
 }
 
-const EVENT_COLUMNS = "title, starts_at, ends_at, all_day, start_date, end_date, location, status, is_busy";
+const EVENT_COLUMNS = "id, title, starts_at, ends_at, all_day, start_date, end_date, location, status, is_busy, color_id, recurring_event_id, is_organizer, attendee_count";
 
 /**
  * The user's calendar for `days` local days starting `from`, or null when no
@@ -21,7 +24,7 @@ const EVENT_COLUMNS = "title, starts_at, ends_at, all_day, start_date, end_date,
 export async function loadCalendar(db: DB, userId: string, opts: { tz: string; from: string; days: number }): Promise<CalendarContext | null> {
   const { data: conns, error } = await db
     .from("integration_connections")
-    .select("provider, status, last_synced_at")
+    .select("provider, status, last_synced_at, scopes")
     .eq("user_id", userId)
     .eq("kind", "calendar")
     .eq("status", "connected");
@@ -43,5 +46,6 @@ export async function loadCalendar(db: DB, userId: string, opts: { tz: string; f
     provider: conns.map((c) => PROVIDER_LABEL[c.provider as IntegrationProvider] ?? String(c.provider)).join(", "),
     lastSyncedAt: latest,
     days: groupByLocalDay((rows ?? []) as CalendarEventRow[], opts.tz, opts.from, days),
+    writable: conns.some((c) => hasCalendarWriteAccess((c.scopes as string[] | null) ?? [])),
   };
 }

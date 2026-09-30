@@ -1,3 +1,4 @@
+import { hasCalendarWriteAccess } from "./calendar/scopes";
 import type { DB } from "@/lib/data/db";
 
 export type IntegrationProvider = "google_calendar" | "apple_calendar" | "apple_health" | "health_connect";
@@ -11,6 +12,8 @@ export interface ConnectionSummary {
   lastSyncedAt: string | null;
   lastError: string | null;
   connectedAt: string;
+  /** Calendars: the grant allows creating and changing events (not just reading). */
+  writable: boolean;
 }
 
 /**
@@ -20,7 +23,7 @@ export interface ConnectionSummary {
 export async function getConnections(db: DB, userId: string): Promise<ConnectionSummary[]> {
   const { data, error } = await db
     .from("integration_connections")
-    .select("provider, kind, status, last_synced_at, last_error, created_at")
+    .select("provider, kind, status, last_synced_at, last_error, created_at, scopes")
     .eq("user_id", userId);
   if (error || !data) return [];
   return data.map((c) => ({
@@ -30,6 +33,7 @@ export async function getConnections(db: DB, userId: string): Promise<Connection
     lastSyncedAt: c.last_synced_at as string | null,
     lastError: c.last_error as string | null,
     connectedAt: c.created_at as string,
+    writable: c.kind === "calendar" && hasCalendarWriteAccess((c.scopes as string[] | null) ?? []),
   }));
 }
 

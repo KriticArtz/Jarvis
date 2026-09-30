@@ -62,10 +62,13 @@ describe("OAuth state + PKCE", () => {
     expect(checkOAuthState(randomBytes(32), flow.cookieValue, flow.state, "user-a", now)).toEqual({ ok: false, reason: "invalid" });
   });
 
-  it("asks Google for read-only calendar access with PKCE and offline access", () => {
+  it("asks Google only for event-level calendar access with PKCE and offline access", () => {
     const url = new URL(buildAuthorizeUrl({ clientId: "cid", clientSecret: "never-in-url" }, { redirectUri: "https://app.test/cb", state: "st", codeChallenge: "ch" }));
     expect(url.searchParams.get("scope")).toBe(GOOGLE_CALENDAR_SCOPE);
-    expect(GOOGLE_CALENDAR_SCOPE).toBe("https://www.googleapis.com/auth/calendar.events.readonly");
+    // Events on the user's calendars only — not the full calendar scope (calendars, sharing, settings).
+    expect(GOOGLE_CALENDAR_SCOPE).toBe("https://www.googleapis.com/auth/calendar.events");
+    expect(url.searchParams.get("scope")?.split(" ")).toHaveLength(1);
+    expect(url.searchParams.get("prompt")).toBe("consent");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("access_type")).toBe("offline");
     expect(url.searchParams.get("state")).toBe("st");
@@ -103,9 +106,15 @@ describe("Google event normalization", () => {
         location: "Room 4",
         status: "confirmed",
         isBusy: true,
+        colorId: null,
+        recurringEventId: null,
+        isOrganizer: true,
+        attendeeCount: 1,
       },
     });
+    // Descriptions and guest details are fetched on demand, never stored.
     expect(JSON.stringify(n)).not.toContain("secret notes");
+    expect(JSON.stringify(n)).not.toContain("x@y.z");
   });
 
   it("handles all-day events in the calendar's time zone", () => {
@@ -262,12 +271,16 @@ describe("AI context and rules", () => {
     expect(renderContext({ ...ctx, calendar: null, fitness: null })).toContain("## Calendar\nNot connected.");
   });
 
-  it("tells the model it cannot write to the calendar and must not make medical claims", () => {
-    for (const tools of [true, false]) {
-      const prompt = assistantSystemPrompt({ name: "Nova", personality: "direct" }, "app", { tools });
-      expect(prompt).toContain("you cannot create, move or delete calendar events yet");
-      expect(prompt).toContain("calendar changes aren't available yet (they're coming later)");
-      expect(prompt).toContain("Never claim you changed their calendar");
+  it("tells the model calendar changes need the user's OK (or aren't possible without tools) and forbids medical claims", () => {
+    const withTools = assistantSystemPrompt({ name: "Nova", personality: "direct" }, "app", { tools: true });
+    expect(withTools).toContain("EVERY calendar change is only a proposal until the user approves it");
+    expect(withTools).toContain("never say it's done before the confirmation succeeds");
+    expect(withTools).toContain("every calendar change (create, update, move, delete)");
+    expect(withTools).toContain("Don't fill every free minute");
+    const withoutTools = assistantSystemPrompt({ name: "Nova", personality: "direct" }, "app", { tools: false });
+    expect(withoutTools).toContain("You can't change the calendar from here; never claim you did.");
+    for (const prompt of [withTools, withoutTools]) {
+      expect(prompt).toMatch(/fixed commitments — plan around them and never (suggest )?double-book/);
       expect(prompt).toContain("Never diagnose, make medical claims or give medical advice");
     }
     expect(assistantSystemPrompt({ name: "Nova", personality: "direct" }, "app", { tools: true })).toContain("get_fitness_summary only when the request actually needs it");

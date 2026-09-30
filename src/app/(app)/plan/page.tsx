@@ -9,16 +9,18 @@ import { resolvePersonalization } from "@/lib/personalization";
 import { FormMessage } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/card";
 import { PlanBuilder } from "@/components/plan/plan-builder";
+import { calendarWriteState } from "@/lib/integrations/calendar/mutations";
 
 export const metadata: Metadata = { title: "Plan my day" };
 
 export default async function PlanPage() {
-  const { supabase, userId, profile } = await requireOnboardedUser();
+  const { supabase, userId, profile, isDemo } = await requireOnboardedUser();
   const today = localDate(profile.timezone || "UTC");
-  const [plan, goals, accepted] = await Promise.all([
+  const [plan, goals, accepted, calendarState] = await Promise.all([
     getLatestPlan(supabase, userId, today),
     getGoals(supabase, userId, ["active"]),
     supabase.from("daily_plans").select("id").eq("user_id", userId).eq("plan_date", today).eq("status", "accepted").limit(1),
+    isDemo ? Promise.resolve("not_connected" as const) : calendarWriteState(supabase, userId),
   ]);
   const hasAccepted = Boolean(accepted.data?.length);
 
@@ -37,6 +39,7 @@ export default async function PlanPage() {
       ) : null}
       <PlanBuilder
         draft={plan?.status === "draft" ? plan : null}
+        calendarWritable={calendarState === "writable"}
         hasAcceptedPlan={hasAccepted}
         knowsWakingHours={Boolean(profile.wake_time && profile.sleep_time)}
         goals={goals.map((g) => ({ id: g.id, title: g.title }))}

@@ -2,6 +2,7 @@ import { addDays, zonedParts } from "@/lib/time";
 
 /** A stored calendar event row, as read for display/AI (never includes tokens). */
 export interface CalendarEventRow {
+  id?: string;
   title: string;
   starts_at: string;
   ends_at: string;
@@ -11,9 +12,15 @@ export interface CalendarEventRow {
   location: string | null;
   status: "confirmed" | "tentative" | "cancelled";
   is_busy: boolean;
+  color_id?: string | null;
+  recurring_event_id?: string | null;
+  is_organizer?: boolean;
+  attendee_count?: number;
 }
 
 export interface LocalCalendarEvent {
+  /** Our event id (for the Calendar page and the assistant's calendar tools). */
+  id?: string;
   title: string;
   /** Local "HH:MM" on this day; null for all-day events. Clamped to the day for events spanning midnight. */
   start: string | null;
@@ -22,6 +29,13 @@ export interface LocalCalendarEvent {
   location: string | null;
   tentative: boolean;
   busy: boolean;
+  colorId?: string | null;
+  recurring?: boolean;
+  editable?: boolean;
+  attendeeCount?: number;
+  /** Absolute start/end (ISO) of the whole event, for details and editing. */
+  startsAt?: string;
+  endsAt?: string;
 }
 
 export interface CalendarDay {
@@ -34,6 +48,19 @@ const pad = (n: number) => String(n).padStart(2, "0");
 function local(iso: string, tz: string): { date: string; time: string } {
   const p = zonedParts(new Date(iso), tz);
   return { date: `${p.year}-${pad(p.month)}-${pad(p.day)}`, time: `${pad(p.hour)}:${pad(p.minute)}` };
+}
+
+function meta(r: CalendarEventRow): Partial<LocalCalendarEvent> {
+  if (!r.id) return {};
+  return {
+    id: r.id,
+    colorId: r.color_id ?? null,
+    recurring: Boolean(r.recurring_event_id),
+    editable: r.is_organizer ?? true,
+    attendeeCount: r.attendee_count ?? 0,
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+  };
 }
 
 /**
@@ -51,7 +78,7 @@ export function groupByLocalDay(rows: CalendarEventRow[], tz: string, from: stri
       const lastExclusive = r.end_date ?? addDays(first, 1);
       for (let d = first; d < lastExclusive; d = addDays(d, 1)) {
         const i = index.get(d);
-        if (i !== undefined) out[i].events.push({ title: r.title, start: null, end: null, allDay: true, location: r.location, tentative: r.status === "tentative", busy: r.is_busy });
+        if (i !== undefined) out[i].events.push({ ...meta(r), title: r.title, start: null, end: null, allDay: true, location: r.location, tentative: r.status === "tentative", busy: r.is_busy });
       }
       continue;
     }
@@ -63,6 +90,7 @@ export function groupByLocalDay(rows: CalendarEventRow[], tz: string, from: stri
       const i = index.get(d);
       if (i === undefined) continue;
       out[i].events.push({
+        ...meta(r),
         title: r.title,
         start: d === s.date ? s.time : "00:00",
         end: d === e.date ? e.time : "24:00",

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
               streamed += event.delta;
               controller.enqueue(line({ t: "text", v: event.delta }));
             }
-            else controller.enqueue(line({ t: "action", id: event.callId, status: event.status, label: event.label }));
+            else controller.enqueue(line({ t: "action", id: event.callId, status: event.status, label: event.label, confirmationId: event.confirmationId }));
           },
         });
         full = outcome.text;

@@ -4,8 +4,9 @@ import type { DB } from "@/lib/data/db";
 import { addDays, localDate, zonedTimeToUtc } from "@/lib/time";
 import { logError, logInfo, logWarn } from "@/lib/observability/log";
 import { seal, unseal } from "../crypto";
-import { GOOGLE_CALENDAR_SCOPE, listEvents, refreshAccessToken, revokeToken, type GoogleTokens } from "./google";
-import { CALENDAR_SYNC_DAYS } from "./types";
+import { listEvents, refreshAccessToken, revokeToken, type GoogleTokens } from "./google";
+import { calendarScopes, hasCalendarReadAccess } from "./scopes";
+import { CALENDAR_SYNC_DAYS, type NormalizedCalendarEvent } from "./types";
 
 /**
  * Google Calendar connection lifecycle and sync. `admin` must be the
@@ -21,14 +22,14 @@ export interface IntegrationDeps {
   key?: Buffer | null;
 }
 
-const PROVIDER = "google_calendar";
-const CALENDAR_ID = "primary";
+export const PROVIDER = "google_calendar";
+export const CALENDAR_ID = "primary";
 /** Past events are kept briefly (weekly review), then pruned. */
 const KEEP_PAST_DAYS = 35;
 
 const purpose = (kind: "access" | "refresh", userId: string) => `${PROVIDER}:${kind}:${userId}`;
 
-function resolve(deps: IntegrationDeps) {
+export function resolve(deps: IntegrationDeps) {
   return {
     fetch: deps.fetch ?? fetch,
     now: deps.now ?? new Date(),
@@ -52,13 +53,14 @@ export type ConnectOutcome =
 export async function saveGoogleConnection(admin: DB, userId: string, tokens: GoogleTokens, deps: IntegrationDeps = {}): Promise<ConnectOutcome> {
   const { key } = resolve(deps);
   if (!key) return { ok: false, reason: "not_configured" };
-  if (!tokens.scopes.includes(GOOGLE_CALENDAR_SCOPE)) return { ok: false, reason: "scope_denied" };
+  // Either the Phase 1 read-only scope or the current read/write events scope.
+  if (!hasCalendarReadAccess(tokens.scopes)) return { ok: false, reason: "scope_denied" };
   if (!tokens.refreshToken) return { ok: false, reason: "no_refresh_token" };
 
   const { data: conn, error } = await admin
     .from("integration_connections")
     .upsert(
-      { user_id: userId, provider: PROVIDER, kind: "calendar", status: "connected", scopes: [GOOGLE_CALENDAR_SCOPE], last_error: null },
+      { user_id: userId, provider: PROVIDER, kind: "calendar", status: "connected", scopes: calendarScopes(tokens.scopes), last_error: null },
       { onConflict: "user_id,provider" },
     )
     .select("id")
@@ -83,12 +85,38 @@ export async function saveGoogleConnection(admin: DB, userId: string, tokens: Go
   return { ok: true };
 }
 
-async function loadConnection(admin: DB, userId: string) {
-  const { data } = await admin.from("integration_connections").select("id, status, last_synced_at").eq("user_id", userId).eq("provider", PROVIDER).maybeSingle();
-  return data as { id: string; status: string; last_synced_at: string | null } | null;
+export async function loadConnection(admin: DB, userId: string) {
+  const { data } = await admin.from("integration_connections").select("id, status, last_synced_at, scopes").eq("user_id", userId).eq("provider", PROVIDER).maybeSingle();
+  return data as { id: string; status: string; last_synced_at: string | null; scopes: string[] | null } | null;
 }
 
-async function markNeedsReconnect(admin: DB, connectionId: string) {
+/** calendar_events row for a normalized event (shared by sync and writes). */
+export function eventRow(e: NormalizedCalendarEvent, userId: string, connectionId: string, syncedAt: string) {
+  return {
+    user_id: userId,
+    connection_id: connectionId,
+    provider: PROVIDER,
+    provider_event_id: e.providerEventId,
+    calendar_id: e.calendarId,
+    title: e.title,
+    starts_at: e.startsAt,
+    ends_at: e.endsAt,
+    all_day: e.allDay,
+    start_date: e.startDate,
+    end_date: e.endDate,
+    timezone: e.timezone,
+    location: e.location,
+    status: e.status,
+    is_busy: e.isBusy,
+    color_id: e.colorId ?? null,
+    recurring_event_id: e.recurringEventId ?? null,
+    is_organizer: e.isOrganizer ?? true,
+    attendee_count: e.attendeeCount ?? 0,
+    last_synced_at: syncedAt,
+  };
+}
+
+export async function markNeedsReconnect(admin: DB, connectionId: string) {
   await admin.from("integration_connections").update({ status: "error", last_error: "reauth_required" }).eq("id", connectionId);
   // The grant is dead; don't keep unusable secrets around.
   await admin.from("integration_credentials").delete().eq("connection_id", connectionId);
@@ -96,7 +124,7 @@ async function markNeedsReconnect(admin: DB, connectionId: string) {
 
 type TokenOutcome = { ok: true; token: string } | { ok: false; reason: "reauth_required" | "error" | "not_configured" };
 
-async function accessToken(admin: DB, userId: string, connectionId: string, r: ReturnType<typeof resolve>, force = false): Promise<TokenOutcome> {
+export async function accessToken(admin: DB, userId: string, connectionId: string, r: ReturnType<typeof resolve>, force = false): Promise<TokenOutcome> {
   if (!r.key || !r.config) return { ok: false, reason: "not_configured" };
   const { data: cred } = await admin
     .from("integration_credentials")
@@ -136,7 +164,13 @@ export type SyncOutcome =
  * and make calendar_events match: upsert by provider event id (idempotent),
  * mark cancellations, and remove events in the window that no longer exist.
  */
-export async function syncGoogleCalendar(admin: DB, userId: string, deps: IntegrationDeps = {}): Promise<SyncOutcome> {
+export async function syncGoogleCalendar(
+  admin: DB,
+  userId: string,
+  deps: IntegrationDeps = {},
+  /** Optional window (user-local dates) instead of the default "today + 30 days", e.g. a month on the Calendar page. */
+  range?: { from: string; days: number },
+): Promise<SyncOutcome> {
   const r = resolve(deps);
   if (!r.key || !r.config) return { ok: false, reason: "not_configured" };
   const conn = await loadConnection(admin, userId);
@@ -144,9 +178,10 @@ export async function syncGoogleCalendar(admin: DB, userId: string, deps: Integr
 
   const { data: profile } = await admin.from("profiles").select("timezone").eq("id", userId).maybeSingle();
   const tz = (profile?.timezone as string | undefined) || "UTC";
-  const today = localDate(tz, r.now);
-  const timeMin = zonedTimeToUtc(today, "00:00", tz);
-  const timeMax = zonedTimeToUtc(addDays(today, CALENDAR_SYNC_DAYS), "00:00", tz);
+  const from = range?.from ?? localDate(tz, r.now);
+  const days = Math.max(1, Math.min(range?.days ?? CALENDAR_SYNC_DAYS, 62));
+  const timeMin = zonedTimeToUtc(from, "00:00", tz);
+  const timeMax = zonedTimeToUtc(addDays(from, days), "00:00", tz);
 
   let token = await accessToken(admin, userId, conn.id, r);
   if (!token.ok) {
@@ -174,27 +209,12 @@ export async function syncGoogleCalendar(admin: DB, userId: string, deps: Integr
   const cancelledIds = list.items.flatMap((i) => (i.kind === "cancelled" ? [i.providerEventId] : []));
 
   if (events.length) {
-    const { error } = await admin.from("calendar_events").upsert(
-      events.map((e) => ({
-        user_id: userId,
-        connection_id: conn.id,
-        provider: PROVIDER,
-        provider_event_id: e.providerEventId,
-        calendar_id: e.calendarId,
-        title: e.title,
-        starts_at: e.startsAt,
-        ends_at: e.endsAt,
-        all_day: e.allDay,
-        start_date: e.startDate,
-        end_date: e.endDate,
-        timezone: e.timezone,
-        location: e.location,
-        status: e.status,
-        is_busy: e.isBusy,
-        last_synced_at: syncedAt,
-      })),
-      { onConflict: "user_id,provider,calendar_id,provider_event_id" },
-    );
+    const { error } = await admin
+      .from("calendar_events")
+      .upsert(
+        events.map((e) => eventRow(e, userId, conn.id, syncedAt)),
+        { onConflict: "user_id,provider,calendar_id,provider_event_id" },
+      );
     if (error) {
       logError("integrations", "calendar upsert failed", { userId, code: error.code });
       return { ok: false, reason: "error" };
@@ -222,13 +242,18 @@ export async function syncGoogleCalendar(admin: DB, userId: string, deps: Integr
       .select("id");
     removed = gone?.length ?? 0;
   }
-  await admin
-    .from("calendar_events")
-    .delete()
-    .eq("connection_id", conn.id)
-    .lt("ends_at", new Date(r.now.getTime() - KEEP_PAST_DAYS * 86_400_000).toISOString());
+  if (!range) {
+    await admin
+      .from("calendar_events")
+      .delete()
+      .eq("connection_id", conn.id)
+      .lt("ends_at", new Date(r.now.getTime() - KEEP_PAST_DAYS * 86_400_000).toISOString());
+  }
 
-  await admin.from("integration_connections").update({ status: "connected", last_error: null, last_synced_at: syncedAt }).eq("id", conn.id);
+  await admin
+    .from("integration_connections")
+    .update({ status: "connected", last_error: null, ...(range ? {} : { last_synced_at: syncedAt }) })
+    .eq("id", conn.id);
   return { ok: true, upserted: events.length, cancelled: cancelledIds.length, removed };
 }
 

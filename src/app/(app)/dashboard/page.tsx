@@ -141,7 +141,12 @@ export default async function DashboardPage() {
         <div className="rounded-[28px] bg-surface px-5 shadow-card">
           {calendar ? (
             <div className="border-b border-hairline py-4">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">On your calendar</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">On your calendar</p>
+                <Link href="/calendar?view=day" className="-my-2 inline-flex min-h-11 items-center text-[13px] font-medium text-accent">
+                  Open calendar
+                </Link>
+              </div>
               {todaysEvents.length ? (
                 <ul className="mt-2 flex flex-col gap-1.5" aria-label="Today's calendar events">
                   {todaysEvents.map((e, i) => (

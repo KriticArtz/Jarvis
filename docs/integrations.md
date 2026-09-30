@@ -16,10 +16,13 @@ integration follows:
   removes its tokens and every synced event or fitness record. Google access
   is also revoked at Google. Deleting the account does all of this too.
 - **Minimal data.** Only the fields the assistant needs are stored: no event
-  descriptions, attendees or links, and no raw health samples, heart rate,
+  descriptions, attendee identities or links (those are fetched from Google
+  only when the user opens an event), and no raw health samples, heart rate,
   routes or clinical records.
-- **Read-only for now.** No tool can create, change or delete calendar events
-  or health data. The assistant says calendar changes are "coming later".
+- **Calendar writes need the user's OK.** Google Calendar events can be
+  created, changed, moved and deleted (see "Calendar writes" below). Every
+  change the assistant makes is a proposal the user confirms first. Health
+  data stays read-only.
 
 ## Data model
 
@@ -27,12 +30,13 @@ integration follows:
 |---|---|---|
 | `integration_connections` | One row per user and provider: status (`connected` / `error`), scopes, `last_synced_at`, `last_error` | `(user_id, provider)` |
 | `integration_credentials` | Encrypted access/refresh tokens. Server-only. | `connection_id` |
-| `calendar_events` | Normalized events: provider, provider event id, calendar id, title, start/end, timezone, all-day (with dates), location, status (confirmed/tentative/cancelled), busy/free, `last_synced_at` | `(user_id, provider, calendar_id, provider_event_id)` |
+| `calendar_events` | Normalized events: provider, provider event id, calendar id, title, start/end, timezone, all-day (with dates), location, status (confirmed/tentative/cancelled), busy/free, `last_synced_at`; since phase 2 also `color_id`, `recurring_event_id`, `is_organizer`, `attendee_count` | `(user_id, provider, calendar_id, provider_event_id)` |
 | `fitness_daily_summaries` | Per day: steps, active energy (kcal), distance (m), sleep (minutes) | `(user_id, provider, summary_date)` |
 | `fitness_workouts` | Workout summaries: type, start/end, duration, active energy, distance | `(user_id, provider, provider_workout_id)` |
 
-Migration: `supabase/migrations/20261005000000_integrations.sql`. The RLS
-checks are in `supabase/tests/rls_test.sql`.
+Migrations: `supabase/migrations/20261005000000_integrations.sql` and
+`20261006000000_calendar_phase2.sql` (event metadata columns). The RLS checks
+are in `supabase/tests/rls_test.sql`.
 
 ## Google Calendar (web, available now)
 
@@ -43,8 +47,16 @@ checks are in `supabase/tests/rls_test.sql`.
   - `GET /api/integrations/google/callback` checks all four before
     exchanging the code.
   - Demo (anonymous) users can't connect.
-- **Scope:** `https://www.googleapis.com/auth/calendar.events.readonly` only.
-  The app reads the user's **primary** calendar.
+- **Scope:** `https://www.googleapis.com/auth/calendar.events` (read and
+  write *events* only — not the broader `calendar` scope, which would also
+  allow managing calendars, settings and sharing). The app uses the user's
+  **primary** calendar.
+  - Connections made before phase 2 hold `calendar.events.readonly`. They keep
+    syncing; Settings and the Calendar page show "Read-only" with a
+    **Reconnect to enable editing** button (the same OAuth flow; Google asks
+    for the new permission). Writes are refused with that explanation until
+    then. If Google ever answers a write with an insufficient-scope error, the
+    stored scopes are downgraded so the UI offers the reconnect.
 - **Sync:** the window is from the start of the user's today to 30 days ahead.
   - Recurring events are expanded and deletions included (`showDeleted`).
   - Each run upserts by provider event id and marks cancelled instances.
@@ -60,9 +72,50 @@ checks are in `supabase/tests/rls_test.sql`.
   - Today and the next two days appear in the context as fixed commitments.
     They also count as busy time when free windows and plans are computed, so
     plans never overlap them.
-  - `list_calendar_events` (read-only) looks at up to 30 days.
+  - Read tools (no confirmation): `list_calendar_events`,
+    `find_calendar_events`, `get_calendar_event` (description and guests,
+    fetched on demand) and `find_free_time` (events, work hours, commitments
+    and timed tasks are hard busy blocks; a few spread-out slots, not every
+    free minute).
+  - Write tools (always a proposal): `create_calendar_event`,
+    `reschedule_calendar_event`, `update_calendar_event`,
+    `delete_calendar_event`. See "Calendar writes".
   - The weekly review gets the week's event count and busy hours.
-  - Code: `src/lib/integrations/calendar/`.
+  - Code: `src/lib/integrations/calendar/`, tools in
+    `src/lib/assistant/actions/calendar.ts`.
+
+## Calendar writes (phase 2)
+
+- **Where:** the Calendar page (`/calendar`: day, week, month; phones get an
+  agenda for the week and dots + the day's agenda for the month), the
+  assistant, and "Add to calendar" on timed items in *Plan my day*.
+- **Server-only:** `src/lib/integrations/calendar/mutations.ts`
+  (`createCalendarEvent`, `updateCalendarEvent`, `deleteCalendarEvent`,
+  `getCalendarEventDetails`, `calendarWriteState`). The user id always comes
+  from the session; each event is loaded with an explicit `user_id` filter
+  before Google is called; only organizers can edit (invited events are
+  view-only).
+- **Confirmation:** the assistant's write tools are `confirm` tools in the
+  existing action registry — they store a proposal in `assistant_actions`
+  (e.g. "Move “Dentist” / Current: Wed 2:00 PM / New: Thu 3:00 PM") and
+  nothing reaches Google until `confirm_action` runs in a later turn. The chat
+  shows **Confirm / Cancel** on the proposal; the buttons call the same
+  `confirm_action` / `decline_action` path (`answerProposal`). On the Calendar
+  page, pressing Save is the user's explicit action; Delete asks "Yes, delete"
+  first. Plan items are added only when the user ticks "Add to calendar".
+- **Idempotency:** creates use a deterministic Google event id derived from
+  the user and a request key (the proposal, the form's request id, or
+  `plan:<id>:<item>`), so retries return the existing event instead of a
+  duplicate.
+- **Time zones and DST:** timed events are sent as UTC instants computed from
+  the user's local date/time in their IANA zone, plus that zone. Moving an
+  event without a new time keeps its local start time across DST changes.
+- **Recurring events:** changes apply to the single occurrence (instance id).
+- **Failures:** 401 → refresh once, then "Needs reconnecting"; 404/410 on
+  change → the local copy is removed and the user is told it no longer
+  exists; deleting an already-deleted event counts as done; other errors are
+  reported without claiming success. Logs carry only user id, failure kind and
+  HTTP status.
 
 ## Apple Calendar (future iOS app)
 

@@ -12,13 +12,15 @@ import { SubmitButton } from "@/components/ui/submit-button";
 
 interface Props {
   draft: DailyPlan | null;
+  /** The user's calendar accepts new events (offers "Add to calendar" per timed item). */
+  calendarWritable: boolean;
   hasAcceptedPlan: boolean;
   knowsWakingHours: boolean;
   goals: { id: string; title: string }[];
   aiConfigured: boolean;
 }
 
-export function PlanBuilder({ draft, hasAcceptedPlan, knowsWakingHours, goals, aiConfigured }: Props) {
+export function PlanBuilder({ draft, calendarWritable, hasAcceptedPlan, knowsWakingHours, goals, aiConfigured }: Props) {
   const [state, action] = useActionState<PlanActionResult, FormData>(generatePlan, { ok: false });
   const question = state.result?.status === "needs_info" ? state.result.question : null;
   const plan = state.result?.status === "ok" ? state.result.plan : draft;
@@ -55,18 +57,30 @@ export function PlanBuilder({ draft, hasAcceptedPlan, knowsWakingHours, goals, a
         </form>
       </Card>
 
-      {plan && plan.status === "draft" ? <PlanEditor key={plan.id} plan={plan} goals={goals} replacesAccepted={hasAcceptedPlan} /> : null}
+      {plan && plan.status === "draft" ? <PlanEditor key={plan.id} plan={plan} goals={goals} replacesAccepted={hasAcceptedPlan} calendarWritable={calendarWritable} /> : null}
     </div>
   );
 }
 
-function PlanEditor({ plan, goals, replacesAccepted }: { plan: DailyPlan; goals: { id: string; title: string }[]; replacesAccepted: boolean }) {
+function PlanEditor({
+  plan,
+  goals,
+  replacesAccepted,
+  calendarWritable,
+}: {
+  plan: DailyPlan;
+  goals: { id: string; title: string }[];
+  replacesAccepted: boolean;
+  calendarWritable: boolean;
+}) {
   const router = useRouter();
-  const [items, setItems] = useState<PlanItem[]>(plan.proposal.items);
+  // Each item carries its own "add to calendar" choice (off by default) so it survives removing other items.
+  const [items, setItems] = useState<(PlanItem & { toCalendar?: boolean })[]>(plan.proposal.items);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const update = (i: number, patch: Partial<PlanItem>) => setItems((all) => all.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  const update = (i: number, patch: Partial<PlanItem & { toCalendar: boolean }>) => setItems((all) => all.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   const total = items.reduce((s, i) => s + (Number(i.duration_minutes) || 0), 0);
 
   return (
@@ -125,10 +139,23 @@ function PlanEditor({ plan, goals, replacesAccepted }: { plan: DailyPlan; goals:
                   </Select>
                 </label>
               </div>
-              <label className="mt-2 flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={item.is_priority} onChange={(e) => update(i, { is_priority: e.target.checked })} className="size-4 accent-[var(--accent)]" />
-                Priority
-              </label>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+                <label className="flex min-h-11 items-center gap-2 text-sm">
+                  <input type="checkbox" checked={item.is_priority} onChange={(e) => update(i, { is_priority: e.target.checked })} className="size-4 accent-[var(--accent)]" />
+                  Priority
+                </label>
+                {calendarWritable && item.start_time ? (
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.toCalendar)}
+                      onChange={(e) => update(i, { toCalendar: e.target.checked })}
+                      className="size-4 accent-[var(--accent)]"
+                    />
+                    Add to calendar
+                  </label>
+                ) : null}
+              </div>
               {item.rationale ? <p className="mt-2 text-sm text-muted">{item.rationale}</p> : null}
             </li>
           ))}
@@ -144,15 +171,28 @@ function PlanEditor({ plan, goals, replacesAccepted }: { plan: DailyPlan; goals:
       </button>
 
       {replacesAccepted ? <p className="mt-4 text-sm text-muted">Accepting adds these to today&apos;s tasks alongside what&apos;s already there.</p> : null}
+      {calendarWritable && items.some((i) => i.start_time) ? (
+        <p className="mt-4 text-sm text-muted">Plan items are flexible tasks. Tick “Add to calendar” on any you want blocked out in Google Calendar — nothing is added otherwise.</p>
+      ) : null}
       <FormMessage>{error}</FormMessage>
+      {warning ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <FormMessage tone="info">{warning}</FormMessage>
+          <Button variant="secondary" onClick={() => router.push("/dashboard")}>
+            Go to Today
+          </Button>
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <Button
           size="lg"
-          disabled={pending || items.length === 0 || items.some((i) => !i.title.trim())}
+          disabled={pending || Boolean(warning) || items.length === 0 || items.some((i) => !i.title.trim())}
           onClick={() =>
             startTransition(async () => {
-              const res = await acceptPlan({ planId: plan.id, items });
+              const calendarItems = items.flatMap((it, idx) => (it.toCalendar && it.start_time ? [idx] : []));
+              const res = await acceptPlan({ planId: plan.id, items: items.map(({ toCalendar, ...it }) => (void toCalendar, it)), calendarItems });
               if (!res.ok) return setError(res.error ?? "Couldn't save the plan.");
+              if (res.calendarWarning) return setWarning(res.calendarWarning);
               router.push("/dashboard");
             })
           }

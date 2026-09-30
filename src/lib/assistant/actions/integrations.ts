@@ -23,7 +23,7 @@ const listCalendarInput = z.object({
 export const listCalendarEvents: ToolDefinition<typeof listCalendarInput> = {
   name: "list_calendar_events",
   description:
-    "Read the user's connected calendar (read-only) for a date range, e.g. to see how busy tomorrow or next week is. Cannot create or change events.",
+    "Read the user's connected calendar for a date range, e.g. to see how busy tomorrow or next week is. Returns event ids. Use the calendar write tools (with the user's OK) to change events.",
   parameters: J.object({
     from_date: J.nullable(J.string("Start date: today, tomorrow or YYYY-MM-DD. Null = today.")),
     days: J.integer("Number of days to include, 1–14."),

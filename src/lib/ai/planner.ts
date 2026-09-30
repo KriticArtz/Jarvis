@@ -99,7 +99,7 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
   }
 
   const pending = todayTasks.filter((t) => t.status === "pending");
-  // Calendar events are fixed constraints: never planned over (read-only).
+  // Calendar events are fixed commitments: never planned over or moved by the planner.
   const busy = busyBlocks(today, profile, commitments, req.reflow ? [] : pending.filter((t) => t.scheduled_start), busyEventsForDay(context.calendar?.days[0]));
   const windows = freeWindows(bounds.start, bounds.end, busy);
   if (windows.length === 0 || totalMinutes(windows) < 20) {
@@ -175,7 +175,9 @@ export async function planDay(db: DB, userId: string, req: PlanRequest): Promise
 HARD RULES
 - Only schedule inside these free windows (24h local time): ${windowText}
 - Busy/committed (never schedule over): ${describeBlocks(busy)}
-- Do not exceed ~70% of the free time; leave buffers between items.
+- Existing commitments (work, recurring commitments and calendar events) are fixed — never move, repeat or overlap them.
+- Your items are flexible tasks. A start_time proposes a time block; it only goes on the user's calendar if they choose to add it.
+- Do not exceed ~70% of the free time; leave buffers between items. Don't fill every free minute.
 - 2 to 5 items. Put the most important first and mark at most 3 as is_priority.
 - Use goal ids from the list when an item serves a goal. For existing unscheduled tasks, reuse their task_id and title.
 - start_time must be 24h "HH:MM" inside a free window, or null if timing is flexible.

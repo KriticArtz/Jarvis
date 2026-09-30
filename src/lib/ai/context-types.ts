@@ -45,10 +45,10 @@ export interface AssistantContext {
   };
   memories: { id?: string; content: string }[];
   /**
-   * Connected calendar (read-only): today and the next two days. Events are
+   * Connected calendar: today and the next two days. Events are
    * fixed constraints. Null when no calendar is connected.
    */
-  calendar?: { provider: string; lastSyncedAt: string | null; days: CalendarDay[] } | null;
+  calendar?: { provider: string; lastSyncedAt: string | null; days: CalendarDay[]; writable?: boolean } | null;
   /**
    * Connected fitness sources only — no health data is placed in the
    * context. The assistant fetches aggregates on demand with a read-only

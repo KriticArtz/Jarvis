@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/auth";
 import { resolvePersonalization } from "@/lib/personalization";
 import { Logo } from "@/components/logo";
@@ -30,9 +31,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="flex min-w-0 flex-col">
           <header className="flex items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:hidden">
             <Logo href="/dashboard" />
-            <span className="flex size-8 items-center justify-center rounded-full bg-surface-2 text-[13px] font-semibold text-foreground" aria-hidden>
-              {initial}
-            </span>
+            <Link
+              href="/settings"
+              aria-label="Settings"
+              className="-m-1.5 flex size-11 items-center justify-center rounded-full transition-transform active:scale-95"
+            >
+              <span className="flex size-8 items-center justify-center rounded-full bg-surface-2 text-[13px] font-semibold text-foreground" aria-hidden>
+                {initial}
+              </span>
+            </Link>
           </header>
           <main className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-36 pt-6 sm:px-5 md:px-10 md:pb-16 md:pt-12">{children}</main>
         </div>

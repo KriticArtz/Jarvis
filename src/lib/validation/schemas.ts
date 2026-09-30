@@ -151,6 +151,8 @@ export const planItemSchema = z.object({
 export const planAcceptSchema = z.object({
   planId: uuid,
   items: z.array(planItemSchema).min(1, "Keep at least one item").max(12),
+  /** Indexes of timed items the user chose to also add to their calendar (explicit opt-in). */
+  calendarItems: z.array(z.number().int().min(0).max(11)).max(12).optional(),
 });
 
 /** First error message per field, for form display. */
