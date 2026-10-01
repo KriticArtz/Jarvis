@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, HeartPulse, RefreshCw, Smartphone } from "lucide-react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import type { ActionResult } from "@/lib/actions/result";
-import { disconnectCalendar, disconnectFitnessSource, syncCalendarNow } from "@/lib/actions/integrations";
+import { disconnectCalendar, syncCalendarNow } from "@/lib/actions/integrations";
+import { HealthSettings, type FitnessState } from "./health";
 import { Badge } from "@/components/ui/card";
 import { Button, buttonClass } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/field";
@@ -20,11 +21,7 @@ export interface CalendarState {
   writable: boolean;
 }
 
-export interface FitnessState {
-  provider: "apple_health" | "health_connect";
-  connected: boolean;
-  lastSynced: string | null;
-}
+export type { FitnessState } from "./health";
 
 /** Messages for the OAuth round-trip result (?calendar=… on return from Google). */
 const FLASH: Record<string, { ok: boolean; text: string }> = {
@@ -171,37 +168,7 @@ export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { cal
         </div>
       </section>
 
-      <section aria-labelledby="int-fitness">
-        <h3 id="int-fitness" className="mb-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">
-          Fitness
-        </h3>
-        <div className="flex flex-col gap-2.5">
-          {fitness.map((f) => {
-            const apple = f.provider === "apple_health";
-            return (
-              <Row
-                key={f.provider}
-                icon={apple ? <HeartPulse className="size-5" /> : <Smartphone className="size-5" />}
-                title={apple ? "Apple Health" : "Health Connect"}
-                status={f.connected ? <Badge tone="success">Connected</Badge> : <Badge>{apple ? "Coming with the iOS app" : "Coming with the Android app"}</Badge>}
-                subtitle={
-                  f.connected
-                    ? `Steps, workouts, active energy, distance and sleep summaries${f.lastSynced ? ` · synced ${f.lastSynced}` : ""}.`
-                    : apple
-                      ? `Health data stays on your iPhone until the ${brand.name} iOS app asks for your permission. A website can't read Apple Health.`
-                      : "Android's Health Connect is only reachable from the Android app, with your permission."
-                }
-              >
-                {f.connected && !isDemo ? (
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(f.provider, () => disconnectFitnessSource(f.provider))}>
-                    {busy === f.provider ? "Removing…" : "Disconnect and delete data"}
-                  </Button>
-                ) : null}
-              </Row>
-            );
-          })}
-        </div>
-      </section>
+      <HealthSettings sources={fitness} isDemo={isDemo} />
     </div>
   );
 }

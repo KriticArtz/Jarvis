@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The React Native app has its own toolchain (mobile/package.json).
+    "mobile/**",
   ]),
 ]);
 

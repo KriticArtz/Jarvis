@@ -19,6 +19,9 @@ integration follows:
   descriptions, attendee identities or links (those are fetched from Google
   only when the user opens an event), and no raw health samples, heart rate,
   routes or clinical records.
+- **Health data comes only from the user's phone.** The Jarvis mobile app
+  (`mobile/`) reads Apple Health / Health Connect read-only and syncs daily
+  totals and workout summaries.
 - **Calendar writes need the user's OK.** Google Calendar events can be
   created, changed, moved and deleted (see "Calendar writes" below). Every
   change the assistant makes is a proposal the user confirms first. Health
@@ -141,20 +144,30 @@ Plan:
 
 ## Fitness: Apple Health (iOS) and Health Connect (Android)
 
-**These require the native mobile apps.** HealthKit is only available to iOS
-apps with the HealthKit entitlement and per-type user permission. Health
-Connect is only available to Android apps that declare and are granted each
-permission. A website can access neither. Settings shows both as "Coming with
-the iOS/Android app".
+**These require the native mobile app** (`mobile/`, Expo / React Native — see
+`mobile/README.md`). HealthKit is only available to iOS apps with the
+HealthKit entitlement and per-type user permission; Health Connect only to
+Android apps that declare and are granted each permission. A website can
+access neither, so Settings → Integrations → **Health & Fitness** explains
+that connecting happens in the Jarvis iPhone/Android app and never shows a
+connection the phone hasn't made.
 
-The server side is ready. Native apps authenticate with
-`Authorization: Bearer <Supabase access token>` (the signed-in user; demo
-users are refused):
+Status shown on the web and returned to the app (derived from
+`integration_connections`, no extra columns): **Not connected**, **Syncing**
+(connected, first data not yet received), **Connected**, **Needs attention**
+(the phone reported a problem — `permission_denied` / `sync_failed`, stored as
+a code in `last_error` — or no data for 3 days).
+
+The native app authenticates with `Authorization: Bearer <Supabase access
+token>` (the signed-in user; demo users are refused). The user id always
+comes from the token; a `user_id` in a body is rejected:
 
 | Endpoint | Body | Effect |
 |---|---|---|
-| `POST /api/integrations/fitness/connect` | `{ "provider": "apple_health" \| "health_connect" }` | Creates the connection, after the user grants permission on the device |
-| `POST /api/integrations/fitness/sync` | see below | Idempotent upsert of aggregates and workouts |
+| `POST /api/integrations/fitness/connect` | `{ "provider": "apple_health" \| "health_connect" }` | Creates (or restores) the connection, after the user grants permission on the device |
+| `POST /api/integrations/fitness/sync` | see below | Idempotent upsert of aggregates and workouts (409 until connected) |
+| `GET /api/integrations/fitness/status` | — | Both sources' state, issue and last sync time (no health data) |
+| `POST /api/integrations/fitness/status` | `{ "provider": …, "issue": "permission_denied" \| "sync_failed" }` | Marks the connection "needs attention"; syncing resumes after `connect` |
 | `POST /api/integrations/fitness/disconnect` | `{ "provider": … }` | Deletes the connection and all of its data |
 
 The user can also disconnect (and delete) from Settings on the web.

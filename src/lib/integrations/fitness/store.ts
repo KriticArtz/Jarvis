@@ -1,7 +1,8 @@
 import type { DB } from "@/lib/data/db";
 import { addDays, localDate, zonedParts } from "@/lib/time";
 import { PROVIDER_LABEL } from "../connections";
-import { withinAcceptedRange, type FitnessProvider, type FitnessSyncInput } from "./schema";
+import { FITNESS_PROVIDERS, withinAcceptedRange, type FitnessProvider, type FitnessSyncInput } from "./schema";
+import { fitnessConnectionState, type FitnessConnectionRow, type FitnessConnectionState, type FitnessIssue } from "./status";
 
 /**
  * Fitness connections and data. Writes use the service-role client and a
@@ -19,6 +20,44 @@ export async function connectFitness(admin: DB, userId: string, provider: Fitnes
 export async function disconnectFitness(admin: DB, userId: string, provider: FitnessProvider): Promise<{ ok: boolean }> {
   const { error } = await admin.from("integration_connections").delete().eq("user_id", userId).eq("provider", provider).eq("kind", "fitness");
   return { ok: !error };
+}
+
+/**
+ * The phone reports a problem it can't fix silently (the user removed the
+ * health permission, or syncing keeps failing). The connection is marked
+ * "needs attention"; syncing resumes after the app reconnects. Only a code is
+ * stored — never health data.
+ */
+export async function reportFitnessIssue(admin: DB, userId: string, provider: FitnessProvider, issue: Exclude<FitnessIssue, "stale">): Promise<{ ok: boolean; found: boolean }> {
+  const { data, error } = await admin
+    .from("integration_connections")
+    .update({ status: "error", last_error: issue })
+    .eq("user_id", userId)
+    .eq("provider", provider)
+    .eq("kind", "fitness")
+    .select("id");
+  return { ok: !error, found: Boolean(data?.length) };
+}
+
+export interface FitnessSourceStatus {
+  provider: FitnessProvider;
+  state: FitnessConnectionState;
+  issue: FitnessIssue | null;
+  lastSyncedAt: string | null;
+}
+
+/** Status of both health sources for one user (for the native apps). */
+export async function fitnessStatus(db: DB, userId: string, now = new Date()): Promise<FitnessSourceStatus[] | null> {
+  const { data, error } = await db
+    .from("integration_connections")
+    .select("provider, status, last_synced_at, last_error, created_at")
+    .eq("user_id", userId)
+    .eq("kind", "fitness");
+  if (error) return null;
+  return FITNESS_PROVIDERS.map((provider) => {
+    const row = (data ?? []).find((r) => r.provider === provider) as (FitnessConnectionRow & { provider: string }) | undefined;
+    return { provider, ...fitnessConnectionState(row ?? null, now), lastSyncedAt: row?.last_synced_at ?? null };
+  });
 }
 
 export type IngestOutcome =

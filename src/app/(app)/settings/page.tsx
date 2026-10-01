@@ -15,6 +15,7 @@ import { AssistantIdentityForm } from "@/components/settings/your-ai";
 import { AppearanceSettings } from "@/components/settings/appearance";
 import { IntegrationsSettings, type FitnessState } from "@/components/settings/integrations";
 import { getConnections } from "@/lib/integrations/connections";
+import { fitnessConnectionState } from "@/lib/integrations/fitness/status";
 import { googleOAuthConfig, integrationsEncryptionKey } from "@/lib/env";
 import { resolvePersonalization } from "@/lib/personalization";
 import { PhoneForm } from "@/components/settings/phone-form";
@@ -49,7 +50,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const google = connections.find((c) => c.provider === "google_calendar");
   const fitness: FitnessState[] = (["apple_health", "health_connect"] as const).map((provider) => {
     const c = connections.find((x) => x.provider === provider);
-    return { provider, connected: c?.status === "connected", lastSynced: syncedLabel(c?.lastSyncedAt ?? null) };
+    const { state, issue } = fitnessConnectionState(c ? { status: c.status, last_synced_at: c.lastSyncedAt, last_error: c.lastError, created_at: c.connectedAt } : null);
+    return { provider, state, issue, lastSynced: syncedLabel(c?.lastSyncedAt ?? null) };
   });
   const mode = smsMode();
   const modeCopy = MODE_COPY[mode];
@@ -75,7 +77,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Card>
 
         <Card id="integrations">
-          <CardHeader title="Integrations" subtitle="Connect your calendar and, with the mobile apps, your fitness data. Everything is private to you and can be disconnected anytime." />
+          <CardHeader title="Integrations" subtitle="Connect your calendar and your health data. Everything is private to you and can be disconnected anytime." />
           <IntegrationsSettings
             isDemo={isDemo}
             flash={typeof params.calendar === "string" ? params.calendar : null}

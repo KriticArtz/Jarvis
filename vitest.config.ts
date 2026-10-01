@@ -11,7 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // mobile/src/**: the native app's pure health normalization (contract-tested against the server schema).
+    include: ["src/**/*.test.ts", "mobile/src/**/*.test.ts"],
     exclude: ["src/**/*.integration.test.ts", "node_modules/**"],
   },
 });

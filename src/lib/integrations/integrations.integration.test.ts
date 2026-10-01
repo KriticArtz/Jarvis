@@ -319,4 +319,52 @@ describe.skipIf(!enabled)("calendar + fitness integrations (real Supabase, RLS)"
     expect((await users.b.db.from("fitness_daily_summaries").select("steps")).data).toEqual([{ steps: 1234 }]);
     expect((await admin.from("fitness_daily_summaries").select("id").eq("user_id", users.a.id)).data).toEqual([]);
   });
+
+  it("native status API: per-user status, problem reports mark 'needs attention', reconnecting recovers", async () => {
+    const { GET: status, POST: report } = await import("@/app/api/integrations/fitness/status/route");
+    const { POST: connect } = await import("@/app/api/integrations/fitness/connect/route");
+    const { POST: sync } = await import("@/app/api/integrations/fitness/sync/route");
+    const url = "http://localhost/api/integrations/fitness/status";
+    const get = (headers: Record<string, string>) => status(new NextRequest(url, { headers }));
+    const post = (handler: (req: NextRequest) => Promise<Response>, headers: Record<string, string>, body: unknown) =>
+      handler(new NextRequest(url, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) }));
+
+    expect((await get({})).status).toBe(401);
+    expect((await post(report, {}, { provider: "apple_health", issue: "sync_failed" })).status).toBe(401);
+
+    const { data: session } = await users.b.db.auth.getSession();
+    const auth = { Authorization: `Bearer ${session.session!.access_token}` };
+    const sources = async () => ((await (await get(auth)).json()) as { sources: { provider: string; state: string; issue: string | null }[] }).sources;
+
+    // B connected Apple Health and synced in the previous test.
+    expect(await sources()).toEqual([
+      expect.objectContaining({ provider: "apple_health", state: "connected", issue: null }),
+      expect.objectContaining({ provider: "health_connect", state: "not_connected", issue: null }),
+    ]);
+    const body = JSON.stringify(await (await get(auth)).json());
+    expect(body).not.toContain("1234"); // status never contains health data
+
+    // Only known issue codes, only for a connected provider, no user id in the body.
+    expect((await post(report, auth, { provider: "apple_health", issue: "anything" })).status).toBe(400);
+    expect((await post(report, auth, { provider: "apple_health", issue: "sync_failed", user_id: users.a.id })).status).toBe(400);
+    expect((await post(report, auth, { provider: "health_connect", issue: "sync_failed" })).status).toBe(404);
+
+    expect((await post(report, auth, { provider: "apple_health", issue: "permission_denied" })).status).toBe(200);
+    expect((await sources())[0]).toMatchObject({ state: "needs_attention", issue: "permission_denied" });
+    // While it needs attention, data isn't accepted until the app reconnects.
+    const syncReq = () =>
+      new NextRequest("http://localhost/api/integrations/fitness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ provider: "apple_health", days: [{ date: today, steps: 2000 }] }),
+      });
+    expect((await sync(syncReq())).status).toBe(409);
+    expect((await post(connect, auth, { provider: "apple_health" })).status).toBe(200);
+    expect((await sync(syncReq())).status).toBe(200);
+    expect((await sources())[0]).toMatchObject({ state: "connected", issue: null });
+
+    // The report only ever touched B's connection.
+    const { data: aConn } = await admin.from("integration_connections").select("status").eq("user_id", users.a.id).eq("kind", "fitness");
+    expect((aConn ?? []).every((c) => c.status === "connected")).toBe(true);
+  });
 });
