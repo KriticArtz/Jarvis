@@ -30,6 +30,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "android.permission.health.READ_SLEEP",
       "android.permission.health.READ_EXERCISE",
     ],
+    // Expo/React Native add these by default; Jarvis doesn't use them (least privilege for a health app).
+    blockedPermissions: [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.VIBRATE",
+    ],
   },
   plugins: [
     [
