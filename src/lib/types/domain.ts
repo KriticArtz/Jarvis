@@ -139,7 +139,7 @@ export interface Conversation {
   id: string;
   user_id: string;
   title: string | null;
-  channel: "app" | "sms";
+  channel: "app" | "sms" | "email";
   summary: string | null;
   summarized_through: string | null;
   created_at: string;
@@ -152,7 +152,7 @@ export interface ConversationMessage {
   user_id: string;
   role: "user" | "assistant";
   content: string;
-  channel: "app" | "sms";
+  channel: "app" | "sms" | "email";
   created_at: string;
 }
 
@@ -178,6 +178,9 @@ export interface NotificationPreferences {
   task_reminders_enabled: boolean;
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;
+  email_enabled: boolean;
+  email_enabled_at: string | null;
+  email_daily_limit: number;
 }
 
 export type NotificationKind =

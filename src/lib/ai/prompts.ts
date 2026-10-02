@@ -15,7 +15,7 @@ const PERSONALITY_GUIDANCE: Record<Personality, string> = {
     "Professional: calm, structured and businesslike, like a trusted chief of staff. Prefer clear priorities, times and trade-offs; keep emotion and exclamation to a minimum.",
 };
 
-export type AssistantChannel = "app" | "sms";
+export type AssistantChannel = "app" | "sms" | "email";
 
 /**
  * System prompt for the accountability assistant. `persona` is the user's own
@@ -39,9 +39,9 @@ How to behave:
 ${opts.tools ? ACTIONS_GUIDANCE : ADVICE_ONLY_GUIDANCE}
 ${integrationsGuidance(Boolean(opts.tools))}
 - You do not have access to their email, bank or anything outside this app.
-- You cannot send reminders or text messages on your own unless the user has enabled SMS check-ins in Settings.
+- You cannot send reminders, texts or emails on your own unless the user has enabled SMS or email check-ins in Settings.
 - You are not a doctor, therapist, lawyer or financial advisor. For health, mental health, legal or financial decisions, encourage appropriate professional help. If the user may be in crisis, respond with care and encourage them to contact local emergency services or a crisis line — whatever personality is selected.
-${channel === "sms" ? `\n${smsGuidance(Boolean(opts.tools))}` : "\nFormatting: plain text with short paragraphs; simple '-' bullet lists are fine. No headings or tables."}`;
+${channel === "sms" ? `\n${smsGuidance(Boolean(opts.tools))}` : channel === "email" ? `\n${emailGuidance(Boolean(opts.tools))}` : "\nFormatting: plain text with short paragraphs; simple '-' bullet lists are fine. No headings or tables."}`;
 }
 
 /** Integrations: calendar (reads free; every change needs the user's OK), fitness aggregates, no medical claims. */
@@ -72,5 +72,13 @@ const ACTIONS_GUIDANCE = `What you can do (be honest about this):
 function smsGuidance(tools: boolean): string {
   return `You are replying by SMS: keep replies under 320 characters, plain text, no markdown or lists. Earlier assistant messages in this thread include check-ins and reminders you sent; treat the user's text as a reply to the most recent one. If they can't do something they planned, acknowledge it without judgment and propose one concrete alternative time that fits their schedule. ${
     tools ? "You can move the task if they agree or clearly ask — only say it's moved if the tool succeeded." : "Never claim you moved or changed anything in their plan."
+  }`;
+}
+
+function emailGuidance(tools: boolean): string {
+  return `You are writing by email: what you write is sent as an email, and the user's messages in this thread are their email replies. Write like a short personal note, not a newsletter: plain text, 1–3 short paragraphs, under 150 words, no markdown, headings or sign-off (the email adds your name). Earlier assistant messages in this thread include check-ins you emailed; treat the user's message as a reply to the most recent one. If they can't do something they planned, acknowledge it without judgment and propose one concrete alternative that fits their schedule. ${
+    tools
+      ? "When a change needs the user's OK, describe it plainly and end with exactly: Reply YES to confirm or NO to cancel. A reply of YES / NO (or similar) answers the pending change — confirm or decline it accordingly. Only say something is done if the tool succeeded."
+      : "Never claim you moved or changed anything in their plan."
   }`;
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireOnboardedUser } from "@/lib/auth";
 import { brand } from "@/config/brand";
 import { signOut } from "@/app/(auth)/actions";
-import { phoneVerificationMode, requirePhoneVerification, smsMode, supabaseServiceKey } from "@/lib/env";
+import { emailMode, phoneVerificationMode, requirePhoneVerification, smsMode, supabaseServiceKey } from "@/lib/env";
 import { getCommitments, getMemories, getNotificationPreferences } from "@/lib/data/queries";
 import { canReceiveSms } from "@/lib/notifications/scheduler";
 import type { NotificationRecord } from "@/lib/types/domain";
@@ -22,6 +22,7 @@ import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
 import { NotificationPrefsForm, SmsActions } from "@/components/settings/notification-settings";
 import { DemoControls } from "@/components/demo/demo-controls";
+import { EmailSettings } from "@/components/settings/email-settings";
 import { DeleteAccount } from "@/components/settings/delete-account";
 import { PhoneVerification } from "@/components/settings/phone-verification";
 import Link from "next/link";
@@ -34,9 +35,23 @@ const MODE_COPY = {
   disabled: { label: "Off", tone: "neutral", body: "Text messaging is disabled on this server." },
 } as const;
 
+const EMAIL_MODE_COPY = {
+  live: { label: "Live", tone: "success" },
+  test: { label: "Test mode", tone: "warning" },
+  disabled: { label: "Off", tone: "neutral" },
+} as const;
+
+interface SentEmail {
+  id: string;
+  kind: "check_in" | "reply" | "test";
+  subject: string;
+  status: "queued" | "sent" | "failed" | "skipped" | "test";
+  created_at: string;
+}
+
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const { supabase, userId, email, profile, isDemo } = await requireOnboardedUser();
-  const [commitments, prefs, memories, notifications, connections, upcomingEvents, params] = await Promise.all([
+  const [commitments, prefs, memories, notifications, connections, upcomingEvents, params, sentEmails] = await Promise.all([
     getCommitments(supabase, userId),
     getNotificationPreferences(supabase, userId),
     getMemories(supabase, userId, 50),
@@ -44,6 +59,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     getConnections(supabase, userId),
     supabase.from("calendar_events").select("id", { count: "exact", head: true }).eq("user_id", userId).neq("status", "cancelled").gte("ends_at", new Date().toISOString()),
     searchParams,
+    supabase.from("email_outbound").select("id, kind, subject, status, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(5),
   ]);
   const syncedLabel = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
@@ -59,6 +75,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const verificationMode = phoneVerificationMode();
   const smsReady = canReceiveSms(profile, prefs, { requireVerified });
   const personalization = resolvePersonalization(profile);
+  const mailMode = emailMode();
+  const accountEmail = email ?? profile.email;
+  const when = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const timezones = Intl.supportedValuesOf("timeZone");
   if (!timezones.includes(profile.timezone)) timezones.unshift(profile.timezone);
 
@@ -69,6 +88,51 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Card id="your-ai" className="bg-assistant">
           <CardHeader title="Your AI" subtitle="Name your assistant and choose how it talks to you. Changes apply everywhere — chat, plans, reviews and texts." />
           <AssistantIdentityForm name={personalization.assistantName} personality={personalization.personality} />
+        </Card>
+
+        <Card id="email-checkins">
+          <CardHeader
+            title="Email accountability"
+            subtitle={`Let ${personalization.assistantName} check in by email when it matters.`}
+            action={isDemo ? <Badge tone="accent">Your own account</Badge> : <Badge tone={EMAIL_MODE_COPY[mailMode].tone} className="whitespace-nowrap">{EMAIL_MODE_COPY[mailMode].label}</Badge>}
+          />
+          {isDemo ? (
+            <p className="text-[15px] leading-relaxed text-muted">
+              In your own account, {personalization.assistantName} can email you a short check-in and you can just reply. Email is turned off in this shared demo.
+            </p>
+          ) : (
+            <>
+              {mailMode === "test" ? (
+                <p className="mb-4 rounded-xl bg-surface-2/70 px-3.5 py-2.5 text-sm text-muted">
+                  Email isn&apos;t connected on this server yet: check-ins are recorded below but not delivered.
+                </p>
+              ) : null}
+              <EmailSettings
+                email={accountEmail}
+                enabled={Boolean(prefs?.email_enabled)}
+                canSend={mailMode !== "disabled" && Boolean(supabaseServiceKey())}
+                assistantName={personalization.assistantName}
+              />
+              {sentEmails.data?.length ? (
+                <div className="mt-5 border-t border-hairline pt-5">
+                  <h3 className="mb-3 text-sm font-semibold">Recent emails</h3>
+                  <ul className="flex flex-col gap-2">
+                    {(sentEmails.data as SentEmail[]).map((m) => (
+                      <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-2/70 px-3.5 py-2.5 text-sm">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{m.subject}</span>
+                          <span className="text-xs text-muted">
+                            {when(m.created_at)} · {m.kind === "reply" ? "reply" : m.kind === "test" ? "test check-in" : "check-in"}
+                          </span>
+                        </span>
+                        <Badge tone={m.status === "sent" ? "success" : m.status === "failed" ? "danger" : "neutral"}>{m.status === "test" ? "test — not sent" : m.status}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          )}
         </Card>
 
         <Card id="appearance">

@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { errorInfo, logError } from "@/lib/observability/log";
-import { checkConfirmation, PROPOSAL_TTL_MINUTES, type ProposalRow } from "./confirmation";
+import { checkConfirmation, proposalTtlMinutes, type ProposalRow } from "./confirmation";
 import { createGoal, deleteGoal, getGoalProgress, recordProgress, setGoalStatus, updateGoal } from "./goals";
 import { deleteMemory, saveMemory, updateMemory } from "./memories";
 import { replanToday } from "./planning";
@@ -165,7 +165,7 @@ async function propose(ctx: ToolContext, def: ToolDefinition, args: unknown): Pr
   }
 
   if (!ctx.conversationId) return fail("not_allowed", "I can only make that change from a conversation.");
-  const expiresAt = new Date(Date.now() + PROPOSAL_TTL_MINUTES * 60_000).toISOString();
+  const expiresAt = new Date(Date.now() + proposalTtlMinutes(ctx.channel) * 60_000).toISOString();
   const pending: ToolResult = { status: "needs_confirmation", message: summary ?? "Confirm this change", data };
   const id = await logAction(ctx, def.name, storedArgs, pending, { status: "pending_confirmation", expiresAt });
   if (!id) return fail("server_error", "I couldn't set that up — please try again.");

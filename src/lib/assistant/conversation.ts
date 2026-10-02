@@ -20,17 +20,26 @@ export async function createConversation(db: DB, userId: string, channel: Assist
   return data as Conversation;
 }
 
-/** The ongoing SMS thread for a user (SMS has no explicit "new chat"). */
-export async function getOrCreateSmsConversation(db: DB, userId: string): Promise<Conversation> {
+async function latestConversation(db: DB, userId: string, channel: AssistantChannel): Promise<Conversation | null> {
   const { data } = await db
     .from("conversations")
     .select("*")
     .eq("user_id", userId)
-    .eq("channel", "sms")
+    .eq("channel", channel)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return (data as Conversation | null) ?? createConversation(db, userId, "sms", "Text messages");
+  return data as Conversation | null;
+}
+
+/** The ongoing SMS thread for a user (SMS has no explicit "new chat"). */
+export async function getOrCreateSmsConversation(db: DB, userId: string): Promise<Conversation> {
+  return (await latestConversation(db, userId, "sms")) ?? createConversation(db, userId, "sms", "Text messages");
+}
+
+/** The ongoing email thread for a user: check-ins and replies continue one conversation. */
+export async function getOrCreateEmailConversation(db: DB, userId: string): Promise<Conversation> {
+  return (await latestConversation(db, userId, "email")) ?? createConversation(db, userId, "email", "Email");
 }
 
 export async function appendMessage(
@@ -87,7 +96,7 @@ export function buildToolContext(
 }
 
 /**
- * Non-streaming reply (SMS), with the same actions as in-app chat. Falls back
+ * Non-streaming reply (SMS, email), with the same actions as in-app chat. Falls back
  * to an honest demo reply without AI.
  */
 export async function generateReply(
@@ -103,9 +112,9 @@ export async function generateReply(
     const outcome = await runAssistantTurn({
       messages,
       ctx: buildToolContext(db, userId, conversation, channel, context, turnStartedAt),
-      meta: { userId, feature: channel === "sms" ? "sms_reply" : "chat" },
+      meta: { userId, feature: channel === "sms" ? "sms_reply" : channel === "email" ? "email_reply" : "chat" },
       stream: false,
-      maxOutputTokens: channel === "sms" ? 400 : 2000,
+      maxOutputTokens: channel === "sms" ? 400 : channel === "email" ? 1000 : 2000,
     });
     return outcome.text;
   } catch (err) {

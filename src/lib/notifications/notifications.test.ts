@@ -17,6 +17,9 @@ const prefs: NotificationPreferences = {
   task_reminders_enabled: true,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
+  email_enabled: false,
+  email_enabled_at: null,
+  email_daily_limit: 6,
 };
 const profile = { timezone: "America/Chicago", display_name: "Derek", accountability_style: "balanced" as const };
 

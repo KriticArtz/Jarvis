@@ -437,4 +437,91 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Email accountability
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-000000000011', 'g@example.com'),
+  ('00000000-0000-0000-0000-000000000012', 'h@example.com');
+insert into public.conversations (id, user_id, channel) values ('50000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000011', 'email');
+insert into public.email_outbound (id, user_id, conversation_id, kind, to_email, subject, body, reply_token, dedupe_key)
+  values ('51000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000011', '50000000-0000-0000-0000-000000000011',
+          'check_in', 'g@example.com', 'Still on?', 'Hey', repeat('a', 40), 'check_in:1');
+insert into public.email_inbound (provider, provider_email_id, user_id, conversation_id, outbound_id, from_email, body)
+  values ('resend', 'em_1', '00000000-0000-0000-0000-000000000011', '50000000-0000-0000-0000-000000000011',
+          '51000000-0000-0000-0000-000000000011', 'g@example.com', 'private reply');
+do $$ begin
+  -- email check-ins default OFF
+  if (select email_enabled from public.notification_preferences where user_id = '00000000-0000-0000-0000-000000000011') then
+    raise exception 'email should default to off';
+  end if;
+  -- duplicate send / duplicate delivery are rejected by the database
+  begin
+    insert into public.email_outbound (user_id, kind, to_email, subject, body, reply_token, dedupe_key)
+      values ('00000000-0000-0000-0000-000000000011', 'check_in', 'g@example.com', 's', 'b', repeat('b', 40), 'check_in:1');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when unique_violation then null;
+  end;
+  begin
+    insert into public.email_inbound (provider, provider_email_id) values ('resend', 'em_1');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when unique_violation then null;
+  end;
+end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000011', false);
+-- the owner can turn email on for themselves and read their own sent emails
+update public.notification_preferences set email_enabled = true where user_id = '00000000-0000-0000-0000-000000000011';
+do $$ begin
+  if (select count(*) from public.email_outbound) <> 1 then raise exception 'G cannot read own sent emails'; end if;
+  -- but cannot write email records or read the inbound log
+  begin
+    insert into public.email_outbound (user_id, kind, to_email, subject, body, reply_token, dedupe_key)
+      values ('00000000-0000-0000-0000-000000000011', 'test', 'x@example.com', 's', 'b', repeat('c', 40), 'x');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.email_outbound set to_email = 'x@example.com';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.email_inbound;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000012', false);
+update public.notification_preferences set email_enabled = true where user_id = '00000000-0000-0000-0000-000000000011';
+do $$ begin
+  if (select count(*) from public.email_outbound) <> 0 then raise exception 'H can see G emails'; end if;
+end $$;
+reset role;
+do $$ begin
+  if not (select email_enabled from public.notification_preferences where user_id = '00000000-0000-0000-0000-000000000011') then
+    raise exception 'G could not enable email';
+  end if;
+  if (select email_enabled from public.notification_preferences where user_id = '00000000-0000-0000-0000-000000000012') then
+    raise exception 'H changed state it does not own';
+  end if;
+end $$;
+set role anon;
+do $$ begin
+  begin
+    perform 1 from public.email_outbound;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+-- deleted with the account
+delete from auth.users where id = '00000000-0000-0000-0000-000000000011';
+do $$ begin
+  if exists (select 1 from public.email_outbound where user_id = '00000000-0000-0000-0000-000000000011')
+     or exists (select 1 from public.email_inbound where provider_email_id = 'em_1') then
+    raise exception 'email data survived account deletion';
+  end if;
+end $$;
+
 select 'RLS checks passed' as result;

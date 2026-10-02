@@ -4,7 +4,7 @@ import { logWarn } from "@/lib/observability/log";
 import { estimateCostUsd, type TokenUsage } from "./pricing";
 
 /** What a model call was for. Stored with every usage event. */
-export type AIFeature = "chat" | "sms_reply" | "plan" | "insight" | "weekly_review" | "conversation_summary";
+export type AIFeature = "chat" | "sms_reply" | "email_reply" | "email_check_in" | "plan" | "insight" | "weekly_review" | "conversation_summary";
 
 export interface AICallMeta {
   /** Owner of the request; null only for calls not tied to a user. */

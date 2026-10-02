@@ -149,3 +149,54 @@ export function integrationsEncryptionKey(): Buffer | null {
 export function googleTestBaseUrl(): string | undefined {
   return read("GOOGLE_API_TEST_BASE_URL")?.replace(/\/$/, "");
 }
+
+export type EmailMode = "disabled" | "test" | "live";
+
+export interface ResendConfig {
+  apiKey: string;
+  /** Verified sender, e.g. "Jarvis <jarvis@mail.your-domain.com>". */
+  from: string;
+  /**
+   * Domain that receives replies through Resend inbound (EMAIL_REPLY_DOMAIN,
+   * e.g. "reply.your-domain.com"). Defaults to the EMAIL_FROM domain.
+   */
+  replyDomain: string;
+}
+
+function addressDomain(from: string): string | undefined {
+  return /@([a-z0-9.-]+\.[a-z]{2,})>?\s*$/i.exec(from)?.[1]?.toLowerCase();
+}
+
+/** Resend credentials. RESEND_API_KEY and EMAIL_FROM are required to send real email. */
+export function resendConfig(): ResendConfig | null {
+  const apiKey = read("RESEND_API_KEY");
+  const from = read("EMAIL_FROM");
+  if (!apiKey || !from) return null;
+  const replyDomain = read("EMAIL_REPLY_DOMAIN")?.toLowerCase().replace(/^@/, "") ?? addressDomain(from);
+  return replyDomain ? { apiKey, from, replyDomain } : null;
+}
+
+/**
+ * EMAIL_MODE controls email delivery (same semantics as SMS_MODE):
+ *   disabled — nothing is recorded or sent
+ *   test     — (default) emails are recorded with status "test", never sent
+ *   live     — sent through Resend (requires RESEND_API_KEY and EMAIL_FROM;
+ *              silently degrades to "test" without them)
+ * Automated tests never set "live", so they can't send real email.
+ */
+export function emailMode(): EmailMode {
+  const raw = read("EMAIL_MODE")?.toLowerCase();
+  if (raw === "disabled") return "disabled";
+  if (raw === "live") return resendConfig() ? "live" : "test";
+  return "test";
+}
+
+/** Signing secret of the Resend inbound webhook (whsec_...). Required to accept replies. */
+export function resendWebhookSecret(): string | undefined {
+  return read("RESEND_WEBHOOK_SECRET");
+}
+
+/** Override for the Resend API origin. Only for automated tests against a mock server. */
+export function resendApiBaseUrl(): string {
+  return (read("RESEND_API_BASE_URL") ?? "https://api.resend.com").replace(/\/$/, "");
+}

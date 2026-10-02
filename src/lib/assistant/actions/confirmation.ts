@@ -4,6 +4,12 @@
  * message than the one that created it, before it expires, and only once.
  */
 export const PROPOSAL_TTL_MINUTES = 30;
+/** Email replies arrive hours later, not seconds; same rules, longer window. */
+export const EMAIL_PROPOSAL_TTL_MINUTES = 12 * 60;
+
+export function proposalTtlMinutes(channel: string): number {
+  return channel === "email" ? EMAIL_PROPOSAL_TTL_MINUTES : PROPOSAL_TTL_MINUTES;
+}
 
 export interface ProposalRow {
   user_id: string;
