@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { errorInfo, logError } from "@/lib/observability/log";
+import { sanitizeCard, type ActionCard } from "@/lib/assistant/cards";
 import { checkConfirmation, proposalTtlMinutes, type ProposalRow } from "./confirmation";
 import { createGoal, deleteGoal, getGoalProgress, recordProgress, setGoalStatus, updateGoal } from "./goals";
 import { deleteMemory, saveMemory, updateMemory } from "./memories";
@@ -100,6 +101,8 @@ async function logAction(
       status,
       summary: result.message.slice(0, 500),
       error_code: result.error ?? null,
+      // The structured result (or the proposed change) for the chat; never for failures.
+      result: status === "failed" ? null : sanitizeCard(result.card),
       expires_at: extra.expiresAt ?? null,
       resolved_at: status === "pending_confirmation" ? null : new Date().toISOString(),
     })
@@ -154,19 +157,22 @@ async function propose(ctx: ToolContext, def: ToolDefinition, args: unknown): Pr
   let summary: string | null;
   let storedArgs: unknown = args;
   let data: Record<string, unknown> | undefined;
+  let card: ActionCard | null | undefined;
 
   if (def.propose) {
     const proposal = await def.propose(ctx, args);
     if ("status" in proposal) return proposal; // e.g. needs more information
-    ({ summary, storedArgs, data } = proposal);
+    ({ summary, storedArgs, data, card } = proposal);
   } else {
-    summary = (await def.describe?.(ctx, args)) ?? null;
-    if (summary === null) return fail("not_found", "I couldn't find that.");
+    const described = (await def.describe?.(ctx, args)) ?? null;
+    if (described === null) return fail("not_found", "I couldn't find that.");
+    if (typeof described === "string") summary = described;
+    else ({ summary, card } = described);
   }
 
   if (!ctx.conversationId) return fail("not_allowed", "I can only make that change from a conversation.");
   const expiresAt = new Date(Date.now() + proposalTtlMinutes(ctx.channel) * 60_000).toISOString();
-  const pending: ToolResult = { status: "needs_confirmation", message: summary ?? "Confirm this change", data };
+  const pending: ToolResult = { status: "needs_confirmation", message: summary ?? "Confirm this change", data, card: sanitizeCard(card) };
   const id = await logAction(ctx, def.name, storedArgs, pending, { status: "pending_confirmation", expiresAt });
   if (!id) return fail("server_error", "I couldn't set that up — please try again.");
   return { ...pending, confirmationId: id };
@@ -215,7 +221,13 @@ async function confirmAction(ctx: ToolContext, args: unknown): Promise<ToolResul
   const result = await def.execute(ctx, stored.data);
   await ctx.db
     .from("assistant_actions")
-    .update({ status: result.status === "succeeded" ? "succeeded" : "failed", summary: result.message.slice(0, 500), error_code: result.error ?? null })
+    .update({
+      status: result.status === "succeeded" ? "succeeded" : "failed",
+      summary: result.message.slice(0, 500),
+      error_code: result.error ?? null,
+      // What actually happened replaces the proposal; a failure keeps the proposal for context only.
+      ...(result.status === "succeeded" && sanitizeCard(result.card) ? { result: sanitizeCard(result.card) } : {}),
+    })
     .eq("id", row!.id)
     .eq("user_id", ctx.userId);
   return result;

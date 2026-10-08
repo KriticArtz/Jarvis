@@ -6,16 +6,35 @@ import type { ActionResult } from "@/lib/actions/result";
 import { addTask } from "@/lib/actions/tasks";
 import { Field, FormMessage, Input, Select } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useToast } from "@/components/ui/toast";
 
+/**
+ * Quick add, kept quiet: a single row that opens into a short form. Adding
+ * closes it again and confirms with a toast; the day refreshes on its own.
+ */
 export function AddTaskForm({ goals }: { goals: { id: string; title: string }[] }) {
   const [open, setOpen] = useState(false);
-  const [state, action] = useActionState<ActionResult, FormData>(addTask, { ok: false });
+  const toast = useToast();
+  const [state, action] = useActionState<ActionResult, FormData>(async (prev, formData) => {
+    const res = await addTask(prev, formData);
+    if (res.ok) {
+      setOpen(false);
+      toast({ title: "Task added", tone: "success" });
+    }
+    return res;
+  }, { ok: false });
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center gap-3.5 py-3.5 text-left text-[16px] text-accent transition-opacity hover:opacity-80">
-        <span className="flex size-[26px] items-center justify-center rounded-full bg-accent-soft">
-          <Plus className="size-4" strokeWidth={2.5} />
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-14 w-full items-center gap-1 pl-1.5 pr-4 text-left text-[15px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <span className="flex size-11 items-center justify-center">
+          <span className="flex size-[22px] items-center justify-center rounded-full bg-surface-2 text-foreground">
+            <Plus className="size-3.5" strokeWidth={2.6} aria-hidden />
+          </span>
         </span>
         Add a task
       </button>
@@ -23,9 +42,9 @@ export function AddTaskForm({ goals }: { goals: { id: string; title: string }[] 
   }
 
   return (
-    <form action={action} className="flex animate-fade-in flex-col gap-3 py-4" noValidate>
+    <form action={action} className="flex animate-fade-in flex-col gap-3 p-4" noValidate>
       <Field label="Task" htmlFor="task-title" error={state.fieldErrors?.title}>
-        <Input id="task-title" name="title" placeholder="e.g. Finish chapter 3" maxLength={200} autoFocus />
+        <Input id="task-title" name="title" placeholder="e.g. Book the dentist" maxLength={200} autoFocus />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Time (optional)" htmlFor="task-time">
@@ -47,14 +66,14 @@ export function AddTaskForm({ goals }: { goals: { id: string; title: string }[] 
           </Select>
         </Field>
       ) : null}
-      <label className="flex items-center gap-2.5 text-[15px]">
+      <label className="flex min-h-11 items-center gap-2.5 text-[15px]">
         <input type="checkbox" name="is_priority" className="size-[18px] accent-[var(--accent)]" /> One of today&apos;s priorities
       </label>
       <FormMessage>{state.ok ? null : state.error}</FormMessage>
       <div className="flex gap-2">
         <SubmitButton pendingText="Adding…">Add task</SubmitButton>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-full px-4 text-[15px] text-muted hover:text-foreground">
-          Done
+        <button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-full px-4 text-[15px] text-muted hover:text-foreground">
+          Cancel
         </button>
       </div>
     </form>

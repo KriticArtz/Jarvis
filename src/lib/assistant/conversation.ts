@@ -65,10 +65,13 @@ export async function appendMessage(
  * Prepare model input for a conversation whose latest user message is
  * already stored.
  */
-export async function prepareReply(db: DB, userId: string, conversation: Conversation, channel: AssistantChannel) {
-  const [{ context }, history] = await Promise.all([
-    loadAssistantContext(db, userId, { excludeConversationId: conversation.id }),
+export async function prepareReply(db: DB, userId: string, conversation: Conversation, channel: AssistantChannel, opts: { focusTaskId?: string | null } = {}) {
+  const app = channel === "app";
+  const [{ context }, history, focus] = await Promise.all([
+    // In the app, a new conversation also knows what was changed earlier today.
+    loadAssistantContext(db, userId, { excludeConversationId: conversation.id, includeChangesToday: app }),
     getRecentMessages(db, userId, conversation.id, HISTORY_WINDOW),
+    app && opts.focusTaskId ? focusNote(db, userId, opts.focusTaskId) : Promise.resolve(null),
   ]);
   const messages = buildChatMessages({
     context,
@@ -77,7 +80,25 @@ export async function prepareReply(db: DB, userId: string, conversation: Convers
     history,
     tools: Boolean(getAI()),
   });
+  // Placed just before the user's latest message, so it reads as "about this".
+  if (focus) messages.splice(Math.max(messages.length - 1, 0), 0, { role: "system", content: focus });
   return { messages, context };
+}
+
+/**
+ * The task the user acted on in Today ("Move it"), so the assistant knows
+ * exactly which item they mean. Only the user's own task is ever described.
+ */
+async function focusNote(db: DB, userId: string, taskId: string): Promise<string | null> {
+  const { data: t } = await db
+    .from("tasks")
+    .select("id, title, task_date, scheduled_start, duration_minutes, status")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!t) return null;
+  const when = `${t.task_date}${t.scheduled_start ? ` at ${String(t.scheduled_start).slice(0, 5)}` : ""}`;
+  return `# What the user is acting on\nThey came from the Today screen about this task: “${t.title}” (task id: ${t.id}; ${when}; ${t.duration_minutes ? `${t.duration_minutes} min; ` : ""}status: ${t.status}). Their message below is about this task.`;
 }
 
 /**

@@ -1,50 +1,40 @@
-import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/auth";
 import { resolvePersonalization } from "@/lib/personalization";
-import { Logo } from "@/components/logo";
-import { BottomNav, SidebarNav } from "@/components/app/nav";
+import { MobileHeader } from "@/components/app/mobile-header";
+import { NavRail, TabBar } from "@/components/app/nav";
 import { PersonalizationShell } from "@/components/app/personalization";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { ToastProvider } from "@/components/ui/toast";
 
+/*
+ * Signed-in shell. Phones: compact header + bottom tab bar. Tablet and up: a
+ * slim navigation rail on the left. Content stays in one intimate column.
+ */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { profile, isDemo } = await requireOnboardedUser();
   const { assistantName, theme, appearance } = resolvePersonalization(profile);
-  const initial = (profile.display_name ?? profile.email ?? "?").trim().charAt(0).toUpperCase();
 
   return (
     <PersonalizationShell assistantName={assistantName} theme={theme} appearance={appearance} className="min-h-dvh">
       {/* Match <html> (page background, scrollbars) before hydration to avoid a flash. Values are validated enums. */}
       <script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme=${JSON.stringify(theme)};document.documentElement.dataset.mode=${JSON.stringify(appearance)};` }} />
-      {isDemo ? <DemoBanner /> : null}
-      <div className="min-h-dvh md:grid md:grid-cols-[256px_1fr]">
-        <aside className={isDemo ? "sticky top-10 hidden h-[calc(100dvh-40px)] flex-col px-4 py-6 md:flex" : "sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex"}>
-          <Logo href="/dashboard" className="mb-10 px-3" />
-          <SidebarNav />
-          <div className="mt-auto flex items-center gap-3 px-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold text-foreground">{initial}</span>
-            <div className="min-w-0 text-[13px]">
-              <p className="truncate font-medium text-foreground">{profile.display_name}</p>
-              <p className="truncate text-muted">{isDemo ? "Demo account" : profile.timezone.replaceAll("_", " ")}</p>
-            </div>
-          </div>
-        </aside>
-        <div className="flex min-w-0 flex-col">
-          <header className="flex items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:hidden">
-            <Logo href="/dashboard" />
-            <Link
-              href="/settings"
-              aria-label="Settings"
-              className="-m-1.5 flex size-11 items-center justify-center rounded-full transition-transform active:scale-95"
-            >
-              <span className="flex size-8 items-center justify-center rounded-full bg-surface-2 text-[13px] font-semibold text-foreground" aria-hidden>
-                {initial}
-              </span>
-            </Link>
-          </header>
-          <main className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-36 pt-6 sm:px-5 md:px-10 md:pb-16 md:pt-12">{children}</main>
+      <ToastProvider>
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-full bg-foreground px-4 py-2 text-[14px] font-medium text-background focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
+        {isDemo ? <DemoBanner /> : null}
+        <NavRail offsetTop={isDemo} />
+        <div className="flex min-h-dvh min-w-0 flex-col md:pl-[84px]">
+          <MobileHeader />
+          <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-36 pt-[max(1.5rem,env(safe-area-inset-top))] outline-none sm:px-6 md:px-10 md:pb-16 md:pt-12">
+            {children}
+          </main>
         </div>
-        <BottomNav />
-      </div>
+        <TabBar />
+      </ToastProvider>
     </PersonalizationShell>
   );
 }

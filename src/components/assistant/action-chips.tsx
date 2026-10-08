@@ -1,79 +1,115 @@
 "use client";
 
-import { Check, CircleAlert, Clock, X } from "lucide-react";
-import type { ChatAction } from "@/lib/assistant/stream-protocol";
-import { cn } from "@/lib/cn";
-import { Spinner } from "@/components/ui/spinner";
+import { Check, Minus, RotateCcw, X } from "lucide-react";
+import { changedNothing, isRetryable, type ChatAction } from "@/lib/assistant/stream-protocol";
+import { Presence } from "@/components/ui/presence";
+import { Button } from "@/components/ui/button";
+import { ActionResult } from "./action-result";
+import { ConfirmationCard, PlanPreview } from "./confirmation-card";
+
+/** The tool's own failure message may already say nothing changed. */
+const SAYS_UNCHANGED = /nothing|didn'?t make|did not make|left it|won'?t make/i;
 
 /**
- * Subtle status of actions the assistant took for this reply. A change that
- * needs the user's OK shows its summary (e.g. "Move “Dentist” / Current: … /
- * New: …") with Confirm and Cancel buttons when `onAnswer` is provided.
+ * What the assistant did for this reply. Finished actions with a structured
+ * result show as an ActionResult; proposals as a ConfirmationCard (or a
+ * PlanPreview for a new plan); running, failed and declined actions as quiet
+ * lines. A failure never shows a result card.
  */
 export function ActionChips({
   actions,
+  today,
   onAnswer,
   busyId,
+  disabled = false,
+  onRetry,
+  onAdjust,
 }: {
   actions: ChatAction[];
+  today: string;
   onAnswer?: (action: ChatAction, decision: "confirm" | "decline") => void;
   /** The confirmation being answered right now. */
   busyId?: string | null;
+  /** A reply is streaming; proposals can't be answered meanwhile. */
+  disabled?: boolean;
+  /** Offered on failures worth trying again (only on the latest reply). */
+  onRetry?: () => void;
+  /** "Adjust" on a proposed plan: back to the conversation. */
+  onAdjust?: () => void;
 }) {
   if (!actions.length) return null;
   return (
-    <ul className="mb-1.5 flex max-w-[86%] flex-col items-start gap-1" aria-label="Actions">
+    <ul className="flex flex-col gap-3" aria-label="What I did">
       {actions.map((a) => {
-        const answerable = a.status === "needs_confirmation" && a.confirmationId && onAnswer;
-        const busy = Boolean(busyId && busyId === a.confirmationId);
+        if (a.status === "needs_confirmation") {
+          const props = {
+            action: a,
+            today,
+            onAnswer: a.confirmationId ? onAnswer : undefined,
+            busy: Boolean(busyId && busyId === a.confirmationId),
+            disabled: Boolean(busyId) || disabled,
+          };
+          return (
+            <li key={a.id}>
+              {a.card?.kind === "plan" ? <PlanPreview {...props} card={a.card} onAdjust={onAdjust ?? (() => {})} /> : <ConfirmationCard {...props} />}
+            </li>
+          );
+        }
+        if (a.status === "succeeded" && a.card) {
+          return (
+            <li key={a.id}>
+              <ActionResult card={a.card} today={today} />
+            </li>
+          );
+        }
+        if (a.status === "declined") {
+          const what = a.card ? (a.card.kind === "plan" ? "Today's plan stays as it was." : `“${a.card.title}” stays as it was.`) : "Nothing was changed.";
+          // The reply above already says "I won't make that change"; this names what stayed put.
+          return (
+            <li key={a.id} className="flex animate-fade-in items-start gap-2.5 text-[14px] leading-snug text-muted" data-action-state="declined">
+              <span className="mt-[1px] flex size-5 shrink-0 items-center justify-center">
+                <Minus className="size-4" strokeWidth={2.4} aria-hidden />
+              </span>
+              <span>{what}</span>
+            </li>
+          );
+        }
+        if (a.status === "failed") {
+          return (
+            <li key={a.id} className="animate-fade-in" data-action-state="failed">
+              <div className="flex items-start gap-2.5 text-[14px] leading-snug">
+                <span className="mt-[1px] flex size-5 shrink-0 items-center justify-center">
+                  <span className="flex size-[18px] items-center justify-center rounded-full bg-danger text-white">
+                    <X className="size-3" strokeWidth={3.2} aria-hidden />
+                  </span>
+                </span>
+                <span>
+                  <span className="sr-only">Not done: </span>
+                  <span className="whitespace-pre-line text-danger">{a.label}</span>
+                  {changedNothing(a) && !SAYS_UNCHANGED.test(a.label) ? <span className="block text-muted">Nothing was changed.</span> : null}
+                </span>
+              </div>
+              {onRetry && isRetryable(a) ? (
+                <Button variant="secondary" className="mt-2.5 ml-[30px]" onClick={onRetry} disabled={disabled}>
+                  <RotateCcw className="size-4" aria-hidden />
+                  Try again
+                </Button>
+              ) : null}
+            </li>
+          );
+        }
         return (
-          <li
-            key={a.id}
-            className={cn(
-              "inline-flex max-w-full animate-fade-in flex-col rounded-2xl px-3 py-1.5 text-[13px] leading-snug",
-              a.status === "running" && "bg-surface-2 text-muted",
-              a.status === "succeeded" && "bg-success-soft text-success",
-              a.status === "failed" && "bg-danger-soft text-danger",
-              a.status === "needs_confirmation" && "bg-warning-soft text-warning",
-              answerable && "py-2.5",
-            )}
-          >
-            <span className="inline-flex items-start gap-1.5">
-              <span className="mt-[2px] shrink-0">
-                {a.status === "running" ? (
-                  <Spinner className="size-3" label="Working" />
-                ) : a.status === "succeeded" ? (
-                  <Check className="size-3.5" strokeWidth={3} aria-label="Done" />
-                ) : a.status === "failed" ? (
-                  <X className="size-3.5" strokeWidth={3} aria-label="Not done" />
-                ) : a.status === "needs_confirmation" ? (
-                  <Clock className="size-3.5" aria-label="Waiting for your OK" />
-                ) : (
-                  <CircleAlert className="size-3.5" />
-                )}
-              </span>
-              <span className="whitespace-pre-line">{a.status === "needs_confirmation" ? `Waiting for your OK: ${a.label}` : a.label}</span>
+          <li key={a.id} className="flex animate-fade-in items-start gap-2.5 text-[14px] leading-snug">
+            <span className="mt-[1px] flex size-5 shrink-0 items-center justify-center">
+              {a.status === "running" ? (
+                <Presence size={14} state="acting" />
+              ) : (
+                <span className="flex size-[18px] items-center justify-center rounded-full bg-success text-white">
+                  <Check className="check-pop size-3" strokeWidth={3.2} aria-label="Done" />
+                </span>
+              )}
             </span>
-            {answerable ? (
-              <span className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  disabled={Boolean(busyId)}
-                  onClick={() => onAnswer(a, "confirm")}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-accent-foreground transition-all active:scale-95 disabled:opacity-50"
-                >
-                  {busy ? <Spinner className="size-3.5" label="Confirming" /> : <Check className="size-4" aria-hidden />} Confirm
-                </button>
-                <button
-                  type="button"
-                  disabled={Boolean(busyId)}
-                  onClick={() => onAnswer(a, "decline")}
-                  className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-[14px] font-semibold text-foreground shadow-card transition-all active:scale-95 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </span>
-            ) : null}
+            <span className={a.status === "running" ? "whitespace-pre-line text-muted" : "whitespace-pre-line text-foreground"}>{a.label}</span>
           </li>
         );
       })}

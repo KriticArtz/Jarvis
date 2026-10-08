@@ -13,7 +13,7 @@ import {
 } from "@/lib/data/queries";
 import { busyBlocks, dayBounds, freeWindows, totalMinutes } from "@/lib/planning/availability";
 import { describeTarget, summarizeGoalProgress } from "@/lib/progress";
-import { addDays, isoWeekday, localDate, localMinutesNow, minutesToTime, monthStart, weekStart } from "@/lib/time";
+import { addDays, isoWeekday, localDate, localMinutesNow, minutesToTime, monthStart, weekStart, zonedTimeToUtc } from "@/lib/time";
 import type { Goal, Profile, Task } from "@/lib/types/domain";
 import type { AssistantContext } from "./context-types";
 import { loadCalendar } from "@/lib/integrations/calendar/context";
@@ -38,7 +38,7 @@ export interface LoadedUserData {
 export async function loadAssistantContext(
   db: DB,
   userId: string,
-  opts: { excludeConversationId?: string; now?: Date } = {},
+  opts: { excludeConversationId?: string; now?: Date; includeChangesToday?: boolean } = {},
 ): Promise<LoadedUserData> {
   const profile = await getProfile(db, userId);
   if (!profile) throw new Error("Profile not found");
@@ -73,6 +73,7 @@ export async function loadAssistantContext(
     loadCalendar(db, userId, { tz, from: today, days: 3 }),
     getConnections(db, userId),
   ]);
+  const changesToday = opts.includeChangesToday ? await loadChangesToday(db, userId, today, tz) : undefined;
   const fitnessSources = connections.filter((c) => c.kind === "fitness" && c.status === "connected").map((c) => PROVIDER_LABEL[c.provider]);
 
   const todayTasks = recentTasks.filter((t) => t.task_date === today);
@@ -149,7 +150,32 @@ export async function loadAssistantContext(
       .filter((c) => c.id !== opts.excludeConversationId && c.summary)
       .slice(0, 3)
       .map((c) => String(c.summary).slice(0, 400)),
+    ...(changesToday ? { changesToday } : {}),
   };
 
   return { profile, today, goals, todayTasks, context };
+}
+
+export const CHANGES_TODAY_LIMIT = 6;
+
+/** Today's assistant changes (done or declined), newest first, one short line each. */
+async function loadChangesToday(db: DB, userId: string, today: string, tz: string): Promise<NonNullable<AssistantContext["changesToday"]>> {
+  const { data } = await db
+    .from("assistant_actions")
+    .select("summary, status, created_at, resolved_at")
+    .eq("user_id", userId)
+    .in("status", ["succeeded", "cancelled"])
+    .gte("created_at", zonedTimeToUtc(today, "00:00", tz).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(CHANGES_TODAY_LIMIT);
+  return (data ?? [])
+    .filter((a) => a.summary)
+    .map((a) => {
+      const at = new Date(String(a.resolved_at ?? a.created_at));
+      return {
+        time: minutesToTime(localMinutesNow(tz, at)),
+        summary: String(a.summary).split("\n")[0].slice(0, 160),
+        status: a.status === "succeeded" ? ("done" as const) : ("declined" as const),
+      };
+    });
 }

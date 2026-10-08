@@ -1,15 +1,32 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export function Card({ className, ...props }: ComponentProps<"section">) {
-  return <section className={cn("rounded-[28px] bg-surface p-5 shadow-card sm:p-6", className)} {...props} />;
+/*
+ * Surfaces. The redesign uses far fewer cards: group with type, hairlines and
+ * space, and raise a surface only for things you act on.
+ *   raised — (default) an elevated panel
+ *   plain  — same shape, no elevation (sits on a raised parent)
+ *   ai     — authored by the assistant: a faint presence wash
+ */
+type CardVariant = "raised" | "plain" | "ai";
+
+const CARD: Record<CardVariant, string> = {
+  raised: "bg-surface-raised shadow-card",
+  plain: "bg-surface-2/70",
+  ai: "bg-assistant shadow-lift",
+};
+
+export function Card({ className, variant = "raised", ...props }: ComponentProps<"section"> & { variant?: CardVariant }) {
+  // A page's own padding (e.g. p-0 for an edge-to-edge list) replaces the default instead of competing with it.
+  const customPadding = /(^|\s)p-/.test(className ?? "");
+  return <section className={cn("rounded-panel", !customPadding && "p-5 sm:p-6", CARD[variant], className)} {...props} />;
 }
 
 export function CardHeader({ title, action, subtitle }: { title: ReactNode; action?: ReactNode; subtitle?: ReactNode }) {
   return (
     <div className="mb-4 flex items-start justify-between gap-3">
       <div>
-        <h2 className="text-[17px] font-semibold">{title}</h2>
+        <h2 className="text-[17px] font-semibold tracking-[-0.012em]">{title}</h2>
         {subtitle ? <p className="mt-0.5 text-[14px] text-muted">{subtitle}</p> : null}
       </div>
       {action}
@@ -22,7 +39,7 @@ export function SectionHeader({ title, action, subtitle }: { title: ReactNode; a
   return (
     <div className="mb-3 flex items-end justify-between gap-3 px-1">
       <div>
-        <h2 className="text-[20px] font-semibold">{title}</h2>
+        <h2 className="text-title font-semibold">{title}</h2>
         {subtitle ? <p className="text-[14px] text-muted">{subtitle}</p> : null}
       </div>
       {action}
@@ -32,7 +49,7 @@ export function SectionHeader({ title, action, subtitle }: { title: ReactNode; a
 
 export function EmptyState({ title, body, action }: { title: string; body?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-1.5 rounded-3xl bg-surface-2/60 p-5">
+    <div className="flex flex-col items-start gap-1.5 rounded-tile bg-surface-2/60 p-5">
       <p className="font-semibold">{title}</p>
       {body ? <p className="text-[14px] leading-relaxed text-muted">{body}</p> : null}
       {action ? <div className="mt-2">{action}</div> : null}
@@ -55,7 +72,7 @@ export function PageHeader({ title, subtitle, action }: { title: ReactNode; subt
   return (
     <header className="mb-7 flex animate-fade-in flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-[32px] font-bold leading-tight sm:text-[36px]">{title}</h1>
+        <h1 className="type-display text-[32px] leading-tight sm:text-[36px]">{title}</h1>
         {subtitle ? <p className="mt-1 text-[16px] text-muted">{subtitle}</p> : null}
       </div>
       {action}

@@ -56,4 +56,10 @@ export interface AssistantContext {
    */
   fitness?: { sources: string[] } | null;
   otherConversationSummaries: string[];
+  /**
+   * In-app only: what the assistant changed (or the user declined) today,
+   * across conversations — at most a handful of one-line entries, so a new
+   * conversation still knows what already happened today.
+   */
+  changesToday?: { time: string; summary: string; status: "done" | "declined" }[];
 }

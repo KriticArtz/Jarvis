@@ -2,12 +2,13 @@ import "server-only";
 import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { isMutating, openAITools, pendingProposals, runningLabel, runTool } from "@/lib/assistant/actions/registry";
 import type { ToolContext, ToolResult } from "@/lib/assistant/actions/types";
+import { sanitizeCard, type ActionCard } from "@/lib/assistant/cards";
 import type { ChatMessageParam } from "./chat-messages";
 import { getAI, logAIError } from "./client";
 import { isReasoningModel, responseParams } from "./model-params";
 import { extractUsage } from "./pricing";
 import { recordUsage, type AICallMeta } from "./usage";
-import { claimsSuccess, FAILED_ACTION_NOTE, toolOutputForModel } from "./agent-rules";
+import { claimsSuccess, FAILED_ACTION_NOTE, PARTIAL_ACTION_NOTE, toolOutputForModel } from "./agent-rules";
 
 /**
  * The tool-enabled assistant turn: model → (tool calls → server-side tools →
@@ -20,12 +21,25 @@ export const MAX_TOOL_CALLS = 8;
 
 export type AgentEvent =
   | { type: "text"; delta: string }
-  | { type: "action"; callId: string; tool: string; status: "running" | ToolResult["status"]; label: string; confirmationId?: string };
+  | {
+      type: "action";
+      callId: string;
+      tool: string;
+      status: "running" | ToolResult["status"];
+      label: string;
+      confirmationId?: string;
+      /** Structured result (successes and proposals only), from the tool — never from the model. */
+      card?: ActionCard;
+      error?: ToolResult["error"];
+      /** A proposal the user just answered in words (successful confirm_action / decline_action). */
+      resolves?: { confirmationId: string; decision: "confirm" | "decline" };
+    };
 
 export interface AgentAction {
   tool: string;
   status: ToolResult["status"];
   message: string;
+  error?: ToolResult["error"];
 }
 
 export interface AgentOutcome {
@@ -38,6 +52,17 @@ interface FunctionCallItem {
   call_id: string;
   name: string;
   arguments: string;
+}
+
+/** For a confirm_action / decline_action call: which proposal it answered. */
+function answeredProposal(call: FunctionCallItem): { confirmationId: string; decision: "confirm" | "decline" } | undefined {
+  if (call.name !== "confirm_action" && call.name !== "decline_action") return undefined;
+  try {
+    const id = (JSON.parse(call.arguments) as { confirmation_id?: unknown }).confirmation_id;
+    return typeof id === "string" ? { confirmationId: id, decision: call.name === "confirm_action" ? "confirm" : "decline" } : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function minutesAgo(iso: string): string {
@@ -155,12 +180,23 @@ export async function runAssistantTurn(opts: {
           result = { status: "failed", error: "server_error", message: "Something went wrong on my side, so I didn't make that change." };
         }
         if (result.status !== "info") {
-          emit({ type: "action", callId: call.call_id, tool: call.name, status: result.status, label: result.message, confirmationId: result.confirmationId });
+          const card = result.status === "succeeded" || result.status === "needs_confirmation" ? (sanitizeCard(result.card) ?? undefined) : undefined;
+          emit({
+            type: "action",
+            callId: call.call_id,
+            tool: call.name,
+            status: result.status,
+            label: result.message,
+            confirmationId: result.confirmationId,
+            card,
+            error: result.status === "failed" ? result.error : undefined,
+            resolves: result.status === "succeeded" ? answeredProposal(call) : undefined,
+          });
         } else {
           emit({ type: "action", callId: call.call_id, tool: call.name, status: "info", label: "" });
         }
       }
-      actions.push({ tool: call.name, status: result.status, message: result.message });
+      actions.push({ tool: call.name, status: result.status, message: result.message, ...(result.error ? { error: result.error } : {}) });
       input.push({ type: "function_call_output", call_id: call.call_id, output: JSON.stringify(toolOutputForModel(result)) });
     }
   }
@@ -170,8 +206,9 @@ export async function runAssistantTurn(opts: {
   const changes = actions.filter((a) => isMutating(a.tool));
   const anySucceeded = changes.some((a) => a.status === "succeeded" || a.status === "needs_confirmation");
   if (changes.length && !anySucceeded && claimsSuccess(text)) {
-    text += FAILED_ACTION_NOTE;
-    emit({ type: "text", delta: FAILED_ACTION_NOTE });
+    const note = changes.some((a) => a.error === "partial_failure") ? PARTIAL_ACTION_NOTE : FAILED_ACTION_NOTE;
+    text += note;
+    emit({ type: "text", delta: note });
   }
   if (!text.trim()) {
     const fallback = actions.length ? actions.map((a) => a.message).join(" ") : "Sorry — I couldn't reply just now. Please try again.";

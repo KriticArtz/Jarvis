@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   if (!conversation) conversation = await createConversation(supabase, userId, "app", parsed.data.message.slice(0, 60));
 
   const userMessage = await appendMessage(supabase, userId, conversation.id, "user", parsed.data.message, "app");
-  const { messages, context } = await prepareReply(supabase, userId, conversation, "app");
+  const { messages, context } = await prepareReply(supabase, userId, conversation, "app", { focusTaskId: parsed.data.focusTaskId });
   const conv = conversation;
   const headers = {
     "Content-Type": "application/x-ndjson; charset=utf-8",
@@ -91,7 +91,20 @@ export async function POST(request: NextRequest) {
               streamed += event.delta;
               controller.enqueue(line({ t: "text", v: event.delta }));
             }
-            else controller.enqueue(line({ t: "action", id: event.callId, status: event.status, label: event.label, confirmationId: event.confirmationId }));
+            else {
+              controller.enqueue(
+                line({
+                  t: "action",
+                  id: event.callId,
+                  status: event.status,
+                  label: event.label,
+                  confirmationId: event.confirmationId,
+                  card: event.card,
+                  error: event.error,
+                  resolves: event.resolves,
+                }),
+              );
+            }
           },
         });
         full = outcome.text;

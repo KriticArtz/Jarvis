@@ -41,10 +41,10 @@ export const PERSONALITY_OPTIONS: { value: Personality; title: string; body: str
 
 export const THEME_OPTIONS: { value: Theme; title: string; from: string; to: string }[] = [
   { value: "ocean", title: "Ocean", from: "#14b3a4", to: "#0a84d6" },
-  { value: "midnight", title: "Midnight", from: "#6d8bff", to: "#3a4fd6" },
-  { value: "violet", title: "Violet", from: "#a26bff", to: "#6a4cf5" },
-  { value: "rose", title: "Rose", from: "#ff7aa2", to: "#e0457b" },
-  { value: "emerald", title: "Emerald", from: "#34d399", to: "#0e9f6e" },
+  { value: "midnight", title: "Midnight", from: "#8aa2ff", to: "#4255e0" },
+  { value: "violet", title: "Violet", from: "#a26bff", to: "#5b47f0" },
+  { value: "rose", title: "Rose", from: "#ff8a6b", to: "#e0457b" },
+  { value: "emerald", title: "Emerald", from: "#9be15d", to: "#0e9f6e" },
   { value: "warm", title: "Warm Light", from: "#f5a524", to: "#e0602a" },
 ];
 

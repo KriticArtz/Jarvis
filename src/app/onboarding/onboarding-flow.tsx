@@ -85,7 +85,7 @@ export function OnboardingFlow({
       {step === 5 && (
         <Step
           title="What would you like to call your AI assistant?"
-          subtitle="Your assistant will use this name everywhere — in chat, your daily plan, reviews and texts. Then pick how it should talk to you. You can change both anytime in Settings."
+          subtitle="Your assistant will use this name everywhere — in chat, your daily plan, reviews and texts. Then pick how it should talk to you. You can change both anytime under You."
         >
           <AssistantIdentityForm
             name={profile.assistant_name ?? ""}

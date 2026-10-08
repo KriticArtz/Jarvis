@@ -2,6 +2,8 @@ import type { ToolResult } from "@/lib/assistant/actions/types";
 
 /** Appended by the server when the reply claims success but nothing changed. */
 export const FAILED_ACTION_NOTE = "\n\n(Heads up: that change didn't go through — nothing was updated.)";
+/** Appended instead when part of a change went through (e.g. some plan items couldn't be saved). */
+export const PARTIAL_ACTION_NOTE = "\n\n(Heads up: only part of that went through — check Today for what changed.)";
 
 const SUCCESS = /\b(done|all set|i'?ve|i have|moved|marked|added|created|updated|deleted|removed|logged|saved|completed|rescheduled|recorded|paused|resumed)\b/i;
 const NEGATION = /\b(couldn'?t|could not|wasn'?t able|was not able|unable|didn'?t|did not|failed|not able|can'?t|cannot|won'?t|no changes?|nothing (was|got) (changed|updated))\b/i;

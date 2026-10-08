@@ -9,6 +9,7 @@ import type { Goal } from "@/lib/types/domain";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { GoalsToolbar } from "@/components/goals/new-goal-panel";
+import { ProgressNav } from "@/components/app/progress-nav";
 
 export const metadata: Metadata = { title: "Goals" };
 
@@ -31,6 +32,7 @@ export default async function GoalsPage({ searchParams }: PageProps<"/goals">) {
 
   return (
     <>
+      <ProgressNav />
       <PageHeader title="Goals" subtitle="What you're working toward, in order of importance." />
       <GoalsToolbar activeGoals={groups[0].items} startOpen={params.new === "1" || goals.length === 0} />
 

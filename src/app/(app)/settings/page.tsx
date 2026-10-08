@@ -27,7 +27,7 @@ import { DeleteAccount } from "@/components/settings/delete-account";
 import { PhoneVerification } from "@/components/settings/phone-verification";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Settings" };
+export const metadata: Metadata = { title: "You" };
 
 const MODE_COPY = {
   live: { label: "Live", tone: "success", body: "Texts are delivered through Twilio." },
@@ -83,7 +83,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   return (
     <>
-      <PageHeader title="Settings" />
+      <PageHeader title="You" subtitle={`Your AI, your account, and how ${personalization.assistantName} works with you.`} />
       <div className="flex flex-col gap-5">
         <Card id="your-ai" className="bg-assistant">
           <CardHeader title="Your AI" subtitle="Name your assistant and choose how it talks to you. Changes apply everywhere — chat, plans, reviews and texts." />

@@ -30,10 +30,34 @@ export function supabaseServiceKey(): string | undefined {
   return read("SUPABASE_SECRET_KEY") ?? read("SUPABASE_SERVICE_ROLE_KEY");
 }
 
-export function openAIConfig(): { apiKey: string; model: string } | null {
+export const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
+
+/**
+ * OPENAI_BASE_URL is for automated tests only: it is honoured solely when it
+ * points at this machine (a local mock of the Responses API) and never on a
+ * Vercel production deployment. Anything else — including an unset value —
+ * means the real OpenAI API. (The SDK would otherwise read the variable
+ * implicitly, so the base URL is always passed explicitly.)
+ */
+export function testBaseURL(value: string | undefined, vercelEnv: string | undefined): string | null {
+  if (!value || vercelEnv === "production") return null;
+  try {
+    const url = new URL(value);
+    const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]";
+    return loopback && (url.protocol === "http:" || url.protocol === "https:") ? url.toString().replace(/\/$/, "") : null;
+  } catch {
+    return null;
+  }
+}
+
+export function openAIConfig(): { apiKey: string; model: string; baseURL: string } | null {
   const apiKey = read("OPENAI_API_KEY");
   if (!apiKey) return null;
-  return { apiKey, model: read("OPENAI_MODEL") ?? "gpt-5-mini" };
+  return {
+    apiKey,
+    model: read("OPENAI_MODEL") ?? "gpt-5-mini",
+    baseURL: testBaseURL(read("OPENAI_BASE_URL"), read("VERCEL_ENV")) ?? OPENAI_DEFAULT_BASE_URL,
+  };
 }
 
 export type SmsMode = "disabled" | "test" | "live";
@@ -199,4 +223,12 @@ export function resendWebhookSecret(): string | undefined {
 /** Override for the Resend API origin. Only for automated tests against a mock server. */
 export function resendApiBaseUrl(): string {
   return (read("RESEND_API_BASE_URL") ?? "https://api.resend.com").replace(/\/$/, "");
+}
+
+/**
+ * The internal /design route (design-system and typography review). Always
+ * on in development; in production only with DESIGN_PREVIEW=true.
+ */
+export function designPreviewEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" || read("DESIGN_PREVIEW") === "true";
 }

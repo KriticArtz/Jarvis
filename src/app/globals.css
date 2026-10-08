@@ -1,95 +1,136 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Calm, light, premium: near-white canvas, white surfaces with
- * soft shadows, one teal-blue accent, gradients only in small doses.
- * Change --accent / --grad-* here to rebrand.
+ * Design foundation: "editorial calm + one living presence".
+ *
+ *   Paper (light) and ink (dark) are designed separately, not inverted.
+ *   Light is a warm off-white page with white raised surfaces and soft long
+ *   shadows. Dark is a near-black canvas tinted by the theme, where depth
+ *   comes from light (inner top highlights, a faint glow), not borders.
+ *   The theme gradient belongs to the AI: the Presence orb, AI-made things,
+ *   and the glow behind them. The rest of the UI stays neutral; the accent
+ *   marks meaning (now, primary action, selection), not decoration.
  *
  * Two independent user preferences (stored on the profile) select tokens:
- *   data-mode  = light | dark | system   → neutral surfaces, text, shadows
- *   data-theme = ocean | midnight | …    → accent colors, in a light and a
- *                                          dark variant each
- * Both attributes are set together on the app shell (server-rendered, so the
- * first paint is right) and on <html>. Pages without them (landing, auth)
- * follow the OS, as before. The default "ocean" theme is the tokens below.
+ *   data-mode  = light | dark | system   → neutral surfaces, text, depth
+ *   data-theme = ocean | midnight | …    → accent + gradient, light and dark
+ * Both attributes are set on the app shell (server-rendered, so the first
+ * paint is right) and on <html>. Pages without them (auth, legal) follow the
+ * OS. The landing page pins its own tokens (see the .landing section).
+ *
+ * Scales (use these, not arbitrary values, in new code):
+ *   faces   Instrument Serif (display) · Geist (UI, assistant voice) · Geist Mono (clock numerals)
+ *   type    micro 11 · caption 13 · body 15 · lead 17 · title 20 · headline 28 · display 36 · hero 48
+ *   radius  chip 8 · control 12 · tile 18 · panel 24 · sheet 28 · full
+ *   space   4px grid; semantic: gutter 20 · block 24 · section 40
+ *   motion  dur 120 / 200 / 320 / 520ms · ease-soft · ease-spring · ease-swift
  */
+
+/* Smoothly animatable angle for the Presence orb's rotating gradient. */
+@property --presence-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ---------------------------------------------------------------- paper (light) */
 :root,
 [data-mode="light"],
 [data-mode="system"] {
-  --background: #f5f6f7;
+  --background: #f6f5f2;
   --surface: #ffffff;
-  --surface-2: #eef0f2;
-  --border: #e3e6e9;
-  --foreground: #15171a;
-  --muted: #6c7278;
+  --surface-raised: #ffffff;
+  --surface-2: #efede9;
+  --border: #e2dfd9;
+  --hairline: rgba(28, 25, 20, 0.08);
+  --foreground: #16161a;
+  --muted: #66645f;
+  --subtle: #9a978f;
   --accent: #0a7ea4;
   --accent-hover: #086b8c;
   --accent-foreground: #ffffff;
-  --accent-soft: #e6f3f7;
+  --accent-soft: #e5f2f6;
   --grad-from: #14b3a4;
   --grad-to: #0a84d6;
-  --success: #1a8a4a;
-  --success-soft: #e7f5ec;
-  --warning: #b25f00;
-  --warning-soft: #fdf1e1;
-  --danger: #c42b2b;
-  --danger-soft: #fdeceb;
-  --ring: rgba(10, 126, 164, 0.28);
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px -14px rgba(16, 24, 40, 0.1);
-  --shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.05), 0 24px 48px -20px rgba(16, 24, 40, 0.18);
-  --hairline: rgba(0, 0, 0, 0.06);
+  --success: #2f7d4f;
+  --success-soft: #e8f3ec;
+  --warning: #a8620b;
+  --warning-soft: #fbf0e0;
+  --danger: #b8382f;
+  --danger-soft: #fbecea;
+  --ring: rgba(10, 126, 164, 0.26);
+  --shadow-card: 0 1px 2px rgba(28, 25, 20, 0.04), 0 6px 20px -10px rgba(28, 25, 20, 0.1);
+  --shadow-lift: 0 1px 2px rgba(28, 25, 20, 0.05), 0 22px 44px -22px rgba(28, 25, 20, 0.22);
+  --shadow-sheet: 0 -10px 40px -14px rgba(28, 25, 20, 0.2);
+  --scrim: rgba(22, 20, 16, 0.32);
+  --line: rgba(28, 25, 20, 0.12);
+  --glow-strength: 16%;
 }
 
+/* ---------------------------------------------------------------- ink (dark) */
 [data-mode="dark"] {
-  --background: #0b0c0d;
-  --surface: #161819;
-  --surface-2: #222528;
-  --border: #2b2f33;
-  --foreground: #f1f2f3;
-  --muted: #9aa1a8;
+  /* Neutrals carry a whisper of the theme so each theme's night feels its own. */
+  --background: color-mix(in oklab, var(--grad-to) 4%, #0a0b0d);
+  --surface: color-mix(in oklab, var(--grad-to) 4%, #131417);
+  --surface-raised: color-mix(in oklab, var(--grad-to) 6%, #191a1e);
+  --surface-2: color-mix(in oklab, var(--grad-to) 5%, #1d1f23);
+  --border: rgba(255, 255, 255, 0.09);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --foreground: #ecebe8;
+  --muted: #a3a29e;
+  --subtle: #6f6e6b;
   --accent: #3cc3de;
   --accent-hover: #6fd6ea;
   --accent-foreground: #03232b;
-  --accent-soft: #0f2a33;
+  --accent-soft: color-mix(in oklab, #3cc3de 14%, #131417);
   --grad-from: #2dd4bf;
   --grad-to: #38a8f5;
-  --success: #4ade80;
-  --success-soft: #11291a;
-  --warning: #fbbf24;
-  --warning-soft: #2e2410;
-  --danger: #f87171;
-  --danger-soft: #331616;
+  --success: #5ccf8c;
+  --success-soft: color-mix(in oklab, #5ccf8c 13%, #131417);
+  --warning: #e8b04b;
+  --warning-soft: color-mix(in oklab, #e8b04b 13%, #131417);
+  --danger: #f07b72;
+  --danger-soft: color-mix(in oklab, #f07b72 13%, #131417);
   --ring: rgba(60, 195, 222, 0.35);
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
-  --hairline: rgba(255, 255, 255, 0.07);
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+  --shadow-sheet: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 -12px 48px -12px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.58);
+  --line: rgba(255, 255, 255, 0.12);
+  --glow-strength: 30%;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-mode]),
   [data-mode="system"] {
-    --background: #0b0c0d;
-    --surface: #161819;
-    --surface-2: #222528;
-    --border: #2b2f33;
-    --foreground: #f1f2f3;
-    --muted: #9aa1a8;
+    --background: color-mix(in oklab, var(--grad-to) 4%, #0a0b0d);
+    --surface: color-mix(in oklab, var(--grad-to) 4%, #131417);
+    --surface-raised: color-mix(in oklab, var(--grad-to) 6%, #191a1e);
+    --surface-2: color-mix(in oklab, var(--grad-to) 5%, #1d1f23);
+    --border: rgba(255, 255, 255, 0.09);
+    --hairline: rgba(255, 255, 255, 0.07);
+    --foreground: #ecebe8;
+    --muted: #a3a29e;
+    --subtle: #6f6e6b;
     --accent: #3cc3de;
     --accent-hover: #6fd6ea;
     --accent-foreground: #03232b;
-    --accent-soft: #0f2a33;
+    --accent-soft: color-mix(in oklab, #3cc3de 14%, #131417);
     --grad-from: #2dd4bf;
     --grad-to: #38a8f5;
-    --success: #4ade80;
-    --success-soft: #11291a;
-    --warning: #fbbf24;
-    --warning-soft: #2e2410;
-    --danger: #f87171;
-    --danger-soft: #331616;
+    --success: #5ccf8c;
+    --success-soft: color-mix(in oklab, #5ccf8c 13%, #131417);
+    --warning: #e8b04b;
+    --warning-soft: color-mix(in oklab, #e8b04b 13%, #131417);
+    --danger: #f07b72;
+    --danger-soft: color-mix(in oklab, #f07b72 13%, #131417);
     --ring: rgba(60, 195, 222, 0.35);
-    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
-    --hairline: rgba(255, 255, 255, 0.07);
+    --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-lift: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+    --shadow-sheet: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 -12px 48px -12px rgba(0, 0, 0, 0.7);
+    --scrim: rgba(0, 0, 0, 0.58);
+    --line: rgba(255, 255, 255, 0.12);
+    --glow-strength: 30%;
   }
 }
 
@@ -104,91 +145,96 @@
 }
 
 /*
- * Color themes. Each overrides only accent tokens (Midnight and Warm Light
- * also tint the neutrals). The light variant applies by default; the dark
- * variant (higher specificity) applies in dark mode, or in system mode when
- * the OS is dark. Adding a theme = blocks here + an entry in
- * src/lib/personalization.ts (THEMES/THEME_OPTIONS) + the DB check.
+ * Color themes. Each overrides accent + gradient (Warm also tints the paper,
+ * Midnight its night). The light variant applies by default; the dark variant
+ * (higher specificity) applies in dark mode, or in system mode when the OS is
+ * dark. Adding a theme = blocks here + an entry in src/lib/personalization.ts
+ * (THEMES/THEME_OPTIONS) + the DB check.
  */
 [data-theme="violet"] {
-  --accent: #6d4ae8;
-  --accent-hover: #5b39d6;
+  --accent: #6747e0;
+  --accent-hover: #5636cc;
   --accent-foreground: #ffffff;
-  --accent-soft: #f0ecfe;
+  --accent-soft: #f0ecfd;
   --grad-from: #a26bff;
-  --grad-to: #6a4cf5;
-  --ring: rgba(109, 74, 232, 0.28);
+  --grad-to: #5b47f0;
+  --ring: rgba(103, 71, 224, 0.26);
 }
 [data-theme="rose"] {
-  --accent: #d6336c;
-  --accent-hover: #bd2a5d;
+  --accent: #c8305f;
+  --accent-hover: #b02851;
   --accent-foreground: #ffffff;
-  --accent-soft: #fdecf2;
-  --grad-from: #ff7aa2;
+  --accent-soft: #fcecf1;
+  --grad-from: #ff8a6b;
   --grad-to: #e0457b;
-  --ring: rgba(214, 51, 108, 0.26);
+  --ring: rgba(200, 48, 95, 0.24);
 }
 [data-theme="emerald"] {
-  --accent: #0b7d56;
-  --accent-hover: #086946;
+  --accent: #0b7a55;
+  --accent-hover: #086646;
   --accent-foreground: #ffffff;
-  --accent-soft: #e5f5ee;
-  --grad-from: #34d399;
+  --accent-soft: #e5f3ec;
+  --grad-from: #9be15d;
   --grad-to: #0e9f6e;
-  --ring: rgba(11, 125, 86, 0.28);
+  --ring: rgba(11, 122, 85, 0.26);
 }
 [data-theme="midnight"] {
-  --accent: #3f56d9;
-  --accent-hover: #3246c2;
+  --accent: #3b52d4;
+  --accent-hover: #2f44bd;
   --accent-foreground: #ffffff;
   --accent-soft: #eceffd;
-  --grad-from: #8199ff;
-  --grad-to: #4f63e6;
-  --ring: rgba(63, 86, 217, 0.28);
+  --grad-from: #8aa2ff;
+  --grad-to: #4255e0;
+  --ring: rgba(59, 82, 212, 0.26);
 }
-/* Warm paper tones with an amber accent. */
+/* Warm: cream paper, sepia ink, an amber-to-ember gradient. */
 [data-theme="warm"] {
   color-scheme: light;
-  --background: #f7f3ec;
-  --surface: #fffdf9;
-  --surface-2: #f0e9df;
-  --border: #e6dccd;
+  --background: #f6f1e8;
+  --surface: #fffdf8;
+  --surface-raised: #fffdf8;
+  --surface-2: #efe7da;
+  --border: #e3d8c7;
+  --hairline: rgba(60, 40, 20, 0.09);
   --foreground: #1f1a14;
-  --muted: #74695c;
-  --accent: #b5501a;
-  --accent-hover: #9c4415;
+  --muted: #6f6457;
+  --subtle: #a39684;
+  --accent: #b04d18;
+  --accent-hover: #974114;
   --accent-foreground: #ffffff;
-  --accent-soft: #fbeee3;
+  --accent-soft: #faede1;
   --grad-from: #f5a524;
   --grad-to: #e0602a;
-  --success: #1a7f45;
-  --success-soft: #e6f3e9;
-  --warning: #a35400;
-  --warning-soft: #fcefdc;
-  --danger: #bf2b2b;
-  --danger-soft: #fcebea;
-  --ring: rgba(181, 80, 26, 0.26);
-  --shadow-card: 0 1px 2px rgba(60, 40, 20, 0.05), 0 10px 30px -14px rgba(60, 40, 20, 0.12);
-  --shadow-lift: 0 2px 4px rgba(60, 40, 20, 0.06), 0 24px 48px -20px rgba(60, 40, 20, 0.2);
-  --hairline: rgba(60, 40, 20, 0.08);
+  --success: #2c7a47;
+  --success-soft: #e7f1e7;
+  --warning: #9c5300;
+  --warning-soft: #f9ecd8;
+  --danger: #b53026;
+  --danger-soft: #f9e9e5;
+  --ring: rgba(176, 77, 24, 0.24);
+  --shadow-card: 0 1px 2px rgba(60, 40, 20, 0.05), 0 6px 20px -10px rgba(60, 40, 20, 0.12);
+  --shadow-lift: 0 1px 2px rgba(60, 40, 20, 0.06), 0 22px 44px -22px rgba(60, 40, 20, 0.24);
+  --shadow-sheet: 0 -10px 40px -14px rgba(60, 40, 20, 0.22);
+  --scrim: rgba(40, 26, 12, 0.32);
+  --line: rgba(60, 40, 20, 0.14);
 }
 
-/* Dark variants. Midnight's is its deep navy canvas. */
+/* Dark variants. */
 [data-theme="violet"][data-mode="dark"] {
   --accent: #a58bff;
   --accent-hover: #bca8ff;
   --accent-foreground: #170c3a;
-  --accent-soft: #211a3d;
-  --grad-from: #b48cff;
-  --grad-to: #7c6bff;
+  --accent-soft: color-mix(in oklab, #a58bff 15%, #131417);
+  --grad-from: #c08cff;
+  --grad-to: #6f62ff;
   --ring: rgba(165, 139, 255, 0.35);
 }
 [data-theme="rose"][data-mode="dark"] {
   --accent: #ff7aa2;
   --accent-hover: #ff9ab8;
   --accent-foreground: #3a0a1c;
-  --accent-soft: #3a1624;
-  --grad-from: #ff8fb1;
+  --accent-soft: color-mix(in oklab, #ff7aa2 14%, #131417);
+  --grad-from: #ffa07a;
   --grad-to: #ff5c8a;
   --ring: rgba(255, 122, 162, 0.35);
 }
@@ -196,60 +242,59 @@
   --accent: #34d399;
   --accent-hover: #6ee7b7;
   --accent-foreground: #04261a;
-  --accent-soft: #0f2e22;
-  --grad-from: #4ade80;
+  --accent-soft: color-mix(in oklab, #34d399 13%, #131417);
+  --grad-from: #b5f07a;
   --grad-to: #10b981;
   --ring: rgba(52, 211, 153, 0.35);
 }
+/* Midnight's night is deep navy. */
 [data-theme="midnight"][data-mode="dark"] {
   color-scheme: dark;
-  --background: #090d18;
-  --surface: #111727;
-  --surface-2: #1a2236;
-  --border: #252f47;
-  --foreground: #eef1f8;
-  --muted: #96a1b9;
+  --background: #080c17;
+  --surface: #0f1524;
+  --surface-raised: #141b2e;
+  --surface-2: #182036;
+  --foreground: #eaeef8;
+  --muted: #9aa5bd;
+  --subtle: #66708a;
   --accent: #8199ff;
   --accent-hover: #a0b2ff;
   --accent-foreground: #0a1030;
-  --accent-soft: #1a2244;
-  --grad-from: #8199ff;
-  --grad-to: #4f63e6;
-  --success: #4ade80;
-  --success-soft: #11291a;
-  --warning: #fbbf24;
-  --warning-soft: #2e2410;
-  --danger: #f87171;
-  --danger-soft: #331616;
+  --accent-soft: color-mix(in oklab, #8199ff 15%, #0f1524);
+  --grad-from: #9fb3ff;
+  --grad-to: #5266f0;
   --ring: rgba(129, 153, 255, 0.38);
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
-  --hairline: rgba(255, 255, 255, 0.07);
 }
+/* Warm's night is candle-lit brown-black. */
 [data-theme="warm"][data-mode="dark"] {
   color-scheme: dark;
-  --background: #12100d;
-  --surface: #1c1915;
-  --surface-2: #28231d;
-  --border: #362f27;
-  --foreground: #f4eee6;
-  --muted: #a99d8e;
+  --background: #110f0c;
+  --surface: #1a1713;
+  --surface-raised: #211d18;
+  --surface-2: #26211b;
+  --border: rgba(255, 240, 220, 0.09);
+  --hairline: rgba(255, 240, 220, 0.07);
+  --foreground: #f3ece2;
+  --muted: #ab9f8f;
+  --subtle: #75695b;
   --accent: #f2a65a;
   --accent-hover: #f7bd82;
   --accent-foreground: #2b1504;
-  --accent-soft: #33240f;
-  --grad-from: #f5a524;
-  --grad-to: #e0602a;
-  --success: #4ade80;
-  --success-soft: #11291a;
-  --warning: #fbbf24;
-  --warning-soft: #2e2410;
-  --danger: #f87171;
-  --danger-soft: #331616;
+  --accent-soft: color-mix(in oklab, #f2a65a 14%, #1a1713);
+  --grad-from: #f7b733;
+  --grad-to: #e8592a;
+  --success: #5ccf8c;
+  --success-soft: color-mix(in oklab, #5ccf8c 13%, #1a1713);
+  --warning: #e8b04b;
+  --warning-soft: color-mix(in oklab, #e8b04b 13%, #1a1713);
+  --danger: #f07b72;
+  --danger-soft: color-mix(in oklab, #f07b72 13%, #1a1713);
   --ring: rgba(242, 166, 90, 0.35);
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
-  --hairline: rgba(255, 255, 255, 0.07);
+  --shadow-card: inset 0 1px 0 rgba(255, 240, 220, 0.04), 0 0 0 1px rgba(255, 240, 220, 0.05);
+  --shadow-lift: inset 0 1px 0 rgba(255, 240, 220, 0.06), 0 0 0 1px rgba(255, 240, 220, 0.06), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+  --shadow-sheet: inset 0 1px 0 rgba(255, 240, 220, 0.07), 0 -12px 48px -12px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --line: rgba(255, 240, 220, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -257,17 +302,17 @@
     --accent: #a58bff;
     --accent-hover: #bca8ff;
     --accent-foreground: #170c3a;
-    --accent-soft: #211a3d;
-    --grad-from: #b48cff;
-    --grad-to: #7c6bff;
+    --accent-soft: color-mix(in oklab, #a58bff 15%, #131417);
+    --grad-from: #c08cff;
+    --grad-to: #6f62ff;
     --ring: rgba(165, 139, 255, 0.35);
   }
   [data-theme="rose"][data-mode="system"] {
     --accent: #ff7aa2;
     --accent-hover: #ff9ab8;
     --accent-foreground: #3a0a1c;
-    --accent-soft: #3a1624;
-    --grad-from: #ff8fb1;
+    --accent-soft: color-mix(in oklab, #ff7aa2 14%, #131417);
+    --grad-from: #ffa07a;
     --grad-to: #ff5c8a;
     --ring: rgba(255, 122, 162, 0.35);
   }
@@ -275,77 +320,94 @@
     --accent: #34d399;
     --accent-hover: #6ee7b7;
     --accent-foreground: #04261a;
-    --accent-soft: #0f2e22;
-    --grad-from: #4ade80;
+    --accent-soft: color-mix(in oklab, #34d399 13%, #131417);
+    --grad-from: #b5f07a;
     --grad-to: #10b981;
     --ring: rgba(52, 211, 153, 0.35);
   }
   [data-theme="midnight"][data-mode="system"] {
     color-scheme: dark;
-    --background: #090d18;
-    --surface: #111727;
-    --surface-2: #1a2236;
-    --border: #252f47;
-    --foreground: #eef1f8;
-    --muted: #96a1b9;
+    --background: #080c17;
+    --surface: #0f1524;
+    --surface-raised: #141b2e;
+    --surface-2: #182036;
+    --foreground: #eaeef8;
+    --muted: #9aa5bd;
+    --subtle: #66708a;
     --accent: #8199ff;
     --accent-hover: #a0b2ff;
     --accent-foreground: #0a1030;
-    --accent-soft: #1a2244;
-    --grad-from: #8199ff;
-    --grad-to: #4f63e6;
-    --success: #4ade80;
-    --success-soft: #11291a;
-    --warning: #fbbf24;
-    --warning-soft: #2e2410;
-    --danger: #f87171;
-    --danger-soft: #331616;
+    --accent-soft: color-mix(in oklab, #8199ff 15%, #0f1524);
+    --grad-from: #9fb3ff;
+    --grad-to: #5266f0;
     --ring: rgba(129, 153, 255, 0.38);
-    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
-    --hairline: rgba(255, 255, 255, 0.07);
   }
   [data-theme="warm"][data-mode="system"] {
     color-scheme: dark;
-    --background: #12100d;
-    --surface: #1c1915;
-    --surface-2: #28231d;
-    --border: #362f27;
-    --foreground: #f4eee6;
-    --muted: #a99d8e;
+    --background: #110f0c;
+    --surface: #1a1713;
+    --surface-raised: #211d18;
+    --surface-2: #26211b;
+    --border: rgba(255, 240, 220, 0.09);
+    --hairline: rgba(255, 240, 220, 0.07);
+    --foreground: #f3ece2;
+    --muted: #ab9f8f;
+    --subtle: #75695b;
     --accent: #f2a65a;
     --accent-hover: #f7bd82;
     --accent-foreground: #2b1504;
-    --accent-soft: #33240f;
-    --grad-from: #f5a524;
-    --grad-to: #e0602a;
-    --success: #4ade80;
-    --success-soft: #11291a;
-    --warning: #fbbf24;
-    --warning-soft: #2e2410;
-    --danger: #f87171;
-    --danger-soft: #331616;
+    --accent-soft: color-mix(in oklab, #f2a65a 14%, #1a1713);
+    --grad-from: #f7b733;
+    --grad-to: #e8592a;
+    --success: #5ccf8c;
+    --success-soft: color-mix(in oklab, #5ccf8c 13%, #1a1713);
+    --warning: #e8b04b;
+    --warning-soft: color-mix(in oklab, #e8b04b 13%, #1a1713);
+    --danger: #f07b72;
+    --danger-soft: color-mix(in oklab, #f07b72 13%, #1a1713);
     --ring: rgba(242, 166, 90, 0.35);
-    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
-    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.65);
-    --hairline: rgba(255, 255, 255, 0.07);
+    --shadow-card: inset 0 1px 0 rgba(255, 240, 220, 0.04), 0 0 0 1px rgba(255, 240, 220, 0.05);
+    --shadow-lift: inset 0 1px 0 rgba(255, 240, 220, 0.06), 0 0 0 1px rgba(255, 240, 220, 0.06), 0 24px 48px -24px rgba(0, 0, 0, 0.8);
+    --shadow-sheet: inset 0 1px 0 rgba(255, 240, 220, 0.07), 0 -12px 48px -12px rgba(0, 0, 0, 0.7);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --line: rgba(255, 240, 220, 0.12);
   }
+}
+
+/* Derived tokens: the AI's palette and glow follow whichever theme/mode applies. */
+:root,
+[data-mode],
+[data-theme] {
+  --presence-a: var(--grad-from);
+  --presence-b: var(--grad-to);
+  --presence-c: color-mix(in oklab, var(--grad-from) 45%, #ffffff);
+  --glow: color-mix(in oklab, var(--grad-to) var(--glow-strength), transparent);
+  --now: var(--accent);
+  /* Type system: Instrument Serif for display, Geist for UI and the assistant's voice, Geist Mono for clock numerals. */
+  --display-face: var(--font-instrument), Georgia, "Times New Roman", serif;
+  --display-weight: 400;
+  --display-tracking: -0.012em;
+  --voice-face: var(--font-ui);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
   --color-hairline: var(--hairline);
+  --color-line: var(--line);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
   --color-grad-from: var(--grad-from);
   --color-grad-to: var(--grad-to);
+  --color-now: var(--now);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -353,12 +415,61 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
   --shadow-card: var(--shadow-card);
   --shadow-lift: var(--shadow-lift);
-  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --shadow-sheet: var(--shadow-sheet);
+
+  /* Geist is the product's UI face on every platform (it used to lose to SF on Apple devices). */
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+  --font-display: var(--display-face);
+  --font-voice: var(--voice-face);
+
+  /* Type scale. */
+  --text-micro: 11px;
+  --text-micro--line-height: 14px;
+  --text-micro--letter-spacing: 0.02em;
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-lead: 17px;
+  --text-lead--line-height: 26px;
+  --text-title: 20px;
+  --text-title--line-height: 26px;
+  --text-title--letter-spacing: -0.015em;
+  --text-headline: 28px;
+  --text-headline--line-height: 32px;
+  --text-headline--letter-spacing: -0.022em;
+  --text-display: 36px;
+  --text-display--line-height: 40px;
+  --text-display--letter-spacing: -0.028em;
+  --text-hero: 48px;
+  --text-hero--line-height: 50px;
+  --text-hero--letter-spacing: -0.034em;
+
+  /* Radius scale. */
+  --radius-chip: 8px;
+  --radius-control: 12px;
+  --radius-tile: 18px;
+  --radius-panel: 24px;
+  --radius-sheet: 28px;
+
+  /* Semantic spacing (on the 4px grid). */
+  --spacing-gutter: 20px;
+  --spacing-block: 24px;
+  --spacing-section: 40px;
+
+  /* Motion. */
+  --ease-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);
+
   --animate-fade-in: fade-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-rise: rise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-page: page-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 
   @keyframes fade-in {
     from {
@@ -380,6 +491,29 @@
       transform: translateY(0) scale(1);
     }
   }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+}
+
+:root {
+  --font-ui: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-code: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 520ms;
 }
 
 html {
@@ -390,7 +524,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.006em;
 }
@@ -399,6 +533,45 @@ h1,
 h2,
 h3 {
   letter-spacing: -0.022em;
+}
+
+/*
+ * Semantic type roles. The display role carries the brand's editorial voice
+ * (greetings, headlines, goal titles); the voice role is how the AI speaks.
+ * Faces, weights and tracking come from the active type system.
+ */
+.type-display {
+  font-family: var(--display-face);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  font-feature-settings: normal;
+}
+.type-voice {
+  font-family: var(--voice-face);
+  font-size: var(--voice-size, 17px);
+  line-height: var(--voice-leading, 1.55);
+  letter-spacing: var(--voice-tracking, -0.008em);
+  font-feature-settings: normal;
+}
+/* Small caps-style label above a section ("TODAY", "NEXT"). */
+.type-eyebrow {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Clock numerals on a timeline or calendar grid: tabular mono, like an instrument readout. */
+.type-time {
+  font-family: var(--font-code);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+/* Phrases with numbers ("Tomorrow · 6:00 PM", "18 / 42 miles"): the UI face, tabular figures. */
+.type-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.004em;
 }
 
 /* Brand gradient text, used sparingly (hero headline, logo). */
@@ -413,21 +586,339 @@ h3 {
   background: linear-gradient(135deg, var(--grad-from), var(--grad-to));
 }
 
-/* App canvas: the theme's gradient as a faint glow at the top of the page. */
+/* App canvas: a faint presence glow at the top of the page; stronger at night. */
 .bg-canvas {
   background:
-    radial-gradient(90% 420px at 50% -120px, color-mix(in oklab, var(--grad-from) 13%, transparent), transparent 70%),
-    radial-gradient(60% 360px at 100% -80px, color-mix(in oklab, var(--grad-to) 9%, transparent), transparent 70%),
+    radial-gradient(80% 380px at 50% -140px, var(--glow), transparent 72%),
     var(--background);
   background-repeat: no-repeat;
 }
 
-/* Soft tinted wash for the assistant's card. */
+/* Soft tinted wash for AI-authored surfaces. */
 .bg-assistant {
   background:
-    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--grad-from) 14%, transparent), transparent 55%),
-    radial-gradient(120% 140% at 100% 100%, color-mix(in oklab, var(--grad-to) 12%, transparent), transparent 55%),
-    var(--surface);
+    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--grad-from) 12%, transparent), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, color-mix(in oklab, var(--grad-to) 10%, transparent), transparent 55%),
+    var(--surface-raised);
+}
+
+/* ----------------------------------------------------------------- Presence */
+/*
+ * The AI's living mark. A slowly turning gradient orb with a soft glow.
+ * States (data-state): idle → breathes; listening → brightens, turns faster;
+ * thinking → ripples outward; acting → a pulse that leaves the orb.
+ * Size via --presence-size.
+ */
+.presence {
+  --presence-size: 32px;
+  position: relative;
+  display: inline-grid;
+  flex-shrink: 0;
+  width: var(--presence-size);
+  height: var(--presence-size);
+  place-items: center;
+  isolation: isolate;
+}
+.presence > span {
+  grid-area: 1 / 1;
+  border-radius: 9999px;
+}
+.presence-glow {
+  width: 170%;
+  height: 170%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--presence-b) 55%, transparent), transparent);
+  opacity: 0.35;
+  filter: blur(calc(var(--presence-size) * 0.12));
+  z-index: -1;
+  transition:
+    opacity var(--dur-3) var(--ease-soft),
+    transform var(--dur-3) var(--ease-soft);
+}
+.presence-core {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 34% 28%, color-mix(in oklab, #ffffff 78%, var(--presence-c)) 0, transparent 38%),
+    radial-gradient(circle at 70% 78%, color-mix(in oklab, var(--presence-b) 70%, #000000) 0, transparent 55%),
+    conic-gradient(from var(--presence-angle), var(--presence-a), var(--presence-b), var(--presence-c), var(--presence-a));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 calc(var(--presence-size) * -0.12) calc(var(--presence-size) * 0.22) calc(var(--presence-size) * -0.1) rgba(0, 0, 0, 0.28),
+    0 calc(var(--presence-size) * 0.08) calc(var(--presence-size) * 0.3) calc(var(--presence-size) * -0.12) var(--presence-b);
+  animation:
+    presence-turn 24s linear infinite,
+    presence-breathe 8s var(--ease-swift) infinite;
+  transition: filter var(--dur-3) var(--ease-soft);
+}
+.presence-ring {
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid color-mix(in oklab, var(--presence-b) 70%, transparent);
+  opacity: 0;
+}
+.presence[data-state="listening"] .presence-glow {
+  opacity: 0.7;
+  transform: scale(1.08);
+}
+.presence[data-state="listening"] .presence-core {
+  animation:
+    presence-turn 5s linear infinite,
+    presence-breathe 2.4s var(--ease-swift) infinite;
+  filter: saturate(1.15) brightness(1.06);
+}
+.presence[data-state="thinking"] .presence-glow {
+  opacity: 0.6;
+}
+.presence[data-state="thinking"] .presence-core {
+  animation:
+    presence-turn 2.6s linear infinite,
+    presence-think 1.8s var(--ease-swift) infinite;
+}
+.presence[data-state="thinking"] .presence-ring {
+  animation: presence-ripple 1.8s var(--ease-soft) infinite;
+}
+.presence[data-state="thinking"] .presence-ring + .presence-ring {
+  animation-delay: 0.9s;
+}
+.presence[data-state="acting"] .presence-glow {
+  opacity: 0.85;
+  transform: scale(1.15);
+}
+.presence[data-state="acting"] .presence-core {
+  animation:
+    presence-turn 3.5s linear infinite,
+    presence-act 1.3s var(--ease-spring) infinite;
+  filter: brightness(1.1);
+}
+.presence[data-state="acting"] .presence-ring {
+  border-width: 2px;
+  animation: presence-pulse 1.3s var(--ease-soft) infinite;
+}
+.presence[data-state="acting"] .presence-ring + .presence-ring {
+  animation: none;
+}
+/* Complete: the glow settles from its working brightness back to rest, once. */
+.presence[data-state="complete"] .presence-glow {
+  animation: presence-settle 1.1s var(--ease-soft) both;
+}
+@keyframes presence-settle {
+  from {
+    opacity: 0.8;
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+}
+@keyframes presence-turn {
+  to {
+    --presence-angle: 360deg;
+  }
+}
+@keyframes presence-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+@keyframes presence-think {
+  0%,
+  100% {
+    transform: scale(0.96);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+@keyframes presence-act {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  60%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes presence-ripple {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+@keyframes presence-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+/* ----------------------------------------------------------------- Buttons */
+/* Default depth for buttons. In the components layer, so utilities (a page's own shadow-*) win. */
+@layer components {
+  .btn-primary {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 1px 2px rgba(0, 0, 0, 0.12),
+      0 6px 16px -8px var(--accent);
+  }
+  .btn-secondary {
+    box-shadow: inset 0 0 0 1px var(--hairline);
+  }
+  /* The landing page keeps its original button depth. */
+  .landing .btn-primary {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+  .landing .btn-secondary {
+    box-shadow: none;
+  }
+}
+
+/* ------------------------------------------------------------------- Sheet */
+.ui-sheet {
+  --sheet-dur: 300ms;
+  max-height: 92dvh;
+}
+.ui-sheet::backdrop {
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: scrim-in var(--sheet-dur) var(--ease-soft) both;
+}
+.ui-sheet[open] {
+  animation: sheet-in var(--sheet-dur) var(--ease-soft) both;
+}
+.ui-sheet[data-closing] {
+  animation: sheet-out 200ms var(--ease-swift) both;
+}
+.ui-sheet[data-closing]::backdrop {
+  animation: scrim-out 200ms var(--ease-swift) both;
+}
+@media (min-width: 640px) {
+  .ui-sheet[open] {
+    animation-name: dialog-in;
+  }
+  .ui-sheet[data-closing] {
+    animation-name: dialog-out;
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------- Toast */
+.ui-toast {
+  animation: toast-in var(--dur-3) var(--ease-spring) both;
+}
+.ui-toast[data-leaving] {
+  animation: toast-out var(--dur-2) var(--ease-swift) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* ------------------------------------------------------------------- Today */
+/* A completion check springs in. */
+.check-pop {
+  animation: check-pop 360ms var(--ease-spring) both;
+}
+@keyframes check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+/* The "now" dot breathes so the present moment reads as live. */
+.now-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background: var(--now);
+  opacity: 0.25;
+  animation: now-pulse 2.4s var(--ease-soft) infinite;
+}
+@keyframes now-pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- Skeleton */
+.ui-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 30%,
+    color-mix(in oklab, var(--surface-2) 55%, var(--surface-raised)) 50%,
+    var(--surface-2) 70%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
 }
 
 /*
@@ -455,12 +946,22 @@ h3 {
   outline-offset: 2px;
 }
 
+/* The Assistant composer shows focus as a ring around the whole field. */
+.chat-composer textarea:focus-visible {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  /* The presence holds still; its state still reads through glow and brightness. */
+  .presence > span {
+    animation: none !important;
   }
 }
 
@@ -537,6 +1038,79 @@ h3 {
     --lp-sms-in-text: #f2f2f7;
     --lp-notif: rgba(30, 31, 34, 0.94);
     --lp-elevated: #16181b;
+  }
+}
+
+/*
+ * The landing page keeps its own look: it pins the pre-redesign neutrals,
+ * accent and type here, so app-wide token changes don't reach it.
+ */
+.landing {
+  --surface: #ffffff;
+  --surface-2: #eef0f2;
+  --border: #e3e6e9;
+  --hairline: rgba(0, 0, 0, 0.06);
+  --foreground: #15171a;
+  --muted: #6c7278;
+  --accent: #0a7ea4;
+  --accent-hover: #086b8c;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e6f3f7;
+  --grad-from: #14b3a4;
+  --grad-to: #0a84d6;
+  --success: #1a8a4a;
+  --success-soft: #e7f5ec;
+  --warning: #b25f00;
+  --warning-soft: #fdf1e1;
+  --danger: #c42b2b;
+  --danger-soft: #fdeceb;
+  --ring: rgba(10, 126, 164, 0.28);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px -14px rgba(16, 24, 40, 0.1);
+  --shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.05), 0 24px 48px -20px rgba(16, 24, 40, 0.18);
+  font-family: -apple-system, BlinkMacSystemFont, var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+.landing[data-mode="dark"] {
+  --border: #2b2f33;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --foreground: #f1f2f3;
+  --muted: #9aa1a8;
+  --accent: #3cc3de;
+  --accent-hover: #6fd6ea;
+  --accent-foreground: #03232b;
+  --accent-soft: #0f2a33;
+  --grad-from: #2dd4bf;
+  --grad-to: #38a8f5;
+  --success: #4ade80;
+  --success-soft: #11291a;
+  --warning: #fbbf24;
+  --warning-soft: #2e2410;
+  --danger: #f87171;
+  --danger-soft: #331616;
+  --ring: rgba(60, 195, 222, 0.35);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
+}
+@media (prefers-color-scheme: dark) {
+  .landing[data-mode="system"] {
+    --border: #2b2f33;
+    --hairline: rgba(255, 255, 255, 0.07);
+    --foreground: #f1f2f3;
+    --muted: #9aa1a8;
+    --accent: #3cc3de;
+    --accent-hover: #6fd6ea;
+    --accent-foreground: #03232b;
+    --accent-soft: #0f2a33;
+    --grad-from: #2dd4bf;
+    --grad-to: #38a8f5;
+    --success: #4ade80;
+    --success-soft: #11291a;
+    --warning: #fbbf24;
+    --warning-soft: #2e2410;
+    --danger: #f87171;
+    --danger-soft: #331616;
+    --ring: rgba(60, 195, 222, 0.35);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 24px 48px -20px rgba(0, 0, 0, 0.6);
   }
 }
 

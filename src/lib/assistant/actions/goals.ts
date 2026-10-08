@@ -5,6 +5,7 @@ import { describeTarget, formatAmount, summarizeGoalProgress } from "@/lib/progr
 import { addDays, monthStart, weekStart } from "@/lib/time";
 import type { Goal } from "@/lib/types/domain";
 import { goalSchema } from "@/lib/validation/schemas";
+import { goalCard } from "@/lib/assistant/card-builders";
 import { describeDate, resolveDate } from "./dates";
 import { J, zDateInput, zId, zNullableText } from "./schema";
 import { fail, info, ok, type ToolContext, type ToolDefinition } from "./types";
@@ -68,7 +69,7 @@ export const createGoal: ToolDefinition<typeof createGoalInput> = {
     const { data, error } = await ctx.db.from("goals").insert({ ...parsed.data, user_id: ctx.userId, rank }).select("*").single();
     if (error || !data) return fail("server_error", "I couldn't create that goal.");
     const target = describeTarget(data as Goal);
-    return ok(`Created your goal “${parsed.data.title}”${target ? ` (${target})` : ""}.`, { goal_id: data.id });
+    return ok(`Created your goal “${parsed.data.title}”${target ? ` (${target})` : ""}.`, { goal_id: data.id }, goalCard("created", parsed.data.title, target || null));
   },
 };
 
@@ -133,7 +134,10 @@ export const updateGoal: ToolDefinition<typeof updateGoalInput> = {
     const goal = await loadOwnGoal(ctx, args.goal_id);
     if (!goal) return null;
     const next = describeTarget({ ...goal, ...mergeGoal(goal, args) });
-    return `Change “${goal.title}” from ${describeTarget(goal) || "no target"} to ${next || "no target"}`;
+    return {
+      summary: `Change “${goal.title}” from ${describeTarget(goal) || "no target"} to ${next || "no target"}`,
+      card: goalCard("updated", goal.title, `${next || "No target"} · was ${describeTarget(goal) || "no target"}`),
+    };
   },
   async execute(ctx, args) {
     const goal = await loadOwnGoal(ctx, args.goal_id);
@@ -143,7 +147,7 @@ export const updateGoal: ToolDefinition<typeof updateGoalInput> = {
     const { error } = await ctx.db.from("goals").update(parsed.data).eq("id", goal.id).eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't update “${goal.title}”.`);
     const target = describeTarget({ ...goal, ...parsed.data } as Goal);
-    return ok(`Updated “${parsed.data.title}”${target ? ` (${target})` : ""}.`, { goal_id: goal.id });
+    return ok(`Updated “${parsed.data.title}”${target ? ` (${target})` : ""}.`, { goal_id: goal.id }, goalCard("updated", parsed.data.title, target || null));
   },
 };
 
@@ -168,7 +172,8 @@ export const setGoalStatus: ToolDefinition<typeof statusInput> = {
       .eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't update “${goal.title}”.`);
     const verb = { active: "Resumed", paused: "Paused", completed: "Marked complete:" }[args.status];
-    return ok(`${verb} “${goal.title}”.`, { goal_id: goal.id, status: args.status });
+    const action = ({ active: "resumed", paused: "paused", completed: "completed" } as const)[args.status];
+    return ok(`${verb} “${goal.title}”.`, { goal_id: goal.id, status: args.status }, goalCard(action, goal.title, describeTarget(goal) || null));
   },
 };
 
@@ -186,14 +191,14 @@ export const deleteGoal: ToolDefinition<typeof goalIdInput> = {
   runningLabel: () => "Preparing to delete…",
   async describe(ctx, args) {
     const goal = await loadOwnGoal(ctx, args.goal_id);
-    return goal ? `Delete the goal “${goal.title}” and its progress history` : null;
+    return goal ? { summary: `Delete the goal “${goal.title}” and its progress history`, card: goalCard("deleted", goal.title, "Its progress history is deleted too. Linked tasks are kept.") } : null;
   },
   async execute(ctx, args) {
     const goal = await loadOwnGoal(ctx, args.goal_id);
     if (!goal) return fail("not_found", NOT_FOUND);
     const { error } = await ctx.db.from("goals").delete().eq("id", goal.id).eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't delete “${goal.title}”.`);
-    return ok(`Deleted the goal “${goal.title}”.`, { goal_id: goal.id });
+    return ok(`Deleted the goal “${goal.title}”.`, { goal_id: goal.id }, goalCard("deleted", goal.title));
   },
 };
 
@@ -236,7 +241,11 @@ export const recordProgress: ToolDefinition<typeof progressInput> = {
     if (error) return fail("server_error", `I couldn't log progress for “${goal.title}”.`);
     const label = await progressLabel(ctx, goal);
     const when = date.date === ctx.today ? "" : ` for ${describeDate(date.date, ctx.today)}`;
-    return ok(`Logged ${formatAmount(args.amount, goal.target_unit ?? "times")} toward “${goal.title}”${when} — now ${label}.`, { goal_id: goal.id, progress: label });
+    return ok(
+      `Logged ${formatAmount(args.amount, goal.target_unit ?? "times")} toward “${goal.title}”${when} — now ${label}.`,
+      { goal_id: goal.id, progress: label },
+      goalCard("progress", goal.title, `Logged ${formatAmount(args.amount, goal.target_unit ?? "times")}${when} · now ${label}`),
+    );
   },
 };
 

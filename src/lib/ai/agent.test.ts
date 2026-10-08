@@ -11,7 +11,7 @@ vi.mock("@/lib/assistant/actions/registry", async (orig) => {
 });
 
 const { runAssistantTurn, MAX_TOOL_CALLS } = await import("./agent");
-const { FAILED_ACTION_NOTE } = await import("./agent-rules");
+const { FAILED_ACTION_NOTE, PARTIAL_ACTION_NOTE } = await import("./agent-rules");
 
 const ctx = { userId: "server-user", conversationId: "c1", today: "2026-09-29", timezone: "UTC", channel: "app", turnStartedAt: "2026-09-29T20:00:00Z", db: {} } as unknown as ToolContext;
 const call = (name: string, args: object, id = "call_1") => ({ type: "function_call", call_id: id, name, arguments: JSON.stringify(args) });
@@ -57,6 +57,53 @@ describe("assistant tool loop", () => {
     expect(events).toContainEqual(expect.objectContaining({ type: "action", status: "succeeded", label: "Marked “Workout” done." }));
   });
 
+  it("streams the tool's result card but never sends it to the model", async () => {
+    const card = { v: 1, kind: "task", action: "moved", title: "Workout", when: { date: "2026-09-30", start: "17:30", end: null, allDay: false, lastDate: null }, durationMinutes: 45, previous: null };
+    create
+      .mockResolvedValueOnce(reply([call("reschedule_task", { task_id: "t1", date: "tomorrow", start_time: "17:30" })]))
+      .mockResolvedValueOnce(reply([{ type: "message" }], "Moved it."));
+    const events: { type: string; status?: string; card?: unknown }[] = [];
+    await run(vi.fn().mockResolvedValue({ status: "succeeded", message: "Moved “Workout” to tomorrow at 5:30 PM.", card }), { onEvent: (e: { type: string }) => events.push(e) });
+    expect(events.find((e) => e.status === "succeeded")?.card).toEqual(card);
+    const fed = JSON.parse(create.mock.calls[1][0].input.find((i: { type?: string }) => i.type === "function_call_output").output);
+    expect(fed).not.toHaveProperty("card");
+  });
+
+  it("never streams a result card with a failure, and drops cards outside the schema", async () => {
+    const card = { v: 1, kind: "goal", action: "created", title: "Run", detail: null };
+    create
+      .mockResolvedValueOnce(reply([call("create_goal", {}, "c1"), call("create_goal", {}, "c2")]))
+      .mockResolvedValueOnce(reply([{ type: "message" }], "Hmm."));
+    const tool = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "failed", error: "server_error", message: "I couldn't create that goal.", card })
+      .mockResolvedValueOnce({ status: "succeeded", message: "Created.", card: { ...card, onclick: "x" } });
+    const events: { type: string; status?: string; card?: unknown; error?: string }[] = [];
+    await run(tool, { onEvent: (e: { type: string }) => events.push(e) });
+    const failed = events.find((e) => e.status === "failed");
+    expect(failed?.card).toBeUndefined();
+    expect(failed?.error).toBe("server_error");
+    expect(events.find((e) => e.status === "succeeded")?.card).toBeUndefined();
+  });
+
+  it("says which proposal a typed yes / no answered — only when it succeeded", async () => {
+    const pid = "11111111-2222-4333-8444-555555555555";
+    create
+      .mockResolvedValueOnce(reply([call("confirm_action", { confirmation_id: pid }, "c1"), call("decline_action", { confirmation_id: pid }, "c2"), call("complete_task", { task_id: "t" }, "c3")]))
+      .mockResolvedValueOnce(reply([{ type: "message" }], "Done."));
+    const tool = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "succeeded", message: "Moved it." })
+      .mockResolvedValueOnce({ status: "failed", error: "not_found", message: "I couldn't find that pending change." })
+      .mockResolvedValueOnce({ status: "succeeded", message: "Marked done." });
+    const events: { type: string; callId?: string; status?: string; resolves?: unknown }[] = [];
+    await run(tool, { onEvent: (e: { type: string }) => events.push(e) });
+    const final = (id: string) => events.filter((e) => e.callId === id).pop();
+    expect(final("c1")?.resolves).toEqual({ confirmationId: pid, decision: "confirm" });
+    expect(final("c2")?.resolves).toBeUndefined(); // failed: the proposal wasn't answered
+    expect(final("c3")?.resolves).toBeUndefined(); // not a confirmation
+  });
+
   it("never lets a failed action read as a success", async () => {
     create
       .mockResolvedValueOnce(reply([call("reschedule_task", { task_id: "nope", date: "tomorrow", start_time: "keep" })]))
@@ -65,6 +112,15 @@ describe("assistant tool loop", () => {
     expect(out.text.endsWith(FAILED_ACTION_NOTE)).toBe(true);
     const fed = JSON.parse(create.mock.calls[1][0].input.find((i: { type?: string }) => i.type === "function_call_output").output);
     expect(fed.instruction).toMatch(/did NOT happen/);
+  });
+
+  it("a part-applied plan is never called a full success, nor 'nothing changed'", async () => {
+    create
+      .mockResolvedValueOnce(reply([call("confirm_action", { confirmation_id: "p1" })]))
+      .mockResolvedValueOnce(reply([{ type: "message" }], "Done — your day is updated."));
+    const out = await run(vi.fn().mockResolvedValue({ status: "failed", error: "partial_failure", message: "Some of the plan was applied, but one item couldn't be scheduled: “Walk”." }));
+    expect(out.text.endsWith(PARTIAL_ACTION_NOTE)).toBe(true);
+    expect(out.text).not.toContain(FAILED_ACTION_NOTE);
   });
 
   it("leaves an honest failure reply untouched", async () => {

@@ -130,6 +130,8 @@ export const notificationPrefsSchema = z.object({
 export const chatRequestSchema = z.object({
   conversationId: uuid.nullable().optional(),
   message: z.string().trim().min(1, "Message is empty").max(4000, "Message is too long"),
+  /** The task the user was acting on when they came from Today ("Move it"). Ownership is checked server-side. */
+  focusTaskId: uuid.nullable().optional(),
 });
 
 export const planRequestSchema = z.object({

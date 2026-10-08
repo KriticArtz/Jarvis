@@ -4,6 +4,7 @@ import { planDay } from "@/lib/ai/planner";
 import { applyPlan } from "@/lib/planning/apply";
 import { formatDuration, formatTime12 } from "@/lib/time";
 import type { PlanItem } from "@/lib/types/domain";
+import { planCard } from "@/lib/assistant/card-builders";
 import { J, zId, zNullableText, zTime } from "./schema";
 import { fail, info, ok, type ToolDefinition } from "./types";
 
@@ -18,6 +19,7 @@ const replanInput = z
   });
 
 const storedInput = z.object({ plan_id: zId });
+const countWord = (n: number) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][n] ?? String(n);
 
 function describeItems(items: PlanItem[]): string {
   if (!items.length) return "nothing new to schedule";
@@ -59,6 +61,7 @@ export const replanToday: ToolDefinition<typeof replanInput> = {
       summary: `New plan for today: ${describeItems(items)}`.slice(0, 480),
       storedArgs: { plan_id: result.plan.id },
       data: { items: items.map(({ title, start_time, duration_minutes }) => ({ title, start_time, duration_minutes })), warnings },
+      card: planCard("proposed", ctx.today, items, warnings),
     };
   },
   // On confirmation `args` are the stored { plan_id }, validated by storedInput.
@@ -67,10 +70,22 @@ export const replanToday: ToolDefinition<typeof replanInput> = {
     const result = await applyPlan(ctx.db, ctx.userId, { planId: plan_id, items: null, today: ctx.today, unscheduleOthers: true });
     if (!result.ok) {
       if (result.reason === "wrong_day") return fail("expired", "That plan was for a different day — let's make a new one.");
-      if (result.reason === "server_error") return fail("server_error", "I couldn't apply the new plan.");
+      // Nothing could be saved (applyPlan touches nothing else in that case).
+      if (result.reason === "server_error") return fail("server_error", "I couldn't apply the new plan. Nothing was changed.");
       return fail("expired", "That plan is no longer available — let's make a new one.");
     }
+    if (result.failed.length) {
+      // Part of the plan is in place: say exactly what didn't make it, never "done".
+      const n = result.failed.length;
+      return fail(
+        "partial_failure",
+        `Some of the plan was applied, but ${n === 1 ? "one item" : `${countWord(n)} items`} couldn't be scheduled: ${result.failed.map((t) => `“${t.length > 60 ? `${t.slice(0, 59)}…` : t}”`).join(", ")}. The rest is on Today.`.slice(0, 480),
+      );
+    }
     const moved = result.unscheduled.length ? ` Unscheduled for now: ${result.unscheduled.join(", ")}.` : "";
-    return ok(`Updated today's plan (${result.updated} moved, ${result.created} added).${moved}`, { ...result });
+    const { data: plan } = await ctx.db.from("daily_plans").select("plan_date, proposal").eq("id", plan_id).eq("user_id", ctx.userId).maybeSingle();
+    const items = ((plan?.proposal as { items?: PlanItem[] } | null)?.items ?? []).filter((i) => i && typeof i.title === "string");
+    const notes = result.unscheduled.length ? [`Unscheduled for now: ${result.unscheduled.join(", ")}`] : [];
+    return ok(`Updated today's plan (${result.updated} moved, ${result.created} added).${moved}`, { ...result }, planCard("applied", String(plan?.plan_date ?? ctx.today), items, notes));
   },
 };

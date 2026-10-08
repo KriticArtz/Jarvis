@@ -11,6 +11,7 @@ import type { WeeklyReviewRecord } from "@/lib/types/domain";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { GenerateReviewButton } from "@/components/review/generate-review-button";
+import { ProgressNav } from "@/components/app/progress-nav";
 
 export const metadata: Metadata = { title: "Weekly review" };
 
@@ -37,6 +38,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <>
+      <ProgressNav />
       <PageHeader title="Weekly review" subtitle={`${formatShortDate(week)} – ${formatShortDate(addDays(week, 6))}${inProgress ? " · in progress" : ""}`} />
 
       <nav className="-mt-2 mb-5 flex items-center gap-2" aria-label="Choose week">

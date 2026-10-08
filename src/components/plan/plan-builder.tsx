@@ -62,16 +62,26 @@ export function PlanBuilder({ draft, calendarWritable, hasAcceptedPlan, knowsWak
   );
 }
 
-function PlanEditor({
+/**
+ * Edit and accept a drafted plan. `bare` renders without the card (inside
+ * the Today sheet); `onAccepted` replaces the default "go to Today".
+ */
+export function PlanEditor({
   plan,
   goals,
   replacesAccepted,
   calendarWritable,
+  bare = false,
+  onAccepted,
+  onDiscarded,
 }: {
   plan: DailyPlan;
   goals: { id: string; title: string }[];
   replacesAccepted: boolean;
   calendarWritable: boolean;
+  bare?: boolean;
+  onAccepted?: () => void;
+  onDiscarded?: () => void;
 }) {
   const router = useRouter();
   // Each item carries its own "add to calendar" choice (off by default) so it survives removing other items.
@@ -83,9 +93,10 @@ function PlanEditor({
   const update = (i: number, patch: Partial<PlanItem & { toCalendar: boolean }>) => setItems((all) => all.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   const total = items.reduce((s, i) => s + (Number(i.duration_minutes) || 0), 0);
 
+  const Wrapper = bare ? "div" : Card;
   return (
-    <Card className="animate-fade-in">
-      <CardHeader title="Proposed plan" subtitle={`${items.length} item${items.length === 1 ? "" : "s"} · ${Math.round(total)} min`} />
+    <Wrapper className="animate-fade-in">
+      {bare ? null : <CardHeader title="Proposed plan" subtitle={`${items.length} item${items.length === 1 ? "" : "s"} · ${Math.round(total)} min`} />}
       {plan.summary ? <p className="mb-4 leading-relaxed">{plan.summary}</p> : null}
 
       {plan.proposal.warnings.length ? (
@@ -178,7 +189,7 @@ function PlanEditor({
       {warning ? (
         <div className="mt-3 flex flex-col gap-2">
           <FormMessage tone="info">{warning}</FormMessage>
-          <Button variant="secondary" onClick={() => router.push("/dashboard")}>
+          <Button variant="secondary" onClick={() => (onAccepted ? onAccepted() : router.push("/dashboard"))}>
             Go to Today
           </Button>
         </div>
@@ -193,6 +204,7 @@ function PlanEditor({
               const res = await acceptPlan({ planId: plan.id, items: items.map(({ toCalendar, ...it }) => (void toCalendar, it)), calendarItems });
               if (!res.ok) return setError(res.error ?? "Couldn't save the plan.");
               if (res.calendarWarning) return setWarning(res.calendarWarning);
+              if (onAccepted) return onAccepted();
               router.push("/dashboard");
             })
           }
@@ -207,12 +219,13 @@ function PlanEditor({
             startTransition(async () => {
               await discardPlan(plan.id);
               router.refresh();
+              onDiscarded?.();
             })
           }
         >
           Discard
         </Button>
       </div>
-    </Card>
+    </Wrapper>
   );
 }

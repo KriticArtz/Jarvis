@@ -194,9 +194,17 @@ insert into public.conversations (id, user_id) values ('30000000-0000-0000-0000-
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 insert into public.conversations (id, user_id) values ('30000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000a');
-insert into public.assistant_actions (user_id, conversation_id, tool, status)
-  values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000a', 'create_task', 'succeeded');
+insert into public.assistant_actions (user_id, conversation_id, tool, status, result)
+  values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000a', 'create_task', 'succeeded',
+          '{"v":1,"kind":"task","action":"created","title":"Workout","when":null,"durationMinutes":45,"previous":null}');
 do $$ begin
+  -- Phase 4B: a result must be a JSON object
+  begin
+    insert into public.assistant_actions (user_id, conversation_id, tool, status, result)
+      values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000a', 'x', 'succeeded', '"<b>not a card</b>"');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when check_violation then null;
+  end;
   -- cannot write an action for another user
   begin
     insert into public.assistant_actions (user_id, tool, status) values ('00000000-0000-0000-0000-00000000000b', 'x', 'succeeded');
@@ -221,11 +229,14 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b
 do $$ begin
   if (select count(*) from public.assistant_actions) <> 0 then raise exception 'B can see A assistant actions'; end if;
 end $$;
-update public.assistant_actions set status = 'cancelled';
+update public.assistant_actions set status = 'cancelled', result = '{}'::jsonb;
 reset role;
 do $$ begin
   if (select status from public.assistant_actions where tool = 'create_task') <> 'succeeded' then
     raise exception 'B modified A assistant action';
+  end if;
+  if (select result->>'title' from public.assistant_actions where tool = 'create_task') is distinct from 'Workout' then
+    raise exception 'B modified A assistant action result';
   end if;
 end $$;
 -- deleted with the account

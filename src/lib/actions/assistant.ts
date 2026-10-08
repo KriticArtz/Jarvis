@@ -10,6 +10,8 @@ import { getConversation } from "@/lib/data/queries";
 import { localDate } from "@/lib/time";
 import { uuid } from "@/lib/validation/schemas";
 import { errorInfo, logError } from "@/lib/observability/log";
+import { sanitizeCard, type ActionCard } from "@/lib/assistant/cards";
+import { asActionError, type ActionError } from "@/lib/assistant/stream-protocol";
 
 const answerSchema = z.object({
   conversationId: uuid,
@@ -22,6 +24,10 @@ export interface ProposalAnswer {
   /** Outcome of the change (shown as the action chip and the assistant's reply). */
   status: "succeeded" | "failed";
   message: string;
+  /** What changed, for a confirmed change that succeeded. */
+  card?: ActionCard;
+  /** Why it failed (e.g. server_error → worth trying again). */
+  error?: ActionError;
 }
 
 /**
@@ -60,9 +66,11 @@ export async function answerProposal(input: { conversationId: string; confirmati
     const status = result.status === "succeeded" ? "succeeded" : "failed";
     await appendMessage(supabase, userId, conversation.id, "assistant", result.message, "app");
     revalidatePath("/", "layout");
-    return { ok: status === "succeeded", status, message: result.message };
+    const card = decision === "confirm" && status === "succeeded" ? sanitizeCard(result.card) : null;
+    const error = status === "failed" ? asActionError(result.error) : undefined;
+    return { ok: status === "succeeded", status, message: result.message, ...(card ? { card } : {}), ...(error ? { error } : {}) };
   } catch (err) {
     logError("assistant", "answer proposal failed", errorInfo(err));
-    return { ok: false, status: "failed", message: "Something went wrong on my side, so I didn't make that change." };
+    return { ok: false, status: "failed", message: "Something went wrong on my side, so I didn't make that change.", error: "server_error" };
   }
 }

@@ -1,8 +1,12 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
+/*
+ * Inputs sit in a quiet filled well with a hairline edge; focus lifts them to
+ * the raised surface with the accent ring. 16px text avoids iOS zoom.
+ */
 const control =
-  "w-full rounded-2xl border border-transparent bg-surface-2 px-4 text-[16px] text-foreground placeholder:text-muted/70 transition-[background-color,box-shadow,border-color] duration-200 focus:border-accent/40 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-ring disabled:opacity-60 aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft/40";
+  "w-full rounded-control border border-hairline bg-surface-2 px-4 text-[16px] text-foreground placeholder:text-subtle transition-[background-color,box-shadow,border-color] duration-(--dur-2) ease-soft hover:border-border focus:border-accent/50 focus:bg-surface-raised focus:outline-none focus:ring-4 focus:ring-ring disabled:opacity-60 aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-soft/40";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(control, "h-12", className)} {...props} />;
@@ -17,7 +21,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
 }
 
 export function Label({ className, ...props }: ComponentProps<"label">) {
-  return <label className={cn("text-sm font-medium text-foreground", className)} {...props} />;
+  return <label className={cn("text-[14px] font-medium text-foreground", className)} {...props} />;
 }
 
 export function Field({
@@ -58,7 +62,7 @@ export function FormMessage({ tone = "error", children }: { tone?: "error" | "su
     info: "bg-accent-soft text-foreground",
   };
   return (
-    <p role={tone === "error" ? "alert" : "status"} className={cn("animate-fade-in rounded-2xl px-4 py-3 text-sm", tones[tone])}>
+    <p role={tone === "error" ? "alert" : "status"} className={cn("animate-fade-in rounded-control px-4 py-3 text-sm", tones[tone])}>
       {children}
     </p>
   );

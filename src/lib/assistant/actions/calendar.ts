@@ -21,6 +21,7 @@ import {
 } from "@/lib/integrations/calendar/mutations";
 import { allDayTimes, describeTimes, durationMinutes, localDateTime, rescheduleTimes, timedTimes } from "@/lib/integrations/calendar/times";
 import { CALENDAR_SYNC_DAYS } from "@/lib/integrations/calendar/types";
+import { eventCard, eventWhen } from "@/lib/assistant/card-builders";
 import { resolveDate } from "./dates";
 import { J, zDateInput, zId, zTime } from "./schema";
 import { fail, info, ok, type ToolContext, type ToolDefinition, type ToolResult } from "./types";
@@ -54,6 +55,12 @@ function adminOrFail(): ReturnType<typeof createAdminClient> {
 
 const guestsNote = (ev: Pick<StoredEvent, "attendee_count">) => (ev.attendee_count > 0 ? `\nGuests (${ev.attendee_count}) will be notified.` : "");
 const recurringNote = (ev: Pick<StoredEvent, "recurring_event_id">) => (ev.recurring_event_id ? "\nOnly this occurrence of the repeating event." : "");
+/** The same facts as the notes above, as separate lines for the proposal card. */
+const cardNotes = (ev: Pick<StoredEvent, "attendee_count" | "recurring_event_id"> | null, overlaps: string[] = []) => [
+  ...(overlaps.length ? [`Overlaps ${overlaps.map((t) => `“${t}”`).join(", ")}`] : []),
+  ...(ev?.recurring_event_id ? ["Only this occurrence of the repeating event"] : []),
+  ...(ev && ev.attendee_count > 0 ? [`${ev.attendee_count} guest${ev.attendee_count === 1 ? "" : "s"} will be notified`] : []),
+];
 
 async function ownEditable(ctx: ToolContext, id: string): Promise<StoredEvent | ToolResult> {
   const ev = await loadOwnEvent(ctx.db, ctx.userId, id);
@@ -249,6 +256,7 @@ export const createCalendarEventTool: ToolDefinition<typeof createInput> = {
       summary,
       storedArgs: { title: args.title, times, location: args.location, description: args.description, request_id: randomUUID() },
       data: { overlaps },
+      card: eventCard("created", { title: args.title, when: eventWhen(times, ctx.timezone), location: args.location, notes: cardNotes(null, overlaps) }),
     };
   },
   async execute(ctx, raw) {
@@ -262,7 +270,11 @@ export const createCalendarEventTool: ToolDefinition<typeof createInput> = {
       { idempotencyKey: `assistant:${args.request_id}` },
     );
     if (!res.ok) return writeFailure(res.reason);
-    return ok(`Added “${res.event.title}” — ${describeTimes(res.event, ctx.timezone)}.`, { event_id: res.event.id });
+    return ok(
+      `Added “${res.event.title}” — ${describeTimes(res.event, ctx.timezone)}.`,
+      { event_id: res.event.id },
+      eventCard("created", { title: res.event.title, when: eventWhen(res.event, ctx.timezone), location: res.event.location }),
+    );
   },
 };
 
@@ -311,7 +323,11 @@ export const rescheduleCalendarEvent: ToolDefinition<typeof rescheduleInput> = {
     const summary = `Move “${ev.title}”\nCurrent: ${describeTimes(ev, ctx.timezone)}\nNew: ${describeTimes(times, ctx.timezone)}${
       overlaps.length ? `\nOverlaps: ${overlaps.map((t) => `“${t}”`).join(", ")}` : ""
     }${recurringNote(ev)}${guestsNote(ev)}`;
-    return { summary, storedArgs: { event_id: ev.id, times } };
+    return {
+      summary,
+      storedArgs: { event_id: ev.id, times },
+      card: eventCard("moved", { title: ev.title, when: eventWhen(times, ctx.timezone), previous: eventWhen(ev, ctx.timezone), location: ev.location, notes: cardNotes(ev, overlaps) }),
+    };
   },
   async execute(ctx, raw) {
     const args = raw as unknown as z.infer<typeof rescheduleStored>;
@@ -319,7 +335,11 @@ export const rescheduleCalendarEvent: ToolDefinition<typeof rescheduleInput> = {
     if (!admin) return writeFailure("not_configured");
     const res = await updateCalendarEvent(admin, ctx.userId, args.event_id, { times: args.times });
     if (!res.ok) return writeFailure(res.reason);
-    return ok(`Moved “${res.event.title}” to ${describeTimes(res.event, ctx.timezone)}.`, { event_id: res.event.id });
+    return ok(
+      `Moved “${res.event.title}” to ${describeTimes(res.event, ctx.timezone)}.`,
+      { event_id: res.event.id },
+      eventCard("moved", { title: res.event.title, when: eventWhen(res.event, ctx.timezone), previous: eventWhen(res.before, ctx.timezone), location: res.event.location }),
+    );
   },
 };
 
@@ -380,7 +400,17 @@ export const updateCalendarEventTool: ToolDefinition<typeof updateInput> = {
       lines.push(`Time: ${describeTimes(ev, ctx.timezone)} → ${describeTimes(stored.times, ctx.timezone)}`);
     }
     if (!lines.length) return fail("invalid_input", "There's nothing to change.");
-    return { summary: `Update “${ev.title}”\n${lines.join("\n")}${recurringNote(ev)}${guestsNote(ev)}`, storedArgs: stored };
+    return {
+      summary: `Update “${ev.title}”\n${lines.join("\n")}${recurringNote(ev)}${guestsNote(ev)}`,
+      storedArgs: stored,
+      card: eventCard("updated", {
+        title: ev.title,
+        when: eventWhen(stored.times ?? ev, ctx.timezone),
+        previous: stored.times ? eventWhen(ev, ctx.timezone) : null,
+        location: stored.location !== undefined ? stored.location : ev.location,
+        notes: [...lines.filter((l) => !l.startsWith("Time:")), ...cardNotes(ev)],
+      }),
+    };
   },
   async execute(ctx, raw) {
     const args = raw as unknown as z.infer<typeof updateStored>;
@@ -389,7 +419,7 @@ export const updateCalendarEventTool: ToolDefinition<typeof updateInput> = {
     const { event_id, ...patch } = args;
     const res = await updateCalendarEvent(admin, ctx.userId, event_id, patch);
     if (!res.ok) return writeFailure(res.reason);
-    return ok(`Updated “${res.event.title}”.`, { event_id: res.event.id });
+    return ok(`Updated “${res.event.title}”.`, { event_id: res.event.id }, eventCard("updated", { title: res.event.title, when: eventWhen(res.event, ctx.timezone), location: res.event.location }));
   },
 };
 
@@ -412,6 +442,7 @@ export const deleteCalendarEventTool: ToolDefinition<typeof deleteInput> = {
     return {
       summary: `Delete “${ev.title}” from your calendar\n${describeTimes(ev, ctx.timezone)}${recurringNote(ev)}${guestsNote(ev)}`,
       storedArgs: { event_id: ev.id },
+      card: eventCard("deleted", { title: ev.title, when: eventWhen(ev, ctx.timezone), location: ev.location, notes: cardNotes(ev) }),
     };
   },
   async execute(ctx, args) {
@@ -419,7 +450,7 @@ export const deleteCalendarEventTool: ToolDefinition<typeof deleteInput> = {
     if (!admin) return writeFailure("not_configured");
     const res = await deleteCalendarEvent(admin, ctx.userId, args.event_id);
     if (!res.ok) return writeFailure(res.reason);
-    return ok(`Deleted “${res.event.title}” from your calendar.`);
+    return ok(`Deleted “${res.event.title}” from your calendar.`, undefined, eventCard("deleted", { title: res.event.title, when: eventWhen(res.event, ctx.timezone) }));
   },
 };
 

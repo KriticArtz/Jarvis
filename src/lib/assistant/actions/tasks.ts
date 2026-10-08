@@ -3,6 +3,7 @@ import { z } from "zod";
 import { logTaskProgress, removeTaskProgress } from "@/lib/data/task-progress";
 import { addDays, formatTime12 } from "@/lib/time";
 import type { Task } from "@/lib/types/domain";
+import { taskCard } from "@/lib/assistant/card-builders";
 import { describeDate, describeWhen, resolveDate } from "./dates";
 import { J, zDateInput, zId, zTime, zTitle } from "./schema";
 import { fail, info, ok, type ToolContext, type ToolDefinition } from "./types";
@@ -113,7 +114,11 @@ export const createTask: ToolDefinition<typeof createTaskInput> = {
       .select("id")
       .single();
     if (error || !data) return fail("server_error", "I couldn't add that task.");
-    return ok(`Added “${args.title}” for ${describeWhen(date.date, args.start_time, ctx.today)}.`, { task_id: data.id, date: date.date });
+    return ok(
+      `Added “${args.title}” for ${describeWhen(date.date, args.start_time, ctx.today)}.`,
+      { task_id: data.id, date: date.date },
+      taskCard("created", { title: args.title, task_date: date.date, scheduled_start: args.start_time, duration_minutes: args.duration_minutes }),
+    );
   },
 };
 
@@ -132,7 +137,7 @@ export const completeTask: ToolDefinition<typeof taskIdInput> = {
   async execute(ctx, args) {
     const task = await loadOwnTask(ctx, args.task_id);
     if (!task) return fail("not_found", NOT_FOUND);
-    if (task.status === "done") return ok(`“${task.title}” was already done.`, { task_id: task.id });
+    if (task.status === "done") return ok(`“${task.title}” was already done.`, { task_id: task.id }, taskCard("completed", task));
     const { error } = await ctx.db
       .from("tasks")
       .update({ status: "done", completed_at: new Date().toISOString() })
@@ -140,7 +145,7 @@ export const completeTask: ToolDefinition<typeof taskIdInput> = {
       .eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't mark “${task.title}” done.`);
     await logTaskProgress(ctx.db, ctx.userId, { id: task.id, goal_id: task.goal_id, duration_minutes: task.duration_minutes, task_date: task.task_date });
-    return ok(`Marked “${task.title}” done.`, { task_id: task.id, goal_id: task.goal_id });
+    return ok(`Marked “${task.title}” done.`, { task_id: task.id, goal_id: task.goal_id }, taskCard("completed", task));
   },
 };
 
@@ -178,7 +183,11 @@ export const rescheduleTask: ToolDefinition<typeof rescheduleInput> = {
       .eq("id", task.id)
       .eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't move “${task.title}”.`);
-    return ok(`Moved “${task.title}” to ${describeWhen(date.date, time, ctx.today)}.`, { task_id: task.id, date: date.date, start_time: time });
+    return ok(
+      `Moved “${task.title}” to ${describeWhen(date.date, time, ctx.today)}.`,
+      { task_id: task.id, date: date.date, start_time: time },
+      taskCard("moved", { ...task, task_date: date.date, scheduled_start: time }, task),
+    );
   },
 };
 
@@ -197,7 +206,10 @@ export const cancelTask: ToolDefinition<typeof cancelInput> = {
   async describe(ctx, args) {
     const task = await loadOwnTask(ctx, args.task_id);
     if (!task) return null;
-    return `${args.mode === "delete" ? "Delete" : "Skip"} “${task.title}” (${describeDate(task.task_date, ctx.today)}${task.scheduled_start ? ` at ${formatTime12(task.scheduled_start)}` : ""})`;
+    return {
+      summary: `${args.mode === "delete" ? "Delete" : "Skip"} “${task.title}” (${describeDate(task.task_date, ctx.today)}${task.scheduled_start ? ` at ${formatTime12(task.scheduled_start)}` : ""})`,
+      card: taskCard(args.mode === "delete" ? "deleted" : "skipped", task),
+    };
   },
   async execute(ctx, args) {
     const task = await loadOwnTask(ctx, args.task_id);
@@ -206,10 +218,10 @@ export const cancelTask: ToolDefinition<typeof cancelInput> = {
     if (args.mode === "delete") {
       const { error } = await ctx.db.from("tasks").delete().eq("id", task.id).eq("user_id", ctx.userId);
       if (error) return fail("server_error", `I couldn't delete “${task.title}”.`);
-      return ok(`Deleted “${task.title}”.`, { task_id: task.id });
+      return ok(`Deleted “${task.title}”.`, { task_id: task.id }, taskCard("deleted", task));
     }
     const { error } = await ctx.db.from("tasks").update({ status: "skipped", completed_at: null }).eq("id", task.id).eq("user_id", ctx.userId);
     if (error) return fail("server_error", `I couldn't skip “${task.title}”.`);
-    return ok(`Skipped “${task.title}”.`, { task_id: task.id });
+    return ok(`Skipped “${task.title}”.`, { task_id: task.id }, taskCard("skipped", task));
   },
 };

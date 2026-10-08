@@ -14,7 +14,8 @@ let cached: AIHandle | null | undefined;
 export function getAI(): AIHandle | null {
   if (cached !== undefined) return cached;
   const cfg = openAIConfig();
-  cached = cfg ? { client: new OpenAI({ apiKey: cfg.apiKey }), model: cfg.model } : null;
+  // baseURL is explicit: the real API unless a local test mock is configured (see openAIConfig).
+  cached = cfg ? { client: new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseURL }), model: cfg.model } : null;
   return cached;
 }
 

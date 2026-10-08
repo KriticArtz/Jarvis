@@ -70,7 +70,7 @@ export async function acceptPlan(input: { planId: string; items: PlanItem[]; cal
     return { ok: false, error: "This plan is no longer available. Generate a new one." };
   }
   const wanted = [...new Set(parsed.data.calendarItems ?? [])].filter((i) => parsed.data.items[i]?.start_time);
-  let message = "Plan saved to today.";
+  let message = result.failed.length ? `Plan saved, but ${result.failed.length} item${result.failed.length === 1 ? "" : "s"} couldn't be added: ${result.failed.join(", ")}.` : "Plan saved to today.";
   let calendarWarning: string | undefined;
   if (wanted.length && !session.isDemo) {
     const added = await addPlanItemsToCalendar(userId, parsed.data.planId, parsed.data.items, wanted, today, tz);

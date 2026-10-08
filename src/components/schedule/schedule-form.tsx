@@ -59,7 +59,7 @@ export function ScheduleForm({
         </Field>
       </div>
       <WeekdayPicker name="work_days" legend="On these days" defaultValue={profile.work_days} />
-      <p className="text-sm text-muted">Leave anything blank that doesn&apos;t apply — you can change it later in Settings.</p>
+      <p className="text-sm text-muted">Leave anything blank that doesn&apos;t apply — you can change it later under You.</p>
       <FormMessage tone={state.ok ? "success" : "error"}>{state.ok ? (onboarding ? null : state.message) : state.error}</FormMessage>
       <SubmitButton pendingText="Saving…">{submitLabel}</SubmitButton>
     </form>

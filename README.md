@@ -96,6 +96,7 @@ npm run db:verify
 | `npm run db:verify` | Apply migrations + RLS isolation tests on a temporary Postgres |
 | `npm run test:integration` | Assistant-action tests against a running local Supabase (see Assistant actions) |
 | `npm run check` | lint + typecheck + tests |
+| `npm run mock:openai` | Scripted mock of the OpenAI Responses API for tests (see [docs/assistant-testing.md](docs/assistant-testing.md)) |
 | `node scripts/simulate-inbound-sms.mjs "+1…" "text"` | Send a signed fake Twilio webhook to the local server |
 
 ## Deploying to Vercel
@@ -114,6 +115,7 @@ npm run db:verify
 3. Deploy, then point Twilio's incoming-message webhook at `https://<your-domain>/api/sms/inbound` (see [Twilio setup](#twilio-setup)).
 4. **Scheduled check-ins are not scheduled on Vercel right now.** Vercel Hobby only allows once-a-day crons, and the dispatcher needs to run every 15 minutes, so `vercel.json` has no cron. Everything else works: manual **Settings → Send a check-in now**, two-way SMS and the webhook. To turn automatic check-ins on, either upgrade to Vercel Pro and add `"crons": [{ "path": "/api/cron/dispatch", "schedule": "*/15 * * * *" }]` to `vercel.json`, or have any external scheduler (e.g. cron-job.org, GitHub Actions) call `GET https://<your-domain>/api/cron/dispatch` every 15 minutes with the header `Authorization: Bearer <CRON_SECRET>`.
 5. Share `https://<your-domain>/demo`.
+6. **Real-model acceptance on a Preview** (before shipping Assistant changes): see [docs/assistant-testing.md](docs/assistant-testing.md#2-real-model-acceptance-on-a-vercel-preview). It covers a separate Preview database, the Preview-only environment variables, and the ten-scenario checklist.
 
 ---
 
@@ -178,7 +180,7 @@ The assistant can make changes in chat and by SMS, through an explicit list of s
 6. The chat stream carries `{"t":"action"}` events, which the UI shows as small status chips.
 7. If every attempted change failed but the reply still claims success, the server appends a correction.
 
-**Tests:** `npm test` covers the unit tests. `npm run test:integration` runs every tool against a local Supabase stack with real RLS. It needs `supabase start`, plus `INTEGRATION_SUPABASE_PUBLISHABLE_KEY` and `INTEGRATION_SUPABASE_SECRET_KEY` set to the local keys.
+**Tests:** see [docs/assistant-testing.md](docs/assistant-testing.md) for the mock model and the real-model acceptance checklist. `npm test` covers the unit tests. `npm run test:integration` runs every tool against a local Supabase stack with real RLS. It needs `supabase start`, plus `INTEGRATION_SUPABASE_PUBLISHABLE_KEY` and `INTEGRATION_SUPABASE_SECRET_KEY` set to the local keys.
 
 ## Privacy, safety and operations
 

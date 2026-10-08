@@ -3,7 +3,8 @@ import type { DB } from "@/lib/data/db";
 import type { PlanItem } from "@/lib/types/domain";
 
 export type ApplyPlanResult =
-  | { ok: true; created: number; updated: number; unscheduled: string[] }
+  /** `failed`: titles of plan items that couldn't be saved (the rest were applied). */
+  | { ok: true; created: number; updated: number; unscheduled: string[]; failed: string[] }
   | { ok: false; reason: "not_found" | "not_draft" | "wrong_day" | "server_error" };
 
 /**
@@ -11,6 +12,9 @@ export type ApplyPlanResult =
  * become tasks for the plan's day. With `unscheduleOthers`, today's pending
  * timed tasks that aren't in the plan lose their time (they're kept, just no
  * longer scheduled) — used when the whole day is re-flowed.
+ * An item that can't be saved doesn't stop the others: it is reported in
+ * `failed`. If no item could be saved, nothing else is touched and the plan
+ * stays a draft (server_error).
  * Shared by the "Plan my day" screen and the assistant's replan action.
  */
 export async function applyPlan(
@@ -33,6 +37,9 @@ export async function applyPlan(
   const goalIds = new Set((goals ?? []).map((g) => g.id as string));
   let created = 0;
   let updated = 0;
+  const failed: string[] = [];
+  // Every task the plan schedules (existing and newly created) keeps its time below.
+  const planned = new Set<string>();
 
   for (const [i, item] of items.entries()) {
     const fields = {
@@ -45,19 +52,24 @@ export async function applyPlan(
       daily_plan_id: plan.id,
     };
     if (item.task_id) {
+      // A task that couldn't be moved keeps its current time (it stays "planned").
+      planned.add(item.task_id);
       const { error } = await db.from("tasks").update(fields).eq("id", item.task_id).eq("user_id", userId);
-      if (error) return { ok: false, reason: "server_error" };
-      updated++;
+      if (error) failed.push(item.title);
+      else updated++;
     } else {
-      const { error } = await db.from("tasks").insert({ ...fields, user_id: userId, task_date: plan.plan_date });
-      if (error) return { ok: false, reason: "server_error" };
-      created++;
+      const { data: inserted, error } = await db.from("tasks").insert({ ...fields, user_id: userId, task_date: plan.plan_date }).select("id").single();
+      if (error || !inserted) failed.push(item.title);
+      else {
+        planned.add(inserted.id as string);
+        created++;
+      }
     }
   }
+  if (items.length && created + updated === 0) return { ok: false, reason: "server_error" };
 
   const unscheduled: string[] = [];
   if (input.unscheduleOthers) {
-    const planned = new Set(items.map((i) => i.task_id).filter(Boolean));
     const { data: timed } = await db
       .from("tasks")
       .select("id, title")
@@ -75,5 +87,5 @@ export async function applyPlan(
   await db.from("daily_plans").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("id", plan.id).eq("user_id", userId);
   // Today's insight should reflect the new plan.
   await db.from("daily_insights").delete().eq("user_id", userId).eq("insight_date", plan.plan_date);
-  return { ok: true, created, updated, unscheduled };
+  return { ok: true, created, updated, unscheduled, failed };
 }

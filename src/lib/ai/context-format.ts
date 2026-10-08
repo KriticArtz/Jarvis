@@ -103,6 +103,13 @@ export function renderContext(ctx: AssistantContext): string {
   if (ctx.recent.lastWeeklyReview) out.push(`## Last weekly review\n${ctx.recent.lastWeeklyReview}`);
 
   if (ctx.memories.length) out.push(`## Things the user asked you to remember\n${ctx.memories.map((m) => `- ${m.content}${m.id ? ` (memory id: ${m.id})` : ""}`).join("\n")}`);
+  if (ctx.changesToday?.length) {
+    out.push(
+      `## Changes made today (newest first; already done or declined — don't redo or re-ask)\n${ctx.changesToday
+        .map((c) => `- ${formatTime12(c.time)}: ${c.summary}${c.status === "declined" ? " (the user said no — nothing changed)" : ""}`)
+        .join("\n")}`,
+    );
+  }
   if (ctx.otherConversationSummaries.length) {
     out.push(`## Recent earlier conversations (summaries)\n${ctx.otherConversationSummaries.map((m) => `- ${m}`).join("\n")}`);
   }

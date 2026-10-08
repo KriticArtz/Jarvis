@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:verify": "bash scripts/verify-db.sh",
     "check": "npm run lint && npm run typecheck && npm test",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "mock:openai": "node scripts/mock-openai.mjs --port 4010"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

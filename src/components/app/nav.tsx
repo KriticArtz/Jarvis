@@ -2,100 +2,146 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarDays, Home, MessageCircle, Settings, Target } from "lucide-react";
+import { CalendarDays, CircleUserRound, Sprout, Sun, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { brand } from "@/config/brand";
+import { LogoMark } from "@/components/logo";
+import { Presence } from "@/components/ui/presence";
+import { isActivePath, NAV, type NavKey } from "@/lib/ui/navigation";
 import { usePersonalization } from "./personalization";
-import { AssistantAvatar } from "./assistant-avatar";
 
-const TODAY = { href: "/dashboard", label: "Today", icon: Home, match: ["/dashboard", "/plan"] };
-const CALENDAR = { href: "/calendar", label: "Calendar", icon: CalendarDays, match: ["/calendar"] };
-const GOALS = { href: "/goals", label: "Goals", icon: Target, match: ["/goals"] };
-const ASSISTANT = { href: "/assistant", label: null, icon: MessageCircle, match: ["/assistant"] };
-const REVIEW = { href: "/review", label: "Review", icon: BarChart3, match: ["/review"] };
-const SETTINGS = { href: "/settings", label: "Settings", icon: Settings, match: ["/settings"] };
-
-const ITEMS = [TODAY, CALENDAR, GOALS, ASSISTANT, REVIEW, SETTINGS];
-/** Five tabs with the assistant in the middle; Settings is reached from the header avatar on mobile. */
-const TAB_ITEMS = [TODAY, CALENDAR, ASSISTANT, GOALS, REVIEW];
-
-function useActive() {
-  const pathname = usePathname();
-  return (match: string[]) => match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
+/*
+ * Primary navigation: Today | Calendar | Assistant | Progress | You.
+ * Quiet by design — neutral icons and labels, no colored tiles. Today leads;
+ * the assistant is the Presence orb at the center; the rest are supporting
+ * spaces. Existing URLs stay as they are: Progress gathers /goals and
+ * /review, You is /settings.
+ */
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon | null;
 }
 
-export function SidebarNav() {
-  const isActive = useActive();
+/** null = the assistant: drawn as the Presence and labelled with the name the user gave it. */
+const ICONS: Record<NavKey, LucideIcon | null> = { today: Sun, calendar: CalendarDays, assistant: null, progress: Sprout, you: CircleUserRound };
+
+function useNav() {
+  const pathname = usePathname();
   const { assistantName } = usePersonalization();
+  return NAV.map((n) => ({
+    href: n.href,
+    icon: ICONS[n.key],
+    label: n.key === "assistant" ? assistantName : n.label,
+    active: isActivePath(pathname, n.match),
+  }));
+}
+
+/** Desktop and tablet: a slim rail, icons over small labels. */
+export function NavRail({ offsetTop = false }: { offsetTop?: boolean }) {
+  const items = useNav();
   return (
-    <nav aria-label="Main" className="flex flex-col gap-0.5">
-      {ITEMS.map((item) => {
-        const active = isActive(item.match);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex min-h-11 items-center gap-3 rounded-2xl px-3.5 py-2.5 text-[15px] font-medium transition-all duration-200",
-              active ? "bg-surface text-foreground shadow-card" : "text-muted hover:bg-surface/60 hover:text-foreground",
-            )}
-          >
-            {item.label ? (
-              <item.icon className={cn("size-[19px]", active && "text-accent")} strokeWidth={active ? 2.3 : 1.9} aria-hidden />
-            ) : (
-              <AssistantAvatar name={assistantName} className="-ml-0.5 size-[22px] text-[11px]" />
-            )}
-            <span className="truncate">{item.label ?? assistantName}</span>
-          </Link>
-        );
-      })}
+    <nav
+      aria-label="Main"
+      className={cn(
+        "fixed bottom-0 left-0 z-30 hidden w-[84px] flex-col items-center border-r border-hairline bg-background/70 pb-6 backdrop-blur-xl md:flex",
+        offsetTop ? "top-10" : "top-0",
+      )}
+    >
+      <Link
+        href="/dashboard"
+        aria-label={`${brand.name} — Today`}
+        className="mt-6 mb-8 rounded-[30%] transition-transform duration-(--dur-2) ease-soft hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+      >
+        <LogoMark className="size-9" />
+      </Link>
+      <ul className="flex flex-col items-center gap-2">
+        {items.map((item) => (
+          <li key={item.href}>
+            <RailLink {...item} />
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
 
-/**
- * Mobile tab bar. The assistant sits in the middle as the raised primary
- * destination, labelled with the name the user gave it.
- */
-export function BottomNav() {
-  const isActive = useActive();
-  const { assistantName } = usePersonalization();
+function RailLink({ href, label, icon: Icon, active }: NavItem & { active: boolean }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className="group flex w-[72px] flex-col items-center gap-1 rounded-tile py-1.5 focus-visible:outline-none"
+    >
+      {Icon ? (
+        <span
+          className={cn(
+            "flex h-9 w-12 items-center justify-center rounded-full transition-[background-color,color] duration-(--dur-2) ease-soft",
+            "group-focus-visible:ring-4 group-focus-visible:ring-ring",
+            active ? "bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] text-foreground" : "text-subtle group-hover:bg-surface-2 group-hover:text-foreground",
+          )}
+        >
+          <Icon className="size-[20px]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+        </span>
+      ) : (
+        <span className="flex h-12 items-center justify-center rounded-full group-focus-visible:ring-4 group-focus-visible:ring-ring">
+          <Presence size={active ? 38 : 34} state={active ? "listening" : "idle"} className="transition-[width,height] duration-(--dur-3) ease-soft" />
+        </span>
+      )}
+      <span
+        className={cn(
+          "max-w-full truncate px-1 text-[11px] leading-tight transition-colors duration-(--dur-2)",
+          active ? "font-semibold text-foreground" : "font-medium text-muted group-hover:text-foreground",
+        )}
+      >
+        {label}
+      </span>
+    </Link>
+  );
+}
+
+/** Phones: a bottom tab bar with the Presence raised in the middle. */
+export function TabBar() {
+  const items = useNav();
   return (
     <nav
       aria-label="Main"
-      className="app-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      className="app-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
-        {TAB_ITEMS.map((item) => {
-          const active = isActive(item.match);
-          const isAssistant = !item.label;
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
+        {items.map(({ href, label, icon: Icon, active }) => (
+          <li key={href}>
+            <Link
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className="group flex h-[60px] flex-col items-center justify-end gap-1 pb-2 focus-visible:outline-none"
+            >
+              {Icon ? (
+                <span
+                  className={cn(
+                    "flex h-7 w-11 items-center justify-center rounded-full transition-[color,transform] duration-(--dur-2) ease-soft group-active:scale-90",
+                    "group-focus-visible:ring-4 group-focus-visible:ring-ring",
+                    active ? "text-foreground" : "text-subtle",
+                  )}
+                >
+                  <Icon className="size-[22px]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+                </span>
+              ) : (
+                <span className="-mt-5 flex size-[52px] items-center justify-center rounded-full bg-background shadow-[0_0_0_1px_var(--hairline)] transition-transform duration-(--dur-2) ease-soft group-active:scale-90 group-focus-visible:ring-4 group-focus-visible:ring-ring">
+                  <Presence size={40} state={active ? "listening" : "idle"} />
+                </span>
+              )}
+              <span
                 className={cn(
-                  "flex min-h-[56px] flex-col items-center justify-end gap-1 pb-2 pt-2 text-[10.5px] font-medium transition-colors active:scale-95",
-                  active ? "text-accent" : "text-muted",
+                  "max-w-full truncate px-1 text-[10.5px] leading-none transition-colors duration-(--dur-2)",
+                  active ? "font-semibold text-foreground" : "font-medium text-muted",
                 )}
               >
-                {isAssistant ? (
-                  <span
-                    className={cn(
-                      "-mt-5 flex size-12 items-center justify-center rounded-full bg-brand-gradient text-white shadow-[0_8px_20px_-8px_var(--grad-to)] ring-4 ring-background transition-transform",
-                      active && "scale-105",
-                    )}
-                  >
-                    <item.icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
-                  </span>
-                ) : (
-                  <item.icon className="size-[22px]" strokeWidth={active ? 2.3 : 1.8} aria-hidden />
-                )}
-                <span className="max-w-full truncate px-1">{item.label ?? assistantName}</span>
-              </Link>
-            </li>
-          );
-        })}
+                {label}
+              </span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
   );
