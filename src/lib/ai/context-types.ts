@@ -1,5 +1,6 @@
 import type { AssistantPersona } from "@/lib/personalization";
 import type { CalendarDay } from "@/lib/integrations/calendar/local";
+import type { MoneyContext } from "@/lib/money/ai-context";
 
 /**
  * The structured context the assistant receives on every call. It is built
@@ -62,4 +63,6 @@ export interface AssistantContext {
    * conversation still knows what already happened today.
    */
   changesToday?: { time: string; summary: string; status: "done" | "declined" }[];
+  /** In-app only: a bounded, read-only money summary (never raw transactions). */
+  money?: MoneyContext | null;
 }

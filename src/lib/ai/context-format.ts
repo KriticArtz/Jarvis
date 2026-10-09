@@ -1,5 +1,6 @@
 import { formatTime12 } from "@/lib/time";
 import type { AssistantContext } from "./context-types";
+import { renderMoneyContext } from "@/lib/money/ai-context";
 
 const DAY_NAMES = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -103,6 +104,7 @@ export function renderContext(ctx: AssistantContext): string {
   if (ctx.recent.lastWeeklyReview) out.push(`## Last weekly review\n${ctx.recent.lastWeeklyReview}`);
 
   if (ctx.memories.length) out.push(`## Things the user asked you to remember\n${ctx.memories.map((m) => `- ${m.content}${m.id ? ` (memory id: ${m.id})` : ""}`).join("\n")}`);
+  if (ctx.money) out.push(renderMoneyContext(ctx.money));
   if (ctx.changesToday?.length) {
     out.push(
       `## Changes made today (newest first; already done or declined — don't redo or re-ask)\n${ctx.changesToday

@@ -247,6 +247,23 @@ function decide(req, script) {
     return say(earlier.length ? `Earlier in this conversation you asked: “${earlier[earlier.length - 1].content}”` : "This is a new conversation — you haven't asked me anything else here yet.");
   }
 
+  // Money questions are answered only from the "## Money" summary the app sent (read-only).
+  if (/recurring|subscriptions|afford|emergency fund|how long until|net worth|debt-to-income|financial situation|spending each month|spend each month|spend a month/.test(low)) {
+    const money = section(req.context, "Money");
+    if (!money) return say("I don't have your money details yet — you can connect your accounts on the Money screen.");
+    const line = (start) => money.split("\n").find((l) => l.startsWith(start)) ?? null;
+    if (/financial situation/.test(low)) return say([line("Net worth:") ?? line("Connected asset accounts:"), line("This month so far"), line("Typical month")].filter(Boolean).join(" "));
+    if (/spending each month|spend each month|spend a month/.test(low)) return say(line("Typical month") ?? line("Last month:") ?? "I don't have a full month of spending yet.");
+    if (/recurring|subscriptions/.test(low)) return say(line("Recurring payments:") ?? "I don't see any recurring payments yet.");
+    if (/emergency fund|how long until/.test(low)) {
+      const goal = money.split("\n").find((l) => l.startsWith("- ") && /→ projected|reached|no monthly amount/.test(l) && (!/emergency/.test(low) || /emergency/i.test(l)));
+      return say(goal ? `Here's where it stands: ${goal.slice(2)}. That's an estimate at that monthly amount, not a promise.` : "I don't see a goal like that yet.");
+    }
+    if (/afford/.test(low)) return say([line("This month so far"), line("Budget:")].filter(Boolean).join(" ") + " Based on that, here's what's realistic — and it's your call, not financial advice.");
+    if (/debt-to-income/.test(low)) return say(line("Debt payments:") ?? "I can't tell yet.");
+    return say(line("Net worth:") ?? line("Connected asset accounts:") ?? "I can't tell yet.");
+  }
+
   return say("Tell me a bit more — what would help most right now?");
 }
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { activeNav, NAV } from "./navigation";
 
 describe("primary navigation", () => {
-  it("has the five destinations in order", () => {
-    expect(NAV.map((n) => n.label)).toEqual(["Today", "Calendar", "Assistant", "Progress", "You"]);
+  it("has the six destinations in order", () => {
+    expect(NAV.map((n) => n.label)).toEqual(["Today", "Calendar", "Assistant", "Money", "Progress", "You"]);
   });
 
   it("maps every existing route to its destination", () => {
@@ -16,6 +16,9 @@ describe("primary navigation", () => {
     expect(activeNav("/review")).toBe("progress");
     expect(activeNav("/progress")).toBe("progress");
     expect(activeNav("/settings")).toBe("you");
+    expect(activeNav("/money")).toBe("money");
+    expect(activeNav("/money/recurring")).toBe("money");
+    expect(activeNav("/money/transactions")).toBe("money");
   });
 
   it("doesn't match look-alike paths or public pages", () => {

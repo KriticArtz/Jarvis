@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CircleUserRound, Sprout, Sun, type LucideIcon } from "lucide-react";
+import { CalendarDays, CircleUserRound, Sprout, Sun, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { brand } from "@/config/brand";
 import { LogoMark } from "@/components/logo";
@@ -11,7 +11,7 @@ import { isActivePath, NAV, type NavKey } from "@/lib/ui/navigation";
 import { usePersonalization } from "./personalization";
 
 /*
- * Primary navigation: Today | Calendar | Assistant | Progress | You.
+ * Primary navigation: Today | Calendar | Assistant | Money | Progress | You.
  * Quiet by design — neutral icons and labels, no colored tiles. Today leads;
  * the assistant is the Presence orb at the center; the rest are supporting
  * spaces. Existing URLs stay as they are: Progress gathers /goals and
@@ -24,7 +24,7 @@ interface NavItem {
 }
 
 /** null = the assistant: drawn as the Presence and labelled with the name the user gave it. */
-const ICONS: Record<NavKey, LucideIcon | null> = { today: Sun, calendar: CalendarDays, assistant: null, progress: Sprout, you: CircleUserRound };
+const ICONS: Record<NavKey, LucideIcon | null> = { today: Sun, calendar: CalendarDays, assistant: null, money: Wallet, progress: Sprout, you: CircleUserRound };
 
 function useNav() {
   const pathname = usePathname();
@@ -108,7 +108,7 @@ export function TabBar() {
       aria-label="Main"
       className="app-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="mx-auto grid max-w-lg grid-cols-6">
         {items.map(({ href, label, icon: Icon, active }) => (
           <li key={href}>
             <Link

@@ -227,4 +227,60 @@ describe.skipIf(!enabled)("assistant pipeline with the mock model (real Supabase
     const r2 = await turn(await newConversation(), "Hi", { focusTaskId: "00000000-0000-4000-8000-000000000000" });
     expect(r2.first.focus).toBeNull();
   });
+
+  it("money: before anything is connected, the assistant says so instead of guessing", async () => {
+    const r = await turn(await newConversation(), "What recurring payments do I have?");
+    expect(r.first.context).not.toContain("## Money");
+    expect(r.text).toBe("I don't have your money details yet — you can connect your accounts on the Money screen.");
+  });
+
+  it("money: questions are answered from the read-only summary (never raw transactions)", async () => {
+    const admin = createClient(URL, SECRET, { auth: { persistSession: false } });
+    const { data: conn } = await admin.from("financial_connections").insert({ user_id: userId, item_id: `item-pipeline-${Date.now()}`, institution_name: "Chase" }).select("id").single();
+    const { data: acc } = await admin
+      .from("financial_accounts")
+      .insert({ user_id: userId, connection_id: conn!.id, provider_account_id: "chk", name: "Checking", type: "depository", current_balance: 3240 })
+      .select("id")
+      .single();
+    await admin.from("financial_transactions").insert([
+      { user_id: userId, connection_id: conn!.id, account_id: acc!.id, provider_transaction_id: "p1", date: today, name: "ACME PAYROLL", merchant_key: "acme", amount: 3200, category: "income" },
+      { user_id: userId, connection_id: conn!.id, account_id: acc!.id, provider_transaction_id: "p2", date: today, name: "SECRET SHOP 123", merchant_key: "secret shop", amount: -1284, category: "shopping" },
+    ]);
+    await admin.from("recurring_payments").insert({
+      user_id: userId,
+      pattern_key: "netflix:monthly:10",
+      merchant_key: "netflix",
+      merchant_name: "Netflix",
+      category: "entertainment",
+      frequency: "monthly",
+      average_amount: 15.49,
+      last_amount: 15.49,
+      last_date: today,
+      next_expected_date: addDays(today, 30),
+      occurrences: 6,
+      confidence: 0.92,
+    });
+    await db.from("financial_goals").insert({ user_id: userId, name: "Emergency fund", target_amount: 10000, current_amount: 3200, monthly_contribution: 750 });
+    await db.from("financial_budgets").insert({ user_id: userId, category: "total", monthly_amount: 2400 });
+
+    const conv = await newConversation();
+    const r1 = await turn(conv, "What recurring payments do I have?");
+    expect(r1.first.context).toContain("## Money (read-only summary");
+    expect(r1.first.context).not.toContain("SECRET SHOP"); // summarized, not dumped
+    expect(r1.text).toBe("Recurring payments: $15/month ($186/year) across 1. Largest: Netflix $15.49/mo");
+    const r2 = await turn(conv, "How long until I hit my emergency fund goal?");
+    expect(r2.text).toMatch(/^Here's where it stands: Emergency fund \(save\): \$3,200 of \$10,000, \$6,800 to go; at \$750\/month \(the user's plan\) → projected \d{4}-\d{2} \(10 months\)\. That's an estimate/);
+    const r3 = await turn(conv, "Can I afford to save $500 this month?");
+    expect(r3.text).toContain("income $3,200, spending $1,284, net $1,916");
+    expect(r3.text).toContain("Budget: $2,400/month; spent $1,284, remaining $1,116");
+    expect(r3.first.contextChars).toBeLessThan(8000);
+    // The model never gets a way to move money.
+    expect(r3.first.tools).toBeGreaterThan(0);
+    const { openAITools } = await import("@/lib/assistant/actions/registry");
+    expect(openAITools().map((t) => t.name).filter((n) => /money|transfer|pay_|payment|cancel_sub|trade|bank/.test(n))).toEqual([]);
+    // SMS and email don't get the money summary.
+    const sms = await createConversation(db as DB, userId, "sms", "Text messages");
+    const { messages } = await prepareReply(db as DB, userId, sms, "sms");
+    expect(messages.map((m) => m.content).join("\n")).not.toContain("## Money");
+  });
 });

@@ -535,4 +535,124 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Money: Plaid-derived data is read-only for users; settings are owner-only;
+-- tokens are unreachable; everything goes with the account.
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-000000000021', 'm1@example.com'),
+  ('00000000-0000-0000-0000-000000000022', 'm2@example.com');
+-- Server (service role) writes the synced data.
+insert into public.financial_connections (id, user_id, item_id, institution_name)
+  values ('40000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000021', 'item-m1', 'Chase');
+insert into public.financial_credentials (connection_id, user_id, access_token_enc)
+  values ('40000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000021', 'v1.sealed');
+insert into public.financial_accounts (id, user_id, connection_id, provider_account_id, name, type, current_balance)
+  values ('41000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000021', '40000000-0000-0000-0000-000000000021', 'acc-1', 'Checking', 'depository', 3240);
+insert into public.financial_transactions (user_id, connection_id, account_id, provider_transaction_id, date, name, merchant_key, amount, category)
+  values ('00000000-0000-0000-0000-000000000021', '40000000-0000-0000-0000-000000000021', '41000000-0000-0000-0000-000000000021', 'tx-1', current_date, 'NETFLIX.COM', 'netflix', -15.49, 'subscriptions');
+insert into public.recurring_payments (id, user_id, pattern_key, merchant_key, merchant_name, category, frequency, average_amount, last_amount, last_date, occurrences, confidence)
+  values ('42000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000021', 'netflix:monthly:12', 'netflix', 'Netflix', 'subscriptions', 'monthly', 15.49, 15.49, current_date, 6, 0.9);
+-- M2 has an account too (for the cross-user goal check).
+insert into public.financial_connections (id, user_id, item_id) values ('40000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000022', 'item-m2');
+insert into public.financial_accounts (id, user_id, connection_id, provider_account_id, name, type)
+  values ('41000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000022', '40000000-0000-0000-0000-000000000022', 'acc-2', 'Savings', 'depository');
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000021', false);
+-- Owner reads their own data…
+do $$ begin
+  if (select count(*) from public.financial_transactions) <> 1 then raise exception 'M1 cannot read own transactions'; end if;
+  if (select count(*) from public.financial_accounts) <> 1 then raise exception 'M1 sees other accounts'; end if;
+end $$;
+-- …can record a review decision, set goals/budget/income…
+update public.recurring_payments set decision = 'review' where id = '42000000-0000-0000-0000-000000000021';
+insert into public.financial_goals (user_id, name, target_amount, current_amount, monthly_contribution, account_id)
+  values ('00000000-0000-0000-0000-000000000021', 'Emergency fund', 10000, 3200, 750, '41000000-0000-0000-0000-000000000021');
+insert into public.financial_budgets (user_id, category, monthly_amount) values ('00000000-0000-0000-0000-000000000021', 'total', 2400);
+insert into public.financial_income_profile (user_id, gross_monthly_income) values ('00000000-0000-0000-0000-000000000021', 3000);
+-- …but cannot write bank data, change amounts, read tokens, or point a goal at someone else's account.
+do $$ begin
+  begin
+    insert into public.financial_transactions (user_id, connection_id, account_id, provider_transaction_id, date, name, merchant_key, amount, category)
+      values ('00000000-0000-0000-0000-000000000021', '40000000-0000-0000-0000-000000000021', '41000000-0000-0000-0000-000000000021', 'tx-fake', current_date, 'x', 'x', 1000000, 'income');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.financial_accounts set current_balance = 1000000;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.recurring_payments set average_amount = 1 where id = '42000000-0000-0000-0000-000000000021';
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.financial_credentials;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from public.financial_transactions;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.financial_goals (user_id, name, target_amount, account_id)
+      values ('00000000-0000-0000-0000-000000000021', 'Sneaky', 100, '41000000-0000-0000-0000-000000000022');
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- Another user sees and changes nothing of M1's.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000022', false);
+do $$ begin
+  if (select count(*) from public.financial_transactions) <> 0
+     or (select count(*) from public.recurring_payments) <> 0
+     or (select count(*) from public.financial_goals) <> 0
+     or (select count(*) from public.financial_budgets) <> 0
+     or (select count(*) from public.financial_income_profile) <> 0
+     or (select count(*) from public.financial_connections) <> 1 then
+    raise exception 'M2 can see M1 money data';
+  end if;
+end $$;
+update public.recurring_payments set decision = 'cancel';
+update public.financial_goals set target_amount = 1;
+delete from public.financial_budgets;
+set role anon;
+do $$ begin
+  begin
+    perform 1 from public.financial_transactions;
+    raise exception 'EXPECTED_FAILURE_NOT_RAISED';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  if (select decision from public.recurring_payments where id = '42000000-0000-0000-0000-000000000021') <> 'review' then raise exception 'M2 changed M1 recurring'; end if;
+  if (select target_amount from public.financial_goals where user_id = '00000000-0000-0000-0000-000000000021') <> 10000 then raise exception 'M2 changed M1 goal'; end if;
+  if (select count(*) from public.financial_budgets where user_id = '00000000-0000-0000-0000-000000000021') <> 1 then raise exception 'M2 deleted M1 budget'; end if;
+end $$;
+-- Disconnecting an institution removes its accounts and transactions; deleting the account removes everything.
+delete from public.financial_connections where id = '40000000-0000-0000-0000-000000000021';
+do $$ begin
+  if exists (select 1 from public.financial_transactions where user_id = '00000000-0000-0000-0000-000000000021')
+     or exists (select 1 from public.financial_credentials where user_id = '00000000-0000-0000-0000-000000000021') then
+    raise exception 'bank data survived disconnect';
+  end if;
+  if (select account_id from public.financial_goals where user_id = '00000000-0000-0000-0000-000000000021') is not null then
+    raise exception 'goal kept a deleted account';
+  end if;
+end $$;
+delete from auth.users where id = '00000000-0000-0000-0000-000000000021';
+do $$ begin
+  if exists (select 1 from public.financial_goals where user_id = '00000000-0000-0000-0000-000000000021')
+     or exists (select 1 from public.recurring_payments where user_id = '00000000-0000-0000-0000-000000000021')
+     or exists (select 1 from public.financial_income_profile where user_id = '00000000-0000-0000-0000-000000000021') then
+    raise exception 'money data survived account deletion';
+  end if;
+end $$;
+
 select 'RLS checks passed' as result;

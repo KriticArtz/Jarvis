@@ -68,8 +68,8 @@ export async function appendMessage(
 export async function prepareReply(db: DB, userId: string, conversation: Conversation, channel: AssistantChannel, opts: { focusTaskId?: string | null } = {}) {
   const app = channel === "app";
   const [{ context }, history, focus] = await Promise.all([
-    // In the app, a new conversation also knows what was changed earlier today.
-    loadAssistantContext(db, userId, { excludeConversationId: conversation.id, includeChangesToday: app }),
+    // In the app, a new conversation also knows what was changed earlier today, and the money summary.
+    loadAssistantContext(db, userId, { excludeConversationId: conversation.id, includeChangesToday: app, includeMoney: app }),
     getRecentMessages(db, userId, conversation.id, HISTORY_WINDOW),
     app && opts.focusTaskId ? focusNote(db, userId, opts.focusTaskId) : Promise.resolve(null),
   ]);

@@ -16,6 +16,8 @@ import { describeTarget, summarizeGoalProgress } from "@/lib/progress";
 import { addDays, isoWeekday, localDate, localMinutesNow, minutesToTime, monthStart, weekStart, zonedTimeToUtc } from "@/lib/time";
 import type { Goal, Profile, Task } from "@/lib/types/domain";
 import type { AssistantContext } from "./context-types";
+import { loadMoneyBase } from "@/lib/money/data";
+import { buildMoneyContext, type MoneyContext } from "@/lib/money/ai-context";
 import { loadCalendar } from "@/lib/integrations/calendar/context";
 import { busyEventsForDay } from "@/lib/integrations/calendar/local";
 import { getConnections, PROVIDER_LABEL } from "@/lib/integrations/connections";
@@ -38,7 +40,7 @@ export interface LoadedUserData {
 export async function loadAssistantContext(
   db: DB,
   userId: string,
-  opts: { excludeConversationId?: string; now?: Date; includeChangesToday?: boolean } = {},
+  opts: { excludeConversationId?: string; now?: Date; includeChangesToday?: boolean; includeMoney?: boolean } = {},
 ): Promise<LoadedUserData> {
   const profile = await getProfile(db, userId);
   if (!profile) throw new Error("Profile not found");
@@ -73,7 +75,10 @@ export async function loadAssistantContext(
     loadCalendar(db, userId, { tz, from: today, days: 3 }),
     getConnections(db, userId),
   ]);
-  const changesToday = opts.includeChangesToday ? await loadChangesToday(db, userId, today, tz) : undefined;
+  const [changesToday, money] = await Promise.all([
+    opts.includeChangesToday ? loadChangesToday(db, userId, today, tz) : Promise.resolve(undefined),
+    opts.includeMoney ? loadMoneyContext(db, userId, today) : Promise.resolve(undefined),
+  ]);
   const fitnessSources = connections.filter((c) => c.kind === "fitness" && c.status === "connected").map((c) => PROVIDER_LABEL[c.provider]);
 
   const todayTasks = recentTasks.filter((t) => t.task_date === today);
@@ -151,6 +156,7 @@ export async function loadAssistantContext(
       .slice(0, 3)
       .map((c) => String(c.summary).slice(0, 400)),
     ...(changesToday ? { changesToday } : {}),
+    ...(money ? { money } : {}),
   };
 
   return { profile, today, goals, todayTasks, context };
@@ -178,4 +184,14 @@ async function loadChangesToday(db: DB, userId: string, today: string, tz: strin
         status: a.status === "succeeded" ? ("done" as const) : ("declined" as const),
       };
     });
+}
+
+/** The read-only money summary (null when the user hasn't set anything up). Last ~4 months of transactions at most. */
+async function loadMoneyContext(db: DB, userId: string, today: string): Promise<MoneyContext | null> {
+  try {
+    const base = await loadMoneyBase(db, userId, { since: addDays(`${today.slice(0, 7)}-01`, -124) });
+    return buildMoneyContext(base, today);
+  } catch {
+    return null; // money context is a bonus; never break the conversation over it
+  }
 }

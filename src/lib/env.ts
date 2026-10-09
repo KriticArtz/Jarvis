@@ -169,6 +169,29 @@ export function integrationsEncryptionKey(): Buffer | null {
   return key.length === 32 ? key : null;
 }
 
+export type PlaidEnv = "sandbox" | "production";
+export interface PlaidConfig {
+  clientId: string;
+  secret: string;
+  env: PlaidEnv;
+  baseURL: string;
+}
+
+/**
+ * Plaid (bank connections). PLAID_ENV is "sandbox" (default; test
+ * institutions and fake data) or "production". PLAID_API_TEST_BASE_URL is
+ * for automated tests only and, like OPENAI_BASE_URL, is honoured solely for
+ * a loopback address and never on a Vercel production deployment.
+ */
+export function plaidConfig(): PlaidConfig | null {
+  const clientId = read("PLAID_CLIENT_ID");
+  const secret = read("PLAID_SECRET");
+  if (!clientId || !secret) return null;
+  const env: PlaidEnv = read("PLAID_ENV")?.toLowerCase() === "production" ? "production" : "sandbox";
+  const test = testBaseURL(read("PLAID_API_TEST_BASE_URL"), read("VERCEL_ENV"));
+  return { clientId, secret, env, baseURL: test ?? `https://${env}.plaid.com` };
+}
+
 /** Override for all Google endpoints. Only for automated tests against a mock server. */
 export function googleTestBaseUrl(): string | undefined {
   return read("GOOGLE_API_TEST_BASE_URL")?.replace(/\/$/, "");
