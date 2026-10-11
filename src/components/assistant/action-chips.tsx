@@ -79,7 +79,7 @@ export function ActionChips({
             <li key={a.id} className="animate-fade-in" data-action-state="failed">
               <div className="flex items-start gap-2.5 text-[14px] leading-snug">
                 <span className="mt-[1px] flex size-5 shrink-0 items-center justify-center">
-                  <span className="flex size-[18px] items-center justify-center rounded-full bg-danger text-white">
+                  <span className="flex size-[18px] items-center justify-center rounded-full bg-danger text-on-status">
                     <X className="size-3" strokeWidth={3.2} aria-hidden />
                   </span>
                 </span>
@@ -104,7 +104,7 @@ export function ActionChips({
               {a.status === "running" ? (
                 <Presence size={14} state="acting" />
               ) : (
-                <span className="flex size-[18px] items-center justify-center rounded-full bg-success text-white">
+                <span className="flex size-[18px] items-center justify-center rounded-full bg-success text-on-status">
                   <Check className="check-pop size-3" strokeWidth={3.2} aria-label="Done" />
                 </span>
               )}

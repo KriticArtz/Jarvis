@@ -81,7 +81,7 @@ function ToastView({ item, onDismiss }: { item: ToastItem; onDismiss: () => void
       <span
         className={cn(
           "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
-          item.tone === "success" ? "bg-success text-white" : item.tone === "danger" ? "bg-danger text-white" : "bg-background/15",
+          item.tone === "success" ? "bg-success text-on-status" : item.tone === "danger" ? "bg-danger text-on-status" : "bg-background/15",
         )}
       >
         <Icon className="size-3" strokeWidth={3} aria-hidden />

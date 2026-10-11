@@ -12,7 +12,7 @@ export function DemoBanner() {
     <div className="sticky top-0 z-40 border-b border-hairline bg-surface/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-2 text-[13px]">
         <p className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 rounded-full bg-brand-gradient px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">Demo</span>
+          <span className="shrink-0 rounded-full bg-brand-gradient px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent-foreground">Demo</span>
           <span className="truncate text-muted">
             <span className="hidden sm:inline">You&apos;re exploring {brand.name} with sample data</span>
             <span className="sm:hidden">Sample data</span>
