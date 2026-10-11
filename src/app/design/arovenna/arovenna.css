@@ -1,0 +1,478 @@
+/*
+ * Arovenna direction — PREVIEW ONLY (/design/arovenna, gated like /design).
+ * Every rule is scoped under .arv so nothing here can affect the live app.
+ *
+ *   Signature   deep forest + champagne gold (gold = meaning, never filler)
+ *   Dark        forest-ink canvas — the dramatic showcase
+ *   Light       warm ivory paper + forest ink — equally finished
+ *   Default     follows the OS (data-mode="system"), never forced dark
+ *
+ * Contrast (WCAG, measured):
+ *   light  ink 14.4:1 · muted 5.5:1 · forest action 7.2:1 · gold-ink text 5.5:1
+ *          gold ornament 3.9:1 (non-text ≥3:1)
+ *   dark   ivory 15.1:1 · muted 7.5:1 · sage action 10.1:1 · champagne 10.4:1
+ */
+
+.arv,
+.arv[data-mode="light"] {
+  --bg: #f6f1e6;
+  --surface: #fffcf5;
+  --surface-2: #efe8d9;
+  --hairline: rgba(19, 36, 27, 0.1);
+  --line: rgba(19, 36, 27, 0.16);
+  --ink: #13241b;
+  --muted: #55655b;
+  --subtle: #7d877f;
+  --action: #1d5a42;
+  --action-hover: #174a36;
+  --action-ink: #fffcf5;
+  --action-soft: #e3ece4;
+  --gold: #94733a; /* ornament on ivory: rules, ring, markers */
+  --gold-ink: #7a5c22; /* gold as text on ivory */
+  --gold-soft: #f1e6cc;
+  --seal-face: #0f3b2c;
+  --shadow: 0 1px 2px rgba(19, 36, 27, 0.05), 0 18px 40px -24px rgba(19, 36, 27, 0.28);
+  --ring-focus: rgba(29, 90, 66, 0.32);
+  color-scheme: light;
+}
+
+.arv[data-mode="dark"] {
+  --bg: #0a1310;
+  --surface: #111d18;
+  --surface-2: #17271f;
+  --hairline: rgba(236, 230, 214, 0.08);
+  --line: rgba(236, 230, 214, 0.14);
+  --ink: #ece6d6;
+  --muted: #a3ad9f;
+  --subtle: #76817a;
+  --action: #8fcba9;
+  --action-hover: #a9dbbe;
+  --action-ink: #0a1310;
+  --action-soft: rgba(143, 203, 169, 0.12);
+  --gold: #d8be80;
+  --gold-ink: #d8be80;
+  --gold-soft: rgba(216, 190, 128, 0.12);
+  --seal-face: #0f3b2c;
+  --shadow: inset 0 1px 0 rgba(236, 230, 214, 0.05), 0 0 0 1px rgba(236, 230, 214, 0.06), 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+  --ring-focus: rgba(216, 190, 128, 0.4);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  .arv[data-mode="system"] {
+    --bg: #0a1310;
+    --surface: #111d18;
+    --surface-2: #17271f;
+    --hairline: rgba(236, 230, 214, 0.08);
+    --line: rgba(236, 230, 214, 0.14);
+    --ink: #ece6d6;
+    --muted: #a3ad9f;
+    --subtle: #76817a;
+    --action: #8fcba9;
+    --action-hover: #a9dbbe;
+    --action-ink: #0a1310;
+    --action-soft: rgba(143, 203, 169, 0.12);
+    --gold: #d8be80;
+    --gold-ink: #d8be80;
+    --gold-soft: rgba(216, 190, 128, 0.12);
+    --shadow: inset 0 1px 0 rgba(236, 230, 214, 0.05), 0 0 0 1px rgba(236, 230, 214, 0.06), 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+    --ring-focus: rgba(216, 190, 128, 0.4);
+    color-scheme: dark;
+  }
+}
+
+.arv {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+/* Dark gets depth from light, not borders: a faint forest bloom from above. */
+.arv[data-mode="dark"] .arv-canvas {
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(31, 92, 66, 0.35), transparent 60%),
+    radial-gradient(60% 40% at 85% 0%, rgba(216, 190, 128, 0.06), transparent 70%),
+    var(--bg);
+}
+
+/* ---------------------------------------------------------------- type */
+.arv .serif {
+  font-family: var(--font-instrument), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.arv .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.arv .eyebrow-gold {
+  color: var(--gold-ink);
+}
+.arv .wordmark {
+  font-family: var(--font-instrument), ui-serif, Georgia, serif;
+  letter-spacing: 0.04em;
+}
+.arv .muted {
+  color: var(--muted);
+}
+.arv .num {
+  font-variant-numeric: tabular-nums;
+}
+.arv .gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- surfaces & controls */
+.arv .panel {
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.arv .hair {
+  border-color: var(--hairline);
+}
+.arv .btn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 600;
+  transition:
+    background-color 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 200ms;
+}
+.arv .btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--ring-focus);
+}
+.arv .btn-primary {
+  background: var(--action);
+  color: var(--action-ink);
+}
+.arv .btn-primary:hover {
+  background: var(--action-hover);
+}
+.arv .btn-secondary {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.arv .btn-ghost {
+  color: var(--action);
+}
+/* Primary call to action on the landing: the one place gold is a fill.
+   Full-width and taller on phones so it stays the obvious next step. */
+.arv .btn-cta {
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 28px;
+  background: var(--gold);
+  color: #0a1310;
+  font-size: 16px;
+}
+.arv .btn-cta:hover {
+  background: color-mix(in oklab, var(--gold) 88%, #ffffff);
+}
+@media (min-width: 640px) {
+  .arv .btn-cta {
+    min-height: 48px;
+  }
+}
+.arv .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.arv .chip-gold {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+.arv .chip-action {
+  background: var(--action-soft);
+  color: var(--action);
+}
+.arv .field {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  padding: 0 16px;
+  font-size: 16px;
+  color: var(--ink);
+}
+.arv .field:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 4px var(--ring-focus);
+}
+.arv .now-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gold);
+  box-shadow: 0 0 0 4px var(--gold-soft);
+}
+
+/* ---------------------------------------------------------------- the seal */
+/*
+ * The product signature: the Arovenna emblem in a struck-metal frame.
+ * Still by default. Motion only marks a state change, and each state reads
+ * without motion too (ring treatment + label), so reduced motion loses nothing.
+ *
+ *   idle       completely still (no idle loop, no hover effect)
+ *   listening  the gold ring brightens; the halo breathes slowly
+ *   thinking   an engraved arc travels the ring
+ *   acting     an impression ring leaves the seal, like a stamp
+ *   complete   the ring closes, one sheen crosses, the halo settles
+ */
+.seal {
+  --s: 96px;
+  position: relative;
+  display: inline-grid;
+  width: var(--s);
+  height: var(--s);
+  flex-shrink: 0;
+  place-items: center;
+  isolation: isolate;
+}
+.seal > * {
+  grid-area: 1 / 1;
+}
+.seal-halo {
+  width: 150%;
+  height: 150%;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--gold) 45%, transparent), transparent);
+  opacity: 0.12;
+  z-index: -1;
+  transition: opacity 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.seal-ring {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.seal-ring circle {
+  fill: none;
+  stroke: var(--gold);
+  vector-effect: non-scaling-stroke;
+}
+.seal-ring .track {
+  stroke-width: 1.25px;
+  opacity: 0.45;
+  transition: opacity 320ms;
+}
+.seal-ring .arc {
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-dasharray: 0 100;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.seal-face {
+  position: relative;
+  width: 84%;
+  height: 84%;
+  overflow: hidden;
+  border-radius: 999px;
+  /* The supplied tile's own near-black forest, sampled from the logo (#011109 → #000d08). */
+  background: #010f09;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.35),
+    0 10px 24px -14px rgba(0, 0, 0, 0.6);
+  transition: transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+/*
+ * The supplied logo, cropped — never redrawn. A 760px circle centred on the
+ * A (image px 624,543) holds the whole emblem, base included. The wordmark
+ * sits just below the A in the supplied file, so the crop stops at image
+ * y=812 (between the A's base at 778 and the wordmark at 856); the face's
+ * matching tile colour fills the rest.
+ *   background-size  1254/760          = 165%
+ *   position x       (244/760)/0.65    = 49.39%
+ *   position y       (163/760)/0.65    = 33%
+ *   clip bottom      1 - (812-163)/760 = 14.6%
+ */
+.seal-emblem {
+  position: absolute;
+  inset: 0;
+  background-image: var(--emblem);
+  background-repeat: no-repeat;
+  background-size: 165% auto;
+  background-position: 49.39% 33%;
+  clip-path: inset(0 0 14.6% 0);
+}
+.seal-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 244, 214, 0.38) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.seal-impression {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 1.5px solid var(--gold);
+  opacity: 0;
+}
+/* Placeholder until the supplied emblem file is added — deliberately not a logo. */
+.seal-placeholder {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  border: 1px dashed rgba(216, 190, 128, 0.6);
+  border-radius: 999px;
+  color: #d8be80;
+  font-size: max(9px, calc(var(--s) * 0.1));
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.seal[data-state="listening"] .seal-halo {
+  animation: seal-breathe 2.8s ease-in-out infinite;
+}
+.seal[data-state="listening"] .track {
+  opacity: 1;
+}
+.seal[data-state="thinking"] .seal-halo {
+  opacity: 0.28;
+}
+.seal[data-state="thinking"] .arc {
+  opacity: 1;
+  stroke-dasharray: 22 78;
+  animation: seal-orbit 1.6s linear infinite;
+}
+.seal[data-state="acting"] .seal-halo {
+  opacity: 0.32;
+}
+.seal[data-state="acting"] .track {
+  opacity: 1;
+}
+.seal[data-state="acting"] .seal-impression {
+  animation: seal-impress 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+.seal[data-state="acting"] .seal-face {
+  animation: seal-press 1.4s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+.seal[data-state="complete"] .arc {
+  opacity: 1;
+  animation: seal-close 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.seal[data-state="complete"] .seal-sheen {
+  animation: seal-sheen 900ms 300ms cubic-bezier(0.2, 0.7, 0.2, 1) 1 both;
+}
+.seal[data-state="complete"] .seal-halo {
+  animation: seal-settle 1.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes seal-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+@keyframes seal-breathe {
+  0%,
+  100% {
+    opacity: 0.22;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes seal-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes seal-impress {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+@keyframes seal-press {
+  0%,
+  60%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(0.965);
+  }
+}
+@keyframes seal-close {
+  from {
+    stroke-dasharray: 0 100;
+  }
+  to {
+    stroke-dasharray: 100 0;
+  }
+}
+@keyframes seal-settle {
+  0% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.12;
+  }
+}
+
+/* Reduced motion: states stay distinct through static treatment alone. */
+@media (prefers-reduced-motion: reduce) {
+  .seal * {
+    animation: none !important;
+  }
+  .seal[data-state="listening"] .seal-halo {
+    opacity: 0.4;
+  }
+  .seal[data-state="thinking"] .arc {
+    stroke-dasharray: 4 4;
+    opacity: 0.9;
+  }
+  .seal[data-state="acting"] .seal-impression {
+    opacity: 0.5;
+    transform: scale(1.18);
+  }
+  .seal[data-state="complete"] .arc {
+    stroke-dasharray: 100 0;
+  }
+}
+.arv[data-motion="reduce"] .seal * {
+  animation: none !important;
+}
+.arv[data-motion="reduce"] .seal[data-state="listening"] .seal-halo {
+  opacity: 0.4;
+}
+.arv[data-motion="reduce"] .seal[data-state="thinking"] .arc {
+  stroke-dasharray: 4 4;
+  opacity: 0.9;
+}
+.arv[data-motion="reduce"] .seal[data-state="acting"] .seal-impression {
+  opacity: 0.5;
+  transform: scale(1.18);
+}
+.arv[data-motion="reduce"] .seal[data-state="complete"] .arc {
+  stroke-dasharray: 100 0;
+}
