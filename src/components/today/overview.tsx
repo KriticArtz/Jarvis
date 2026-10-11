@@ -72,20 +72,6 @@ export function VitalsRow({ items, className }: { items: Vital[]; className?: st
   );
 }
 
-/** Four figures as chips; the caller sets the layout (flex or grid). */
-export function VitalsChips({ items, className }: { items: Vital[]; className?: string }) {
-  return (
-    <dl className={cn("gap-2", className)}>
-      {items.map(({ key, label, value }) => (
-        <div key={key} className="flex items-baseline justify-between gap-2 rounded-full bg-surface-raised/90 px-3.5 py-1.5 shadow-[inset_0_0_0_1px_var(--hairline)] backdrop-blur-sm">
-          <dt className="truncate text-[12px] text-muted">{label}</dt>
-          <dd className="type-num shrink-0 text-[14px] font-semibold">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 /* ------------------------------------------------------------------ the week */
 
 /** This week, day by day: planned tasks as a column, the done part filled. */

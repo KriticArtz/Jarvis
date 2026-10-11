@@ -914,20 +914,6 @@ h3 {
     0 30px 60px -30px rgba(0, 0, 0, 0.55);
 }
 
-/* Today's sun path: a sky lit where the sun is, and three hills in the theme's colour. */
-.day-arc {
-  background:
-    radial-gradient(38% 70% at var(--sun-x) var(--sun-y), color-mix(in oklab, var(--now) 16%, transparent), transparent 70%),
-    linear-gradient(to bottom, var(--surface-raised), color-mix(in oklab, var(--accent) 5%, var(--surface-raised)));
-}
-.day-arc-hill-3 { fill: color-mix(in oklab, var(--accent) 10%, var(--surface-raised)); }
-.day-arc-hill-2 { fill: color-mix(in oklab, var(--accent) 18%, var(--surface-raised)); }
-.day-arc-hill-1 { fill: color-mix(in oklab, var(--accent) 28%, var(--surface-raised)); }
-.day-arc-sun {
-  background: radial-gradient(circle at 35% 35%, color-mix(in oklab, var(--now) 55%, #ffffff), var(--now) 70%);
-  box-shadow: 0 0 0 6px color-mix(in oklab, var(--now) 18%, transparent), 0 0 32px 10px color-mix(in oklab, var(--now) 30%, transparent);
-}
-
 /* ----------------------------------------------------------------- Brand mark & wordmark */
 /* Crops of the supplied logo (public/brand/arovenna-logo.webp); never redrawn. */
 /* In the components layer so utilities (size, hidden, responsive display) still apply. */

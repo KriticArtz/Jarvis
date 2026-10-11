@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { formatTime12, localMinutesNow, minutesToTime, timeToMinutes } from "@/lib/time";
 import { cn } from "@/lib/cn";
 
@@ -46,7 +46,7 @@ function summary(marks: DayMark[], win: Props["window"], now: number) {
 }
 
 /**
- * Today as a time strip (the "command" composition): the waking day from
+ * Today as a time strip: the waking day from
  * wake to sleep, each scheduled thing as a block at its real time and length,
  * finished ones filled, and a live "now" line. Read-only; the timeline below
  * is where things are done.
@@ -102,70 +102,6 @@ export function DayStrip({ marks, window: win, timezone, initialNow, className }
             {formatTime12(minutesToTime(h)).replace(":00", "")}
           </span>
         ))}
-      </div>
-    </figure>
-  );
-}
-
-/**
- * Today as a sun path (the "canvas" composition): the waking day drawn as an
- * arc over a quiet landscape, the sun at the real time, and each scheduled
- * thing as a point on the arc. Hills and sky take the theme's own colours.
- * Position it from outside (it fills whatever box it's given).
- */
-export function DayArc({ marks, window: win, timezone, initialNow, className }: Props) {
-  const now = useNow(timezone, initialNow);
-  const span = win.end - win.start;
-  const t = (m: number) => clamp((m - win.start) / span);
-  // The arc: an ellipse through (0, base) and (1, base) rising to `top`.
-  const BASE = 0.86;
-  const TOP = 0.16;
-  const at = (u: number) => ({ x: u * 100, y: (BASE - (BASE - TOP) * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2))) * 100 });
-  const sun = at(t(now));
-  const travelled = (end: number) => {
-    const pts: string[] = [];
-    for (let u = 0; u < end; u += 0.01) pts.push(`${at(u).x.toFixed(2)},${at(u).y.toFixed(2)}`);
-    pts.push(`${sun.x.toFixed(2)},${sun.y.toFixed(2)}`);
-    return `M${pts.join(" L")}`;
-  };
-  const up = now >= win.start && now <= win.end;
-
-  return (
-    <figure className={cn("day-arc isolate overflow-hidden", className)} style={{ "--sun-x": `${sun.x}%`, "--sun-y": `${sun.y}%` } as CSSProperties}>
-      <figcaption className="sr-only">{summary(marks, win, now)}</figcaption>
-      <div aria-hidden className="absolute inset-0">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
-          <path d={`M0,${BASE * 100} A50,${(BASE - TOP) * 100} 0 0 1 100,${BASE * 100}`} fill="none" className="stroke-line" strokeWidth="1.2" strokeDasharray="1.2 2.4" vectorEffect="non-scaling-stroke" />
-          {/* the part of the day already travelled, as a solid line along the same arc */}
-          {up ? <path d={travelled(t(now))} fill="none" className="stroke-now" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" /> : null}
-        </svg>
-        {/* Three layers of hills; drawn last-to-front so the arc ends sink behind them. */}
-        <svg viewBox="0 0 1200 200" preserveAspectRatio="none" className="absolute inset-x-0 bottom-0 h-[38%] w-full">
-          <path className="day-arc-hill-3" d="M0,92 C140,60 260,70 380,88 C520,108 640,52 800,58 C960,64 1060,96 1200,80 L1200,200 L0,200 Z" />
-          <path className="day-arc-hill-2" d="M0,128 C160,104 300,118 450,132 C600,146 720,104 880,108 C1020,112 1110,132 1200,124 L1200,200 L0,200 Z" />
-          <path className="day-arc-hill-1" d="M0,166 C200,146 380,160 560,170 C760,182 900,150 1200,158 L1200,200 L0,200 Z" />
-        </svg>
-        {marks.map((m) => {
-          const p = at(t(timeToMinutes(m.start)));
-          return (
-            <span
-              key={m.key}
-              title={`${formatTime12(m.start)} · ${m.title}`}
-              className={cn(
-                "absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
-                m.done ? "bg-accent" : m.kind === "event" ? "bg-surface-raised shadow-[0_0_0_1.5px_var(--muted)]" : "bg-surface-raised shadow-[0_0_0_2px_var(--accent)]",
-              )}
-              style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            />
-          );
-        })}
-        {up ? (
-          <span className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${sun.x}%`, top: `${sun.y}%` }}>
-            <span className="day-arc-sun block size-5 rounded-full" />
-          </span>
-        ) : null}
-        <span className="type-num absolute bottom-2 left-3 text-[11px] text-muted">{formatTime12(minutesToTime(win.start))}</span>
-        <span className="type-num absolute bottom-2 right-3 text-[11px] text-muted">{formatTime12(minutesToTime(win.end))}</span>
       </div>
     </figure>
   );

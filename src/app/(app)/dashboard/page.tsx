@@ -21,8 +21,8 @@ import { DayView } from "@/components/today/day-view";
 import { PlanSheetProvider } from "@/components/today/plan-sheet";
 import { PlanButton, RecommendationCard } from "@/components/today/recommendation";
 import { CheckInPrompt } from "@/components/today/check-in-prompt";
-import { DayArc, DayStrip, type DayMark } from "@/components/today/day-graphic";
-import { AccountabilityStatus, CalendarStatus, ComingUp, GoalRings, PanelHeader, VitalsChips, VitalsRow, WeekRhythm, panelClass, vitals, widePanelClass } from "@/components/today/overview";
+import { DayStrip, type DayMark } from "@/components/today/day-graphic";
+import { AccountabilityStatus, CalendarStatus, ComingUp, GoalRings, PanelHeader, VitalsRow, WeekRhythm, panelClass, vitals, widePanelClass } from "@/components/today/overview";
 import { cn } from "@/lib/cn";
 import { ArrowUpRight } from "lucide-react";
 import { Presence } from "@/components/ui/presence";
@@ -40,9 +40,7 @@ const AHEAD_DAYS = 3;
  * the user's own data (tasks, calendar, routines, goal progress); nothing is
  * invented, and every panel has a plain empty state.
  */
-export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  // Two compositions under review; "canvas" is opt-in until one is chosen.
-  const layout = (await searchParams).layout === "canvas" ? "canvas" : "command";
+export default async function DashboardPage() {
   const { supabase, userId, profile, isDemo } = await requireOnboardedUser();
   const { assistantName } = resolvePersonalization(profile);
   const tz = profile.timezone || "UTC";
@@ -182,116 +180,59 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         assistantName,
       }}
     >
-      {/* data-layout="wide" lets the app shell give Today a wider canvas; every other page keeps its column. */}
-      {layout === "command" ? (
-        /*
-         * Command: the assistant's console holds the right column for the whole
-         * page; the day reads down the left. On phones the console follows the
-         * greeting, so the next useful action comes first.
-         */
-        <div data-layout="wide" data-composition="command" className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,410px)]">
-          <header className="min-w-0 pt-1 xl:col-start-1 xl:row-start-1">
-            <div className="flex items-center justify-between gap-3">
-              <p className="type-eyebrow">{formatLongDate(today)}</p>
-              <PlanButton replan={replan} />
-            </div>
-            <div className="mt-3">{greetingBlock}</div>
-          </header>
-
-          <aside
-            aria-label={assistantName}
-            className="console flex flex-col gap-6 rounded-[28px] p-5 sm:p-7 xl:sticky xl:top-8 xl:col-start-2 xl:row-span-4 xl:row-start-1"
-          >
-            <div className="flex items-center gap-3.5">
-              <Presence size={44} />
-              <div className="min-w-0 flex-1">
-                <p className="type-display truncate text-[24px] leading-none">{assistantName}</p>
-                <p className="mt-1.5 text-[13px] text-muted">{waiting ? `${waiting === 1 ? "One change is" : `${waiting} changes are`} waiting for your OK` : "Nothing is waiting for your OK"}</p>
-              </div>
-            </div>
-            <RecommendationCard candidates={candidates} assistantName={assistantName} bare />
-            {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
-            {/* Momentum belongs to the console on desktop; on phones it follows the day (below). */}
-            <div className="hidden h-px bg-hairline xl:block" />
-            <GoalRings items={momentum} className="hidden xl:block" />
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-hairline pt-4">
-              <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="min-w-0 flex-1" />
-              {openConversation}
-            </div>
-          </aside>
-
-          <section aria-label="Today at a glance" className={cn(panelClass, "flex flex-col gap-6 p-5 sm:p-6 xl:col-start-1 xl:row-start-2")}>
-            <VitalsRow items={glance} />
-            <DayStrip marks={marks} window={span} timezone={tz} initialNow={nowMinutes} />
-          </section>
-
-          <section aria-labelledby="your-day-title" className={cn(widePanelClass, "min-w-0 sm:p-6 xl:col-start-1 xl:row-start-3")}>
-            {dayHeader}
-            {day}
-          </section>
-
-          <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:col-start-1 xl:row-start-4">
-            <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
-            <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
+      {/*
+       * The assistant's console holds the right column for the whole page; the
+       * day reads down the left. On phones the console follows the greeting, so
+       * the next useful action comes first. data-layout="wide" lets the app
+       * shell give Today a wider canvas; every other page keeps its column.
+       */}
+      <div data-layout="wide" className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,410px)]">
+        <header className="min-w-0 pt-1 xl:col-start-1 xl:row-start-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="type-eyebrow">{formatLongDate(today)}</p>
+            <PlanButton replan={replan} />
           </div>
-          <GoalRings items={momentum} id="momentum-title-narrow" className={cn(panelClass, "p-5 sm:p-6 xl:hidden")} />
-        </div>
-      ) : (
-        /*
-         * Canvas: the day as a landscape across the top — the sun at the real
-         * time over the waking day — then what to do next and the day itself
-         * on the left, and the week, what's coming and goals on the right.
-         */
-        <div data-layout="wide" data-composition="canvas" className="flex flex-col gap-5 sm:gap-6">
-          <header className={cn(panelClass, "relative overflow-hidden")}>
-            <div className="relative z-10 flex flex-col justify-between gap-6 p-5 sm:p-8 lg:min-h-[340px] lg:max-w-[50%]">
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="type-eyebrow">{formatLongDate(today)}</p>
-                  <PlanButton replan={replan} />
-                </div>
-                <div className="mt-3">{greetingBlock}</div>
-              </div>
-              <VitalsChips items={glance} className="hidden flex-wrap lg:flex" />
-            </div>
-            {/* The landscape: a band under the greeting on phones, the right half of the hero on wide screens. */}
-            <DayArc
-              marks={marks}
-              window={span}
-              timezone={tz}
-              initialNow={nowMinutes}
-              className="relative h-32 sm:h-56 lg:absolute lg:inset-y-0 lg:right-0 lg:h-auto lg:w-[56%] lg:[mask-image:linear-gradient(to_right,transparent,black_22%)]"
-            />
-            <VitalsChips items={glance} className="grid grid-cols-2 p-4 sm:p-8 sm:pt-5 lg:hidden" />
-          </header>
+          <div className="mt-3">{greetingBlock}</div>
+        </header>
 
-          <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
-              <section aria-label={assistantName} className="flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-3 px-1">
-                  <p className="flex items-center gap-2.5 text-[15px] font-semibold">
-                    <Presence size="sm" />
-                    {assistantName}
-                  </p>
-                  {openConversation}
-                </div>
-                <RecommendationCard candidates={candidates} assistantName={assistantName} />
-                {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
-              </section>
-              <section aria-labelledby="your-day-title" className={cn(widePanelClass, "min-w-0 sm:p-6")}>
-                {dayHeader}
-                {day}
-              </section>
-            </div>
-            <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
-              <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
-              <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
-              <GoalRings items={momentum} className={cn(panelClass, "p-5 sm:p-6")} />
-              <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="px-1" />
+        <aside
+          aria-label={assistantName}
+          className="console flex flex-col gap-6 rounded-[28px] p-5 sm:p-7 xl:sticky xl:top-8 xl:col-start-2 xl:row-span-4 xl:row-start-1"
+        >
+          <div className="flex items-center gap-3.5">
+            <Presence size={44} />
+            <div className="min-w-0 flex-1">
+              <p className="type-display truncate text-[24px] leading-none">{assistantName}</p>
+              <p className="mt-1.5 text-[13px] text-muted">{waiting ? `${waiting === 1 ? "One change is" : `${waiting} changes are`} waiting for your OK` : "Nothing is waiting for your OK"}</p>
             </div>
           </div>
+          <RecommendationCard candidates={candidates} assistantName={assistantName} bare />
+          {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
+          {/* Momentum belongs to the console on desktop; on phones it follows the day (below). */}
+          <div className="hidden h-px bg-hairline xl:block" />
+          <GoalRings items={momentum} className="hidden xl:block" />
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-hairline pt-4">
+            <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="min-w-0 flex-1" />
+            {openConversation}
+          </div>
+        </aside>
+
+        <section aria-label="Today at a glance" className={cn(panelClass, "flex flex-col gap-6 p-5 sm:p-6 xl:col-start-1 xl:row-start-2")}>
+          <VitalsRow items={glance} />
+          <DayStrip marks={marks} window={span} timezone={tz} initialNow={nowMinutes} />
+        </section>
+
+        <section aria-labelledby="your-day-title" className={cn(widePanelClass, "min-w-0 sm:p-6 xl:col-start-1 xl:row-start-3")}>
+          {dayHeader}
+          {day}
+        </section>
+
+        <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:col-start-1 xl:row-start-4">
+          <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
+          <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
         </div>
-      )}
+        <GoalRings items={momentum} id="momentum-title-narrow" className={cn(panelClass, "p-5 sm:p-6 xl:hidden")} />
+      </div>
     </PlanSheetProvider>
   );
 }
