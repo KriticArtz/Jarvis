@@ -208,9 +208,13 @@ export default async function DashboardPage() {
           </div>
           <RecommendationCard candidates={candidates} assistantName={assistantName} bare />
           {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
-          {/* Momentum belongs to the console on desktop; on phones it follows the day (below). */}
-          <div className="hidden h-px bg-hairline xl:block" />
-          <GoalRings items={momentum} className="hidden xl:block" />
+          {/* Momentum (only when there's real progress to show) belongs to the console on desktop; on phones it follows the day (below). */}
+          {momentum.length ? (
+            <>
+              <div className="hidden h-px bg-hairline xl:block" />
+              <GoalRings items={momentum} className="hidden xl:block" />
+            </>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-hairline pt-4">
             <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="min-w-0 flex-1" />
             {openConversation}
@@ -231,7 +235,7 @@ export default async function DashboardPage() {
           <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
           <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
         </div>
-        <GoalRings items={momentum} id="momentum-title-narrow" className={cn(panelClass, "p-5 sm:p-6 xl:hidden")} />
+        {momentum.length ? <GoalRings items={momentum} id="momentum-title-narrow" className={cn(panelClass, "p-5 sm:p-6 xl:hidden")} /> : null}
       </div>
     </PlanSheetProvider>
   );

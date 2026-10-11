@@ -216,7 +216,7 @@ function Ring({ ratio, size = 56 }: { ratio: number; size?: number }) {
   );
 }
 
-/** Goals with a measurable target, as progress rings with their real numbers. */
+/** Goals with a measurable target, as progress rings with their real numbers. Render only when there are some. */
 export function GoalRings({ items, layout = "list", id = "momentum-title", className }: { items: { goal: Goal; s: GoalProgressSummary }[]; layout?: "list" | "grid"; id?: string; className?: string }) {
   return (
     <section aria-labelledby={id} className={className}>
@@ -229,41 +229,32 @@ export function GoalRings({ items, layout = "list", id = "momentum-title", class
           </Link>
         }
       />
-      {items.length ? (
-        <ul className={cn(layout === "grid" ? "grid gap-2 sm:grid-cols-2" : "flex flex-col gap-1")}>
-          {items.map(({ goal, s }) => {
-            const pace = PACE[s.pace];
-            const pct = Math.round((s.ratio ?? 0) * 100);
-            return (
-              <li key={goal.id}>
-                <Link
-                  href={`/goals/${goal.id}`}
-                  className="group -mx-2 flex items-center gap-4 rounded-tile px-2 py-2.5 transition-colors hover:bg-surface-2/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
-                >
-                  <span className="relative flex items-center justify-center" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${goal.title} progress`}>
-                    <Ring ratio={s.ratio ?? 0} />
-                    <span aria-hidden className="type-num absolute text-[12px] font-semibold">
-                      {pct}%
-                    </span>
+      <ul className={cn(layout === "grid" ? "grid gap-2 sm:grid-cols-2" : "flex flex-col gap-1")}>
+        {items.map(({ goal, s }) => {
+          const pace = PACE[s.pace];
+          const pct = Math.round((s.ratio ?? 0) * 100);
+          return (
+            <li key={goal.id}>
+              <Link
+                href={`/goals/${goal.id}`}
+                className="group -mx-2 flex items-center gap-4 rounded-tile px-2 py-2.5 transition-colors hover:bg-surface-2/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+              >
+                <span className="relative flex items-center justify-center" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${goal.title} progress`}>
+                  <Ring ratio={s.ratio ?? 0} />
+                  <span aria-hidden className="type-num absolute text-[12px] font-semibold">
+                    {pct}%
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="type-display block truncate text-[21px] leading-tight">{goal.title}</span>
-                    <span className="type-num block truncate text-[13px] text-muted">{s.label}</span>
-                    {pace ? <span className={cn("block text-[12px] font-medium", pace.tone)}>{pace.text}</span> : null}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="text-[14px] text-muted">
-          Goals with a target show their progress here.{" "}
-          <Link href="/goals" className="font-medium text-foreground underline-offset-4 hover:underline">
-            Set one
-          </Link>
-        </p>
-      )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="type-display block truncate text-[21px] leading-tight">{goal.title}</span>
+                  <span className="type-num block truncate text-[13px] text-muted">{s.label}</span>
+                  {pace ? <span className={cn("block text-[12px] font-medium", pace.tone)}>{pace.text}</span> : null}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
