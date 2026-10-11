@@ -155,8 +155,25 @@ export default async function DashboardPage() {
         </header>
 
         <div className="grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:gap-12">
-          {/* The assistant: next action, a way to ask, check-ins and momentum. First on phones, alongside the day on desktop. */}
-          <aside aria-label={assistantName} className="flex flex-col gap-6 xl:sticky xl:top-8 xl:order-2">
+          {/* The day: calendar and timed tasks on one line, then everything untimed. */}
+          <section aria-labelledby="your-day-title" className="min-w-0">
+            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
+              <h2 id="your-day-title" className="type-eyebrow">
+                Your day
+              </h2>
+              <CalendarStatus state={calendarState} isDemo={isDemo} />
+            </div>
+            <DayView
+              tasks={dayTasks}
+              events={dayEvents}
+              timezone={tz}
+              initialNow={nowMinutes}
+              addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />}
+            />
+          </section>
+
+          {/* The assistant: next action, a way to ask, check-ins and momentum. Beside the day on desktop, after it on phones. */}
+          <aside aria-label={assistantName} className="flex flex-col gap-6 xl:sticky xl:top-8">
             <div className="flex items-center justify-between gap-3 px-1">
               <p className="flex items-center gap-2.5 text-[15px] font-semibold">
                 <Presence size="sm" />
@@ -180,23 +197,6 @@ export default async function DashboardPage() {
               isDemo={isDemo}
             />
           </aside>
-
-          {/* The day: calendar and timed tasks on one line, then everything untimed. */}
-          <section aria-labelledby="your-day-title" className="min-w-0 xl:order-1">
-            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
-              <h2 id="your-day-title" className="type-eyebrow">
-                Your day
-              </h2>
-              <CalendarStatus state={calendarState} isDemo={isDemo} />
-            </div>
-            <DayView
-              tasks={dayTasks}
-              events={dayEvents}
-              timezone={tz}
-              initialNow={nowMinutes}
-              addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />}
-            />
-          </section>
         </div>
       </div>
     </PlanSheetProvider>
