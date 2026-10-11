@@ -637,6 +637,10 @@
   --presence-c: color-mix(in oklab, var(--grad-from) 45%, #ffffff);
   --glow: color-mix(in oklab, var(--grad-to) var(--glow-strength), transparent);
   --now: var(--gold-ink);
+  /* Today's assistant console: a deep island of the theme's own colour, in both modes. */
+  --console-bg: color-mix(in oklab, var(--accent) 20%, #050807);
+  --console-accent: color-mix(in oklab, var(--accent) 55%, #ffffff);
+  --console-ink: #0b1210;
   /* Type system: Instrument Serif for display, Geist for UI and the assistant's voice, Geist Mono for clock numerals. */
   --display-face: var(--font-instrument), Georgia, "Times New Roman", serif;
   --display-weight: 400;
@@ -858,6 +862,70 @@ h3 {
     radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--grad-from) 12%, transparent), transparent 55%),
     radial-gradient(120% 140% at 100% 100%, color-mix(in oklab, var(--grad-to) 10%, transparent), transparent 55%),
     var(--surface-raised);
+}
+
+/* Arovenna's console is forest and champagne gold, in light and dark alike. */
+[data-theme="arovenna"] {
+  --console-bg: #08130e;
+  --console-accent: #d4b46c;
+  --console-ink: #1a1408;
+}
+
+/*
+ * Today's assistant console. Everything inside reads the same tokens as the
+ * rest of the app, redefined here for a dark ground, so the recommendation,
+ * buttons, inputs and check-ins inside it need no special cases.
+ */
+.console {
+  color-scheme: dark;
+  --background: var(--console-bg);
+  --surface: color-mix(in oklab, var(--console-bg) 94%, #ffffff);
+  --surface-raised: color-mix(in oklab, var(--console-bg) 90%, #ffffff);
+  --surface-2: color-mix(in oklab, var(--console-bg) 84%, #ffffff);
+  --foreground: #f3efe6;
+  --muted: rgba(243, 239, 230, 0.72);
+  --subtle: rgba(243, 239, 230, 0.52);
+  --border: rgba(243, 239, 230, 0.1);
+  --hairline: rgba(243, 239, 230, 0.09);
+  --line: rgba(243, 239, 230, 0.18);
+  --accent: var(--console-accent);
+  --accent-hover: color-mix(in oklab, var(--console-accent) 82%, #ffffff);
+  --accent-foreground: var(--console-ink);
+  --accent-soft: color-mix(in oklab, var(--console-accent) 16%, var(--console-bg));
+  --ring: color-mix(in oklab, var(--console-accent) 45%, transparent);
+  --now: var(--console-accent);
+  --success: #8fd6ac;
+  --success-soft: color-mix(in oklab, #8fd6ac 14%, var(--console-bg));
+  --warning: #e8c27a;
+  --warning-soft: color-mix(in oklab, #e8c27a 14%, var(--console-bg));
+  --danger: #f2a097;
+  --danger-soft: color-mix(in oklab, #f2a097 14%, var(--console-bg));
+  --on-status: var(--console-bg);
+  --shadow-card: inset 0 0 0 1px rgba(243, 239, 230, 0.08);
+  --shadow-lift: inset 0 1px 0 rgba(243, 239, 230, 0.06), 0 0 0 1px rgba(243, 239, 230, 0.08);
+  color: var(--foreground);
+  background:
+    radial-gradient(90% 60% at 0% 0%, color-mix(in oklab, var(--console-accent) 16%, transparent), transparent 70%),
+    radial-gradient(70% 50% at 100% 100%, color-mix(in oklab, var(--console-accent) 8%, transparent), transparent 70%),
+    var(--console-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(243, 239, 230, 0.08),
+    0 0 0 1px color-mix(in oklab, var(--console-accent) 22%, transparent),
+    0 30px 60px -30px rgba(0, 0, 0, 0.55);
+}
+
+/* Today's sun path: a sky lit where the sun is, and three hills in the theme's colour. */
+.day-arc {
+  background:
+    radial-gradient(38% 70% at var(--sun-x) var(--sun-y), color-mix(in oklab, var(--now) 16%, transparent), transparent 70%),
+    linear-gradient(to bottom, var(--surface-raised), color-mix(in oklab, var(--accent) 5%, var(--surface-raised)));
+}
+.day-arc-hill-3 { fill: color-mix(in oklab, var(--accent) 10%, var(--surface-raised)); }
+.day-arc-hill-2 { fill: color-mix(in oklab, var(--accent) 18%, var(--surface-raised)); }
+.day-arc-hill-1 { fill: color-mix(in oklab, var(--accent) 28%, var(--surface-raised)); }
+.day-arc-sun {
+  background: radial-gradient(circle at 35% 35%, color-mix(in oklab, var(--now) 55%, #ffffff), var(--now) 70%);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--now) 18%, transparent), 0 0 32px 10px color-mix(in oklab, var(--now) 30%, transparent);
 }
 
 /* ----------------------------------------------------------------- Brand mark & wordmark */

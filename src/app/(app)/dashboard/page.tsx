@@ -2,41 +2,47 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { after } from "next/server";
 import { requireOnboardedUser } from "@/lib/auth";
-import { getAssistantActivity, getCheckIns, getGoals, getLatestPlan, getNotificationPreferences, getProgressSince, getTasksForDate } from "@/lib/data/queries";
+import { getAssistantActivity, getCheckIns, getCommitments, getGoals, getLatestPlan, getNotificationPreferences, getProgressSince, getTasksBetween, getTasksForDate } from "@/lib/data/queries";
 import { canReceiveSms } from "@/lib/notifications/scheduler";
 import { requirePhoneVerification } from "@/lib/env";
 import { isAIConfigured } from "@/lib/ai/client";
-import { summarizeGoalProgress, type GoalProgressSummary } from "@/lib/progress";
+import { summarizeGoalProgress } from "@/lib/progress";
 import { resolvePersonalization } from "@/lib/personalization";
 import { buildTimeline, interpretDay, recommendations, sleepSignal, type DayEvent, type DayTask } from "@/lib/dashboard/day";
-import { addDays, dayPart, formatLongDate, formatTime12, localDate, localMinutesNow, monthStart, timeToMinutes, weekStart } from "@/lib/time";
+import { addDays, dayPart, formatLongDate, localDate, localMinutesNow, monthStart, weekStart } from "@/lib/time";
+import { comingUp, dayWindow, weekRhythm, weekSoFar } from "@/lib/dashboard/overview";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadCalendar } from "@/lib/integrations/calendar/context";
 import { syncIfStale } from "@/lib/integrations/calendar/sync";
 import { calendarWriteState } from "@/lib/integrations/calendar/mutations";
 import { loadFitnessSummary } from "@/lib/integrations/fitness/store";
-import type { Goal } from "@/lib/types/domain";
 import { AddTaskForm } from "@/components/dashboard/add-task-form";
 import { DayView } from "@/components/today/day-view";
 import { PlanSheetProvider } from "@/components/today/plan-sheet";
 import { PlanButton, RecommendationCard } from "@/components/today/recommendation";
 import { CheckInPrompt } from "@/components/today/check-in-prompt";
+import { DayArc, DayStrip, type DayMark } from "@/components/today/day-graphic";
+import { AccountabilityStatus, CalendarStatus, ComingUp, GoalRings, PanelHeader, VitalsChips, VitalsRow, WeekRhythm, panelClass, vitals, widePanelClass } from "@/components/today/overview";
 import { cn } from "@/lib/cn";
-import { ArrowUpRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Presence } from "@/components/ui/presence";
 
 export const metadata: Metadata = { title: "Today" };
 
 /** Goals shown in "Momentum" — only ones with real progress to show. */
 const MOMENTUM_MAX = 3;
+/** Days after today that "Coming up" looks ahead. */
+const AHEAD_DAYS = 3;
 
 /**
- * Today: a daily briefing, not a dashboard. Greeting and one honest line
- * about the day → the day as one timeline → what to do first → anything
- * untimed → goal momentum → a check-in only when it's the right time.
- * Everything comes from the user's own data; nothing is invented.
+ * Today: the greeting and one honest line about the day, what to do next,
+ * the day itself, and how the week and goals are going. Everything comes from
+ * the user's own data (tasks, calendar, routines, goal progress); nothing is
+ * invented, and every panel has a plain empty state.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
+  // Two compositions under review; "canvas" is opt-in until one is chosen.
+  const layout = (await searchParams).layout === "canvas" ? "canvas" : "command";
   const { supabase, userId, profile, isDemo } = await requireOnboardedUser();
   const { assistantName } = resolvePersonalization(profile);
   const tz = profile.timezone || "UTC";
@@ -44,7 +50,9 @@ export default async function DashboardPage() {
   const part = dayPart(tz);
   const nowMinutes = localMinutesNow(tz);
 
-  const [tasks, goals, progress, checkIns, plan, prefs, activity, calendar, accepted, calendarState, fitness] = await Promise.all([
+  const monday = weekStart(today);
+  const rangeEnd = [addDays(monday, 6), addDays(today, AHEAD_DAYS)].sort()[1];
+  const [tasks, goals, progress, checkIns, plan, prefs, activity, calendar, accepted, calendarState, fitness, rangeTasks, routines] = await Promise.all([
     getTasksForDate(supabase, userId, today),
     getGoals(supabase, userId, ["active"]),
     getProgressSince(supabase, userId, [monthStart(today), weekStart(today), addDays(today, -1)].sort()[0]),
@@ -52,10 +60,12 @@ export default async function DashboardPage() {
     getLatestPlan(supabase, userId, today),
     getNotificationPreferences(supabase, userId),
     getAssistantActivity(supabase, userId),
-    loadCalendar(supabase, userId, { tz, from: today, days: 1 }),
+    loadCalendar(supabase, userId, { tz, from: today, days: 1 + AHEAD_DAYS }),
     supabase.from("daily_plans").select("id").eq("user_id", userId).eq("plan_date", today).eq("status", "accepted").limit(1),
     isDemo ? Promise.resolve("not_connected" as const) : calendarWriteState(supabase, userId),
     loadFitnessSummary(supabase, userId, { tz, today, days: 8 }).catch(() => null),
+    getTasksBetween(supabase, userId, monday, rangeEnd),
+    getCommitments(supabase, userId),
   ]);
 
   // Keep a connected calendar fresh without making the page wait on Google.
@@ -114,6 +124,52 @@ export default async function DashboardPage() {
     .filter(({ s }) => s.ratio != null)
     .slice(0, MOMENTUM_MAX);
 
+  const marks: DayMark[] = timeline.entries.map((e) => ({
+    key: e.key,
+    kind: e.kind,
+    title: e.title,
+    start: e.start,
+    end: e.end,
+    done: e.kind === "task" && e.task.status === "done",
+    priority: e.kind === "task" && e.task.isPriority,
+  }));
+  const span = dayWindow({ wake: profile.wake_time, sleep: profile.sleep_time, entries: timeline.entries });
+  const week = weekRhythm(rangeTasks, monday, today);
+  const ahead = comingUp({
+    today,
+    days: AHEAD_DAYS,
+    events: (calendar?.days.slice(1) ?? []).flatMap((d) => d.events.map((e) => ({ id: e.id, date: d.date, title: e.title, start: e.start, allDay: e.allDay }))),
+    tasks: rangeTasks,
+    routines,
+    limit: 6,
+  });
+  const glance = vitals({ tasks: dayTasks, events: dayEvents.filter((e) => !e.allDay).length, goals: [...summaries.values()] });
+  const smsOn = !isDemo && canReceiveSms(profile, prefs, { requireVerified: requirePhoneVerification() });
+  const replan = plan?.status === "accepted";
+  const waiting = activity.pending.length;
+
+  const greetingBlock = (
+    <>
+      <h1 className="type-display text-[40px] leading-[1.02] sm:text-[54px]">
+        {greeting}
+        {firstName ? `, ${firstName}` : ""}.
+      </h1>
+      <p className="mt-3 max-w-[52ch] text-[17px] leading-snug text-muted sm:text-[19px]">{line}</p>
+    </>
+  );
+  const day = (
+    <DayView tasks={dayTasks} events={dayEvents} timezone={tz} initialNow={nowMinutes} addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />} />
+  );
+  const dayHeader = <PanelHeader id="your-day-title" title="Your day" action={<CalendarStatus state={calendarState} isDemo={isDemo} />} />;
+  const openConversation = (
+    <Link
+      href="/assistant"
+      className="-my-3 inline-flex min-h-11 items-center gap-1 rounded-full text-[14px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+    >
+      Open conversation <ArrowUpRight className="size-4" aria-hidden />
+    </Link>
+  );
+
   return (
     <PlanSheetProvider
       data={{
@@ -127,206 +183,115 @@ export default async function DashboardPage() {
       }}
     >
       {/* data-layout="wide" lets the app shell give Today a wider canvas; every other page keeps its column. */}
-      <div data-layout="wide" className="flex flex-col gap-10 xl:gap-12">
-        <header className="grid gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-          <div className="min-w-0">
+      {layout === "command" ? (
+        /*
+         * Command: the assistant's console holds the right column for the whole
+         * page; the day reads down the left. On phones the console follows the
+         * greeting, so the next useful action comes first.
+         */
+        <div data-layout="wide" data-composition="command" className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,410px)]">
+          <header className="min-w-0 pt-1 xl:col-start-1 xl:row-start-1">
             <div className="flex items-center justify-between gap-3">
               <p className="type-eyebrow">{formatLongDate(today)}</p>
-              <span className="xl:hidden">
-                <PlanButton replan={plan?.status === "accepted"} />
-              </span>
+              <PlanButton replan={replan} />
             </div>
-            <h1 className="type-display mt-3 text-[44px] leading-[1.02] sm:text-[56px]">
-              {greeting}
-              {firstName ? `, ${firstName}` : ""}.
-            </h1>
-            <p className="mt-3 max-w-[56ch] text-[18px] leading-snug text-muted sm:text-[20px]">{line}</p>
-          </div>
-          <div className="flex flex-col gap-4 xl:items-end">
-            <span className="hidden xl:block">
-              <PlanButton replan={plan?.status === "accepted"} />
-            </span>
-            <AtAGlance
-              tasks={dayTasks}
-              events={dayEvents.filter((e) => !e.allDay).length}
-              goals={[...summaries.values()]}
-            />
-          </div>
-        </header>
+            <div className="mt-3">{greetingBlock}</div>
+          </header>
 
-        <div className="grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:gap-12">
-          {/* The day: calendar and timed tasks on one line, then everything untimed. */}
-          <section aria-labelledby="your-day-title" className="min-w-0">
-            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
-              <h2 id="your-day-title" className="type-eyebrow">
-                Your day
-              </h2>
-              <CalendarStatus state={calendarState} isDemo={isDemo} />
+          <aside
+            aria-label={assistantName}
+            className="console flex flex-col gap-6 rounded-[28px] p-5 sm:p-7 xl:sticky xl:top-8 xl:col-start-2 xl:row-span-4 xl:row-start-1"
+          >
+            <div className="flex items-center gap-3.5">
+              <Presence size={44} />
+              <div className="min-w-0 flex-1">
+                <p className="type-display truncate text-[24px] leading-none">{assistantName}</p>
+                <p className="mt-1.5 text-[13px] text-muted">{waiting ? `${waiting === 1 ? "One change is" : `${waiting} changes are`} waiting for your OK` : "Nothing is waiting for your OK"}</p>
+              </div>
             </div>
-            <DayView
-              tasks={dayTasks}
-              events={dayEvents}
-              timezone={tz}
-              initialNow={nowMinutes}
-              addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />}
-            />
+            <RecommendationCard candidates={candidates} assistantName={assistantName} bare />
+            {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
+            {/* Momentum belongs to the console on desktop; on phones it follows the day (below). */}
+            <div className="hidden h-px bg-hairline xl:block" />
+            <GoalRings items={momentum} className="hidden xl:block" />
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-hairline pt-4">
+              <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="min-w-0 flex-1" />
+              {openConversation}
+            </div>
+          </aside>
+
+          <section aria-label="Today at a glance" className={cn(panelClass, "flex flex-col gap-6 p-5 sm:p-6 xl:col-start-1 xl:row-start-2")}>
+            <VitalsRow items={glance} />
+            <DayStrip marks={marks} window={span} timezone={tz} initialNow={nowMinutes} />
           </section>
 
-          {/* The assistant: next action, a way to ask, check-ins and momentum. Beside the day on desktop, after it on phones. */}
-          <aside aria-label={assistantName} className="flex flex-col gap-6 xl:sticky xl:top-8">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <p className="flex items-center gap-2.5 text-[15px] font-semibold">
-                <Presence size="sm" />
-                {assistantName}
-              </p>
-              <Link
-                href="/assistant"
-                className="-my-3 inline-flex min-h-11 items-center gap-1 text-[14px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
-              >
-                Open conversation <ArrowUpRight className="size-4" aria-hidden />
-              </Link>
-            </div>
-            <RecommendationCard candidates={candidates} assistantName={assistantName} />
-            {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
-            {momentum.length ? <Momentum items={momentum} /> : null}
-            <AccountabilityStatus
-              assistantName={assistantName}
-              smsOn={!isDemo && canReceiveSms(profile, prefs, { requireVerified: requirePhoneVerification() })}
-              prefs={prefs}
-              tz={tz}
-              isDemo={isDemo}
-            />
-          </aside>
+          <section aria-labelledby="your-day-title" className={cn(widePanelClass, "min-w-0 sm:p-6 xl:col-start-1 xl:row-start-3")}>
+            {dayHeader}
+            {day}
+          </section>
+
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:col-start-1 xl:row-start-4">
+            <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
+            <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
+          </div>
+          <GoalRings items={momentum} id="momentum-title-narrow" className={cn(panelClass, "p-5 sm:p-6 xl:hidden")} />
         </div>
-      </div>
+      ) : (
+        /*
+         * Canvas: the day as a landscape across the top — the sun at the real
+         * time over the waking day — then what to do next and the day itself
+         * on the left, and the week, what's coming and goals on the right.
+         */
+        <div data-layout="wide" data-composition="canvas" className="flex flex-col gap-5 sm:gap-6">
+          <header className={cn(panelClass, "relative overflow-hidden")}>
+            <div className="relative z-10 flex flex-col justify-between gap-6 p-5 sm:p-8 lg:min-h-[340px] lg:max-w-[50%]">
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="type-eyebrow">{formatLongDate(today)}</p>
+                  <PlanButton replan={replan} />
+                </div>
+                <div className="mt-3">{greetingBlock}</div>
+              </div>
+              <VitalsChips items={glance} className="hidden flex-wrap lg:flex" />
+            </div>
+            {/* The landscape: a band under the greeting on phones, the right half of the hero on wide screens. */}
+            <DayArc
+              marks={marks}
+              window={span}
+              timezone={tz}
+              initialNow={nowMinutes}
+              className="relative h-32 sm:h-56 lg:absolute lg:inset-y-0 lg:right-0 lg:h-auto lg:w-[56%] lg:[mask-image:linear-gradient(to_right,transparent,black_22%)]"
+            />
+            <VitalsChips items={glance} className="grid grid-cols-2 p-4 sm:p-8 sm:pt-5 lg:hidden" />
+          </header>
+
+          <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+              <section aria-label={assistantName} className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <p className="flex items-center gap-2.5 text-[15px] font-semibold">
+                    <Presence size="sm" />
+                    {assistantName}
+                  </p>
+                  {openConversation}
+                </div>
+                <RecommendationCard candidates={candidates} assistantName={assistantName} />
+                {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
+              </section>
+              <section aria-labelledby="your-day-title" className={cn(widePanelClass, "min-w-0 sm:p-6")}>
+                {dayHeader}
+                {day}
+              </section>
+            </div>
+            <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+              <WeekRhythm days={week} total={weekSoFar(week)} className={cn(panelClass, "p-5 sm:p-6")} />
+              <ComingUp items={ahead} today={today} days={AHEAD_DAYS} className={cn(panelClass, "p-5 sm:p-6")} />
+              <GoalRings items={momentum} className={cn(panelClass, "p-5 sm:p-6")} />
+              <AccountabilityStatus assistantName={assistantName} smsOn={smsOn} prefs={prefs} tz={tz} isDemo={isDemo} className="px-1" />
+            </div>
+          </div>
+        </div>
+      )}
     </PlanSheetProvider>
   );
-}
-
-/** Today in four honest figures, all counted from the user's own data. */
-function AtAGlance({ tasks, events, goals }: { tasks: DayTask[]; events: number; goals: GoalProgressSummary[] }) {
-  const done = tasks.filter((t) => t.status === "done").length;
-  const open = tasks.filter((t) => t.status === "pending");
-  const priorities = open.filter((t) => t.isPriority).length;
-  const tracked = goals.filter((g) => g.pace !== "not_applicable");
-  const onPace = tracked.filter((g) => g.pace === "on_track" || g.pace === "ahead" || g.pace === "done").length;
-  const items = [
-    { label: "Tasks done", value: tasks.length ? `${done} of ${tasks.length}` : "None yet" },
-    { label: "Priorities left", value: String(priorities) },
-    { label: "On your calendar", value: events === 0 ? "None" : events === 1 ? "1 event" : `${events} events` },
-    { label: "Goals on pace", value: tracked.length ? `${onPace} of ${tracked.length}` : "—" },
-  ];
-  return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-tile bg-surface-raised shadow-card sm:grid-cols-4 xl:min-w-[520px]">
-      {items.map((i) => (
-        <div key={i.label} className="flex flex-col gap-1 px-4 py-3 shadow-[inset_1px_0_0_var(--hairline),inset_0_1px_0_var(--hairline)]">
-          <dt className="text-[12px] font-medium text-muted">{i.label}</dt>
-          <dd className="type-num text-[17px] font-semibold tracking-[-0.01em]">{i.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** Where today's events come from — and the way to connect or fix it. */
-function CalendarStatus({ state, isDemo }: { state: "not_connected" | "reauth_required" | "read_only" | "writable"; isDemo: boolean }) {
-  const linkClass = "-my-3 inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring";
-  if (isDemo) return <span className="text-[13px] text-muted">Sample calendar</span>;
-  if (state === "writable" || state === "read_only")
-    return (
-      <Link href="/calendar" className={linkClass}>
-        <CalendarDays className="size-4" aria-hidden /> Google Calendar · Open calendar
-      </Link>
-    );
-  return (
-    <Link href="/settings#integrations" className={linkClass}>
-      <CalendarDays className="size-4" aria-hidden /> {state === "reauth_required" ? "Reconnect Google Calendar" : "Connect Google Calendar"}
-    </Link>
-  );
-}
-
-const PACE: Record<GoalProgressSummary["pace"], { text: string; tone: string } | null> = {
-  ahead: { text: "Ahead of pace", tone: "text-success" },
-  on_track: { text: "On track", tone: "text-success" },
-  behind: { text: "Behind pace", tone: "text-warning" },
-  done: { text: "Done for this period", tone: "text-success" },
-  not_applicable: null,
-};
-
-/** Two or three goals, each as a short sentence — no dashboard tiles. */
-function Momentum({ items }: { items: { goal: Goal; s: GoalProgressSummary }[] }) {
-  return (
-    <section aria-labelledby="momentum-title">
-      <div className="mb-3 flex items-end justify-between gap-3 px-1">
-        <h2 id="momentum-title" className="type-eyebrow">
-          Momentum
-        </h2>
-        <Link href="/goals" className="-my-3 inline-flex min-h-11 items-center text-[14px] font-medium text-muted hover:text-foreground">
-          All goals
-        </Link>
-      </div>
-      <ul className="flex flex-col">
-        {items.map(({ goal, s }) => {
-          const pace = PACE[s.pace];
-          return (
-            <li key={goal.id} className="border-t border-hairline first:border-t-0">
-              <Link
-                href={`/goals/${goal.id}`}
-                className="group block rounded-tile px-1 py-4 transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
-              >
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="type-display truncate text-[24px] leading-tight">{goal.title}</p>
-                  {pace ? <p className={cn("shrink-0 text-[14px] font-medium", pace.tone)}>{pace.text}</p> : null}
-                </div>
-                <div className="mt-2.5 flex items-center gap-3">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={Math.round((s.ratio ?? 0) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${goal.title} progress`}>
-                    <div className="bg-brand-gradient h-full rounded-full transition-[width] duration-(--dur-4) ease-soft" style={{ width: `${Math.max(2, Math.round((s.ratio ?? 0) * 100))}%` }} />
-                  </div>
-                  <p className="type-num shrink-0 text-[14px] text-muted">{s.label}</p>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-/** One quiet line about how the assistant reaches out — not part of the main hierarchy. */
-function AccountabilityStatus({
-  assistantName,
-  smsOn,
-  prefs,
-  tz,
-  isDemo,
-}: {
-  assistantName: string;
-  smsOn: boolean;
-  prefs: Awaited<ReturnType<typeof getNotificationPreferences>>;
-  tz: string;
-  isDemo: boolean;
-}) {
-  let text: React.ReactNode;
-  if (smsOn && prefs) {
-    const now = localMinutesNow(tz);
-    const slots = [
-      prefs.morning_checkin_enabled ? { t: prefs.morning_checkin_time, l: "morning check-in" } : null,
-      prefs.evening_checkin_enabled ? { t: prefs.evening_checkin_time, l: "evening check-in" } : null,
-    ].filter((s): s is { t: string; l: string } => Boolean(s));
-    const next = slots.find((s) => timeToMinutes(s.t) > now) ?? slots[0];
-    text = `${assistantName} checks in by text${next ? ` · next ${next.l} ${formatTime12(next.t)}` : ""}`;
-  } else if (isDemo) {
-    text = `In your own account, ${assistantName} also checks in by text.`;
-  } else {
-    text = (
-      <>
-        {assistantName} can check in by text.{" "}
-        <Link href="/settings#sms" className="-my-3 inline-flex min-h-11 items-center font-medium text-foreground underline-offset-4 hover:underline">
-          Turn it on
-        </Link>
-      </>
-    );
-  }
-  return <p className="border-t border-hairline px-1 pt-5 text-[13px] text-muted">{text}</p>;
 }

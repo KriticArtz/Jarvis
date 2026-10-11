@@ -15,7 +15,7 @@ import { usePlanSheet } from "./plan-sheet";
  * candidate; "Not now" moves to the next one (for this visit). Acting on a
  * task marks it done in place; the rest of Today refreshes from the server.
  */
-export function RecommendationCard({ candidates, assistantName }: { candidates: Recommendation[]; assistantName: string }) {
+export function RecommendationCard({ candidates, assistantName, bare = false }: { candidates: Recommendation[]; assistantName: string; /** Inside a panel that already frames it (Today's console): no card of its own. */ bare?: boolean }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [doneKey, setDoneKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -44,10 +44,10 @@ export function RecommendationCard({ candidates, assistantName }: { candidates: 
     <section
       aria-labelledby="rec-title"
       aria-live="polite"
-      className="bg-assistant animate-rise relative rounded-panel p-5 shadow-lift [animation-delay:120ms] sm:p-7"
+      className={cn("animate-rise relative [animation-delay:120ms]", !bare && "bg-assistant rounded-panel p-5 shadow-lift sm:p-7")}
     >
       <div className="flex items-center gap-2.5">
-        <Presence size="sm" state={presence} />
+        {bare ? null : <Presence size="sm" state={presence} />}
         <p className="type-eyebrow text-foreground/70">{rec.eyebrow}</p>
       </div>
 
