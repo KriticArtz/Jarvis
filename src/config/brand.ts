@@ -2,13 +2,19 @@
  * Central branding. Change the product name, tagline and copy here — nothing
  * else in the codebase hard-codes the brand.
  */
-/** The product name — temporary. Change it here and everything follows. */
-const NAME = "Jarvis";
+/** The product name. Change it here and everything follows. */
+const NAME = "Arovenna";
 
 export const brand = {
   name: NAME,
-  /** Default name for a user's assistant until they choose their own (Settings → Your AI). */
+  /** Default name for a user's assistant until they choose their own (Settings → Your AI). Names users chose are kept. */
   assistantName: NAME,
+  /**
+   * The sender name in SMS texts and the SMS consent wording. These texts are
+   * registered with the carrier (Twilio campaign) under the previous name, so
+   * they keep it until that registration is updated — then change this to NAME.
+   */
+  smsBrandName: "Jarvis",
   tagline: "Your AI should know your life.",
   /** The product category, used on the landing page and in metadata. */
   category: "AI accountability partner",
@@ -17,6 +23,8 @@ export const brand = {
   subheadline: "Your AI accountability partner — it knows your goals and your schedule, and helps you follow through.",
   description:
     `${NAME} is your AI accountability partner. Tell it what you're trying to accomplish — it plans around your calendar, goals and energy, checks in, and helps you turn the things you want to do into the things you actually do.`,
+  /** The canonical public address (metadata, canonical links, social cards). */
+  siteUrl: "https://arovenna.com",
   supportEmail: "support@example.com",
   /**
    * Legal details used by /privacy and /terms. REPLACE before launch:

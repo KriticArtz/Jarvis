@@ -1,6 +1,6 @@
-# Jarvis
+# Arovenna
 
-A personal AI accountability assistant: it knows your goals, helps you plan your time, and keeps you accountable. (Formerly "LifePilot" — some technical identifiers such as the npm package name and the local Supabase `project_id` keep that name. Each user can also give their own assistant a personal name; see [Personalization](#personalization) and [Rebranding](#rebranding).)
+Arovenna (formerly Jarvis) is a personal AI accountability assistant: it knows your goals, helps you plan your time, and keeps you accountable. (Formerly "LifePilot" — some technical identifiers such as the npm package name and the local Supabase `project_id` keep that name. Each user can also give their own assistant a personal name; see [Personalization](#personalization) and [Rebranding](#rebranding).)
 
 Built with Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Supabase (Auth + Postgres with Row Level Security) and the OpenAI API. It deploys to Vercel. The SMS architecture is designed for Twilio.
 

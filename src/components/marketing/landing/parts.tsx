@@ -8,7 +8,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 /**
  * Building blocks for the landing page's product scenes. They reuse the app's
  * own pieces (assistant avatar, chat bubble shapes, action chips, progress
- * bars) so the page shows what Jarvis actually looks like.
+ * bars) so the page shows what Arovenna actually looks like.
  */
 
 export const ASSISTANT = brand.assistantName;

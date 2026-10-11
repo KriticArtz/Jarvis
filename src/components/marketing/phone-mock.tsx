@@ -1,4 +1,5 @@
 import { brand } from "@/config/brand";
+import { LogoMark } from "@/components/logo";
 import { cn } from "@/lib/cn";
 
 type Msg = { from: "ai" | "me"; text: string; time?: string };
@@ -9,7 +10,7 @@ export function PhoneMock({ messages, className }: { messages: Msg[]; className?
     <div className={cn("relative mx-auto w-[300px] shrink-0 rounded-[48px] bg-[#0f1113] p-[10px] shadow-[0_40px_80px_-30px_rgba(16,24,40,0.45)]", className)} aria-label="Example text conversation">
       <div className="overflow-hidden rounded-[40px] bg-surface">
         <div className="flex flex-col items-center gap-1 border-b border-hairline bg-surface-2/60 pb-3 pt-7">
-          <span className="flex size-10 items-center justify-center rounded-full bg-brand-gradient text-[15px] font-semibold text-white">{brand.name.charAt(0)}</span>
+          <LogoMark className="size-10" />
           <span className="text-[12px] font-semibold">{brand.name}</span>
         </div>
         <div className="flex min-h-[380px] flex-col gap-2 px-3 py-4 text-left text-[14px] leading-snug">

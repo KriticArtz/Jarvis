@@ -12,7 +12,7 @@ import { cleanSubject, fromWithName, renderEmail, replyAddress } from "./templat
 import { safeMessageId } from "./parse";
 
 /**
- * Outbound email: the single path every Jarvis email goes through.
+ * Outbound email: the single path every Arovenna email goes through.
  *   eligibility (opted in, confirmed auth email, not a demo account, daily cap)
  *   -> record (unique dedupe key = no duplicate sends) -> send -> status.
  * The recipient is ALWAYS the account's own auth email, looked up here —
@@ -29,7 +29,7 @@ export interface EmailDeps {
 /** Hard cap on replies per day: protects against auto-responder loops. */
 export const REPLY_DAILY_CAP = 30;
 /** Placeholders used in test mode, never for real delivery. */
-const TEST_FROM = "Jarvis <jarvis@example.invalid>";
+const TEST_FROM = "Arovenna <hello@example.invalid>";
 const TEST_REPLY_DOMAIN = "reply.example.invalid";
 
 const testProvider = new TestEmailProvider();

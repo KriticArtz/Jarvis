@@ -30,7 +30,7 @@ export function replySubject(subject: string | null | undefined): string {
 }
 
 /**
- * "Jarvis <jarvis@mail.example.com>" + "Ava" → "Ava <jarvis@mail.example.com>".
+ * "Arovenna <hello@mail.example.com>" + "Ava" → "Ava <hello@mail.example.com>".
  * Only the display name changes; the verified sending address is kept.
  */
 export function fromWithName(from: string, name: string): string {

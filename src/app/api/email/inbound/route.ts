@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const MAX_BODY_BYTES = 256 * 1024;
 
 /**
- * Resend inbound email webhook (email replies to Jarvis).
+ * Resend inbound email webhook (email replies to Arovenna).
  * Configure in Resend: Webhooks → Add endpoint →
  *   POST https://<your-domain>/api/email/inbound, event "email.received",
  *   and set RESEND_WEBHOOK_SECRET to the endpoint's signing secret.

@@ -12,8 +12,18 @@ import type { AccountabilityStyle, Profile } from "@/lib/types/domain";
 export const PERSONALITIES = ["supportive", "direct", "motivational", "tough_love", "professional"] as const;
 export type Personality = (typeof PERSONALITIES)[number];
 
+/** Themes a user can have saved (the database check constraint allows exactly these). */
 export const THEMES = ["ocean", "midnight", "violet", "rose", "emerald", "warm"] as const;
-export type Theme = (typeof THEMES)[number];
+export type StoredTheme = (typeof THEMES)[number];
+
+/**
+ * Every look the app can show: Arovenna (the brand default) plus the saved
+ * themes. Arovenna is never stored — it is what an unset preference means —
+ * so choosing it saves null, and explicit choices (including Ocean, the
+ * previous default) are kept exactly as they are.
+ */
+export const LOOKS = ["arovenna", ...THEMES] as const;
+export type Theme = (typeof LOOKS)[number];
 
 /** Light/dark appearance, independent of the color theme. */
 export const APPEARANCES = ["light", "dark", "system"] as const;
@@ -27,9 +37,9 @@ export const APPEARANCE_OPTIONS: { value: Appearance; title: string }[] = [
 
 export const DEFAULT_ASSISTANT_NAME: string = brand.assistantName;
 export const DEFAULT_PERSONALITY: Personality = "supportive";
-export const DEFAULT_THEME: Theme = "ocean";
+export const DEFAULT_THEME: Theme = "arovenna";
 export const ASSISTANT_NAME_MAX = 24;
-export const ASSISTANT_NAME_SUGGESTIONS = ["Jarvis", "Nova", "Atlas", "Friday", "Coach"] as const;
+export const ASSISTANT_NAME_SUGGESTIONS = ["Arovenna", "Nova", "Atlas", "Friday", "Coach"] as const;
 
 export const PERSONALITY_OPTIONS: { value: Personality; title: string; body: string; example: string }[] = [
   { value: "supportive", title: "Supportive", body: "Encouraging, patient, and positive.", example: "“Nice work yesterday. Want to start with a quick 20 minutes on your course?”" },
@@ -40,6 +50,7 @@ export const PERSONALITY_OPTIONS: { value: Personality; title: string; body: str
 ];
 
 export const THEME_OPTIONS: { value: Theme; title: string; from: string; to: string }[] = [
+  { value: "arovenna", title: "Arovenna", from: "#1d5a42", to: "#c9a85c" },
   { value: "ocean", title: "Ocean", from: "#14b3a4", to: "#0a84d6" },
   { value: "midnight", title: "Midnight", from: "#8aa2ff", to: "#4255e0" },
   { value: "violet", title: "Violet", from: "#a26bff", to: "#5b47f0" },
@@ -67,7 +78,10 @@ export const assistantNameSchema = z
   );
 export const personalitySchema = z.enum(PERSONALITIES);
 export const appearanceSchema = z.enum(APPEARANCES);
+/** A saved theme (what the database holds). */
 export const themeSchema = z.enum(THEMES);
+/** A theme choice from the UI; Arovenna is stored as null ("use the default"). */
+export const themeChoiceSchema = z.enum(LOOKS).transform((t): StoredTheme | null => (t === "arovenna" ? null : t));
 
 /** Older 3-option accountability style → closest personality. */
 const LEGACY_STYLE: Record<AccountabilityStyle, Personality> = {

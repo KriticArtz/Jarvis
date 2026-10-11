@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, MessageCircle, Play, Target, TrendingUp } from "lucide-react";
 import { brand } from "@/config/brand";
-import { Logo } from "@/components/logo";
+import { Logo, LogoMark, Wordmark } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { LegalLinks } from "@/components/legal/legal-links";
 import { PERSONALITY_OPTIONS } from "@/lib/personalization";
@@ -17,7 +17,7 @@ import { PersonalityScene } from "@/components/marketing/landing/personality-sce
 import { CompareScene } from "@/components/marketing/landing/compare-scene";
 import { AppearanceToggle, appearanceBootScript } from "@/components/marketing/landing/appearance-toggle";
 
-export const metadata: Metadata = { title: { absolute: `${brand.name} — ${brand.tagline}` } };
+export const metadata: Metadata = { title: { absolute: `${brand.name} — ${brand.tagline}` }, alternates: { canonical: "/" } };
 
 const DEMO_TRIES = [
   { icon: MessageCircle, text: "“I only have two hours tonight. What should I do?”" },
@@ -52,23 +52,26 @@ function DemoNudge({ text }: { text: string }) {
 }
 
 /**
- * Public landing page. Light/Dark uses the app's appearance modes and tokens
- * (data-mode on the wrapper): it follows the system until the visitor picks
- * one with the toggle, which is remembered in this browser. Product name and
- * taglines come from src/config/brand.ts.
+ * Public landing page. The header and hero are always Arovenna's dark forest;
+ * the sections that explain the product are warm ivory by default (the
+ * visitor can switch them with the toggle, remembered in this browser).
+ * Product name and taglines come from src/config/brand.ts.
  */
 export default function LandingPage() {
   return (
     // The boot script may set data-mode before hydration (saved choice), hence suppressHydrationWarning.
-    <div data-mode="system" suppressHydrationWarning className="landing min-h-dvh overflow-x-hidden">
+    <div data-mode="light" suppressHydrationWarning className="landing min-h-dvh overflow-x-hidden">
       <script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} />
       <noscript>
         <style>{`.landing .r{opacity:1!important;transform:none!important}.landing .typing{display:none}`}</style>
       </noscript>
 
-      <header className="sticky top-0 z-30 border-b border-hairline bg-background/70 backdrop-blur-xl backdrop-saturate-150">
+      <header data-mode="dark" className="landing landing-header sticky top-0 z-30 border-b border-hairline bg-background/80 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:px-8">
-          <Logo />
+          <Link href="/" className="flex items-center gap-3" aria-label={`${brand.name} home`}>
+            <LogoMark className="size-9" />
+            <Wordmark width={132} className="hidden sm:block" />
+          </Link>
           <nav className="flex items-center gap-1.5 sm:gap-2" aria-label="Main">
             <AppearanceToggle />
             <span className="hidden sm:block">
@@ -84,26 +87,21 @@ export default function LandingPage() {
       </header>
 
       <main>
-        {/* 1 — Hero */}
-        <section className="relative" aria-labelledby="hero-title">
+        {/* 1 — Hero: always forest */}
+        <section data-mode="dark" className="landing landing-hero relative" aria-labelledby="hero-title">
           <div aria-hidden className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[720px]" />
-          <Reveal threshold={0} className="relative mx-auto max-w-6xl px-5 pb-16 pt-10 text-center sm:px-8 sm:pt-14 md:pb-24 md:pt-16">
-            <p className="r glass mx-auto inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-medium text-muted">
-              <span className="relative flex size-2">
-                <span className="ping absolute inset-0 rounded-full" />
-                <span className="relative size-2 rounded-full bg-brand-gradient" />
-              </span>
-              Your {brand.category}
-            </p>
-            <h1 id="hero-title" className="r mx-auto mt-6 max-w-4xl text-[46px] font-bold leading-[1.02] tracking-[-0.045em] sm:text-[68px] md:text-[84px]" style={delay(80)}>
-              Your AI should <span className="text-gradient">know your life.</span>
+          <Reveal threshold={0} className="relative mx-auto max-w-6xl px-5 pb-16 pt-8 text-center sm:px-8 sm:pt-14 md:pb-24 md:pt-16">
+            <p className="r text-[12px] font-semibold uppercase tracking-[0.16em] text-gold-ink">Your {brand.category}</p>
+            <h1 id="hero-title" className="r mx-auto mt-4 max-w-4xl text-[44px] leading-[1.02] sm:text-[72px] md:text-[88px]" style={delay(80)}>
+              Turn what you want to do into what you <span className="text-gradient">actually</span> do.
             </h1>
-            <p className="r mx-auto mt-5 max-w-2xl text-[18px] leading-relaxed text-muted sm:text-[20px]" style={delay(160)}>
+            <p className="r mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-muted sm:text-[20px]" style={delay(160)}>
               Tell it what you&apos;re trying to accomplish. {brand.name} understands your calendar, goals, and routines — it helps you plan your time, checks
               in when it matters, and helps you actually follow through.
             </p>
             <div className="r mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row" style={delay(240)}>
-              <ButtonLink href="/demo" size="lg" className="w-full shadow-[0_12px_32px_-12px_var(--accent)] sm:w-auto">
+              {/* The one place gold is a fill: the primary conversion. */}
+              <ButtonLink href="/demo" size="lg" className="landing-cta w-full sm:w-auto">
                 <Play className="size-4 fill-current" aria-hidden /> Try the Demo
               </ButtonLink>
             </div>

@@ -6,10 +6,16 @@ export type PresenceState = "idle" | "listening" | "thinking" | "acting" | "comp
 const SIZES = { xs: 16, sm: 24, md: 32, lg: 48, xl: 96, hero: 160 } as const;
 
 /**
- * The AI's living mark — the product's recurring identity, independent of
- * the assistant's (or the product's) name. A theme-gradient orb that
- * breathes when idle, brightens while listening, ripples while thinking,
- * sends out a pulse while acting, and settles calmly once complete. Styles live in globals.css (.presence).
+ * The Arovenna seal — the assistant's mark, independent of the name the user
+ * gave it. The supplied Arovenna emblem (public/brand/arovenna-logo.webp,
+ * cropped for display, never redrawn) inside a fine gold ring.
+ *
+ * Still when idle. Motion only while something is really happening:
+ * listening (the user is typing to it), thinking (a reply is streaming),
+ * acting (an action is running), complete (once, as it finishes). Reduced
+ * motion removes all of it; each state stays distinct without motion.
+ * Callers pass the real state; never use a state to decorate. Styles live in
+ * globals.css (.presence).
  *
  * Decorative by default; pass `label` when it stands alone (e.g. a tab).
  */
@@ -32,10 +38,19 @@ export function Presence({
       style={{ "--presence-size": `${px}px` } as CSSProperties}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
-      <span className="presence-glow" />
-      <span className="presence-ring" />
-      <span className="presence-ring" />
-      <span className="presence-core" />
+      <span className="presence-halo" />
+      <span className="presence-impression" />
+      <svg className="presence-ring" viewBox="0 0 100 100" aria-hidden>
+        <circle className="presence-track" cx="50" cy="50" r="49" />
+        {/* The arc starts at 12 o'clock; thinking turns the circle itself. */}
+        <g transform="rotate(-90 50 50)">
+          <circle className="presence-arc" cx="50" cy="50" r="49" pathLength={100} />
+        </g>
+      </svg>
+      <span className="presence-face">
+        <span className="presence-emblem" />
+        <span className="presence-sheen" />
+      </span>
     </span>
   );
 }

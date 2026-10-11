@@ -9,16 +9,20 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const instrumentSerif = Instrument_Serif({ variable: "--font-instrument", weight: "400", style: ["normal", "italic"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(brand.siteUrl),
   title: { default: `${brand.name} — ${brand.tagline}`, template: `%s · ${brand.name}` },
   description: brand.description,
+  applicationName: brand.name,
+  openGraph: { type: "website", siteName: brand.name, title: `${brand.name} — ${brand.tagline}`, description: brand.description },
+  twitter: { card: "summary_large_image", title: `${brand.name} — ${brand.tagline}`, description: brand.description },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f5f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0b0d" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f1e6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1310" },
   ],
 };
 

@@ -178,7 +178,7 @@ export type EmailMode = "disabled" | "test" | "live";
 
 export interface ResendConfig {
   apiKey: string;
-  /** Verified sender, e.g. "Jarvis <jarvis@mail.your-domain.com>". */
+  /** Verified sender, e.g. "Arovenna <hello@mail.your-domain.com>". */
   from: string;
   /**
    * Domain that receives replies through Resend inbound (EMAIL_REPLY_DOMAIN,

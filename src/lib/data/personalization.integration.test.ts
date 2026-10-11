@@ -53,6 +53,20 @@ describe.skipIf(!enabled)("personalization (real Supabase, RLS)", () => {
     expect(mode).toEqual({ appearance: null });
   });
 
+  it("Arovenna is the default look and name; a saved Ocean and a chosen name are kept; choosing Arovenna stores null", async () => {
+    expect(DEFAULTS).toMatchObject({ theme: "arovenna", assistantName: "Arovenna" });
+    // An existing user who explicitly chose Ocean (the previous default) and a name keeps both.
+    await users.b.db.from("profiles").update({ theme: "ocean", assistant_name: "Jarvis" }).eq("id", users.b.id);
+    expect(await getPersonalization(users.b.db, users.b.id)).toMatchObject({ theme: "ocean", assistantName: "Jarvis" });
+    // Choosing Arovenna in Settings stores null ("use the default") — no new database value.
+    expect(await updatePersonalization(users.b.db, users.b.id, { theme: "arovenna" })).toMatchObject({ ok: true, personalization: { theme: "arovenna" } });
+    expect((await users.b.db.from("profiles").select("theme").eq("id", users.b.id).single()).data).toEqual({ theme: null });
+    // And back to Ocean.
+    expect(await updatePersonalization(users.b.db, users.b.id, { theme: "ocean" })).toMatchObject({ ok: true, personalization: { theme: "ocean" } });
+    expect((await users.b.db.from("profiles").select("theme").eq("id", users.b.id).single()).data).toEqual({ theme: "ocean" });
+    await users.b.db.from("profiles").update({ theme: null, assistant_name: null }).eq("id", users.b.id);
+  });
+
   it("persists the assistant name, personality and theme", async () => {
     const res = await updatePersonalization(users.a.db, users.a.id, { assistant_name: "  Nova ", assistant_personality: "tough_love", theme: "violet" });
     expect(res).toEqual({ ok: true, personalization: { assistantName: "Nova", personality: "tough_love", theme: "violet", appearance: "system" } });

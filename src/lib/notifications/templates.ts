@@ -59,13 +59,13 @@ export function eveningMessage(completed: number, planned: number, persona: Assi
 }
 
 export function consentConfirmationMessage(): string {
-  return `${brand.name}: You're set up for accountability texts. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out.`;
+  return `${brand.smsBrandName}: You're set up for accountability texts. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out.`;
 }
 
 export function helpMessage(): string {
-  return `${brand.name} accountability texts. Reply to chat with your assistant. Reply STOP to opt out. Support: ${brand.supportEmail}`;
+  return `${brand.smsBrandName} accountability texts. Reply to chat with your assistant. Reply STOP to opt out. Support: ${brand.supportEmail}`;
 }
 
 export function stopConfirmationMessage(): string {
-  return `${brand.name}: You've been unsubscribed and won't receive more texts. Reply START to resubscribe.`;
+  return `${brand.smsBrandName}: You've been unsubscribed and won't receive more texts. Reply START to resubscribe.`;
 }

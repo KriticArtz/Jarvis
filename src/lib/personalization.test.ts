@@ -15,6 +15,7 @@ import {
   personaFrom,
   personalitySchema,
   resolvePersonalization,
+  themeChoiceSchema,
   themeSchema,
 } from "./personalization";
 import { personalizationUpdateSchema } from "./data/personalization";
@@ -54,9 +55,24 @@ describe("personality and theme values", () => {
     for (const p of PERSONALITY_OPTIONS) expect(p.body.length).toBeGreaterThan(10);
   });
 
-  it("offers exactly the six themes", () => {
+  it("stores exactly the six saved themes and offers Arovenna as the default look", () => {
+    // What the database can hold is unchanged (its check constraint allows these six).
     expect([...THEMES]).toEqual(["ocean", "midnight", "violet", "rose", "emerald", "warm"]);
-    expect(THEME_OPTIONS.map((t) => t.value)).toEqual([...THEMES]);
+    expect(THEME_OPTIONS.map((t) => t.value)).toEqual(["arovenna", ...THEMES]);
+    expect(DEFAULT_THEME).toBe("arovenna");
+  });
+
+  it("choosing Arovenna stores null; explicit choices, including Ocean, are stored as chosen", () => {
+    expect(themeChoiceSchema.parse("arovenna")).toBeNull();
+    expect(themeChoiceSchema.parse("ocean")).toBe("ocean");
+    expect(themeChoiceSchema.parse("midnight")).toBe("midnight");
+    expect(themeChoiceSchema.safeParse("teal").success).toBe(false);
+  });
+
+  it("an unset theme resolves to Arovenna; a saved Ocean stays Ocean", () => {
+    expect(resolvePersonalization({ theme: null }).theme).toBe("arovenna");
+    expect(resolvePersonalization({ theme: "ocean" }).theme).toBe("ocean");
+    expect(resolvePersonalization({ theme: "ocean" }).appearance).toBe("system");
   });
 
   it.each(["", "gentle", "balanced", "sarcastic", "DIRECT", "tough love", null, 3])("rejects personality %j", (v) => {

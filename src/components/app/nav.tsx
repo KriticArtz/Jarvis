@@ -85,7 +85,8 @@ function RailLink({ href, label, icon: Icon, active }: NavItem & { active: boole
         </span>
       ) : (
         <span className="flex h-12 items-center justify-center rounded-full group-focus-visible:ring-4 group-focus-visible:ring-ring">
-          <Presence size={active ? 38 : 34} state={active ? "listening" : "idle"} className="transition-[width,height] duration-(--dur-3) ease-soft" />
+          {/* Being on the Assistant page isn't assistant activity: the seal stays idle here. */}
+          <Presence size={active ? 38 : 34} className="transition-[width,height] duration-(--dur-3) ease-soft" />
         </span>
       )}
       <span
@@ -128,7 +129,7 @@ export function TabBar() {
                 </span>
               ) : (
                 <span className="-mt-5 flex size-[52px] items-center justify-center rounded-full bg-background shadow-[0_0_0_1px_var(--hairline)] transition-transform duration-(--dur-2) ease-soft group-active:scale-90 group-focus-visible:ring-4 group-focus-visible:ring-ring">
-                  <Presence size={40} state={active ? "listening" : "idle"} />
+                  <Presence size={40} />
                 </span>
               )}
               <span

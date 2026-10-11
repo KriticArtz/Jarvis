@@ -26,9 +26,9 @@ const RECOVERY = [
 ];
 
 /**
- * "ChatGPT answers. Jarvis follows through." Not a knock on general AI — a
+ * "ChatGPT answers. Arovenna follows through." Not a knock on general AI — a
  * fair picture of the difference: general AI is built around a conversation;
- * Jarvis is built around continuity with your goals, schedule and progress
+ * Arovenna is built around continuity with your goals, schedule and progress
  * (a highlight travels through the loop continuously). Then two examples of
  * how it helps when the day doesn't go to plan.
  */
@@ -74,7 +74,7 @@ export function CompareScene() {
           <p className="mt-3 text-[13.5px] text-muted">Great for questions, ideas and drafts. Turning the answer into a routine is up to you.</p>
         </div>
 
-        {/* Jarvis: a loop that keeps going */}
+        {/* Arovenna: a loop that keeps going */}
         <div className="r glass glow relative overflow-hidden rounded-[24px] p-4 sm:p-6" style={delay(250)}>
           <div className="mb-4 flex items-center gap-2.5">
             <AssistantAvatar name={ASSISTANT} className="size-7 text-[12px]" />

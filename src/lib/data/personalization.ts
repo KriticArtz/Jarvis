@@ -1,13 +1,13 @@
 import { z } from "zod";
 import type { DB } from "@/lib/data/db";
-import { appearanceSchema, assistantNameSchema, personalitySchema, resolvePersonalization, themeSchema, type Personalization } from "@/lib/personalization";
+import { appearanceSchema, assistantNameSchema, personalitySchema, resolvePersonalization, themeChoiceSchema, type Personalization } from "@/lib/personalization";
 
 /** A partial update — only the provided fields change. Unknown keys are rejected. */
 export const personalizationUpdateSchema = z
   .object({
     assistant_name: assistantNameSchema.optional(),
     assistant_personality: personalitySchema.optional(),
-    theme: themeSchema.optional(),
+    theme: themeChoiceSchema.optional(),
     appearance: appearanceSchema.optional(),
   })
   .strict()

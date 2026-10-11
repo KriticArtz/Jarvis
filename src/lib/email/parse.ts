@@ -3,7 +3,7 @@
  * email as untrusted input: it only extracts, never decides who the user is.
  */
 
-/** "Jarvis <a@b.com>" / "a@b.com" → "a@b.com" (lower-cased), or null. */
+/** "Arovenna <a@b.com>" / "a@b.com" → "a@b.com" (lower-cased), or null. */
 export function parseAddress(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const inner = /<([^<>\s]+)>/.exec(raw)?.[1] ?? raw.trim();
@@ -54,7 +54,7 @@ const CUT_LINE = [
   /^--\s?$/, // signature delimiter
   /^(le|am|el|il|op)\s.+(a écrit|schrieb|escribió|ha scritto|schreef)\s?:\s*$/i,
 ];
-/** "On Tue, Oct 6, 2026 at 5:45 PM Jarvis <...> wrote:" — may wrap over 2–3 lines. */
+/** "On Tue, Oct 6, 2026 at 5:45 PM Arovenna <...> wrote:" — may wrap over 2–3 lines. */
 const ON_WROTE = /^on\s[\s\S]{0,300}?wrote:\s*$/im;
 
 /**
