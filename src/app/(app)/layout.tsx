@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <NavRail offsetTop={isDemo} />
         <div className="flex min-h-dvh min-w-0 flex-col md:pl-[84px]">
           <MobileHeader />
-          <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-36 pt-[max(1.5rem,env(safe-area-inset-top))] outline-none sm:px-6 md:px-10 md:pb-16 md:pt-12">
+          <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[760px] flex-1 has-[[data-layout=wide]]:max-w-[1360px] px-4 pb-36 pt-[max(1.5rem,env(safe-area-inset-top))] outline-none sm:px-6 md:px-10 md:pb-16 md:pt-12">
             {children}
           </main>
         </div>

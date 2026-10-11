@@ -22,6 +22,8 @@ import { PlanSheetProvider } from "@/components/today/plan-sheet";
 import { PlanButton, RecommendationCard } from "@/components/today/recommendation";
 import { CheckInPrompt } from "@/components/today/check-in-prompt";
 import { cn } from "@/lib/cn";
+import { ArrowUpRight, CalendarDays } from "lucide-react";
+import { Presence } from "@/components/ui/presence";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -124,41 +126,122 @@ export default async function DashboardPage() {
         assistantName,
       }}
     >
-      <div className="flex flex-col gap-section">
-        <header>
-          <div className="flex items-center justify-between gap-3">
-            <p className="type-eyebrow">{formatLongDate(today)}</p>
-            <PlanButton replan={plan?.status === "accepted"} />
+      {/* data-layout="wide" lets the app shell give Today a wider canvas; every other page keeps its column. */}
+      <div data-layout="wide" className="flex flex-col gap-10 xl:gap-12">
+        <header className="grid gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <p className="type-eyebrow">{formatLongDate(today)}</p>
+              <span className="xl:hidden">
+                <PlanButton replan={plan?.status === "accepted"} />
+              </span>
+            </div>
+            <h1 className="type-display mt-3 text-[44px] leading-[1.02] sm:text-[56px]">
+              {greeting}
+              {firstName ? `, ${firstName}` : ""}.
+            </h1>
+            <p className="mt-3 max-w-[56ch] text-[18px] leading-snug text-muted sm:text-[20px]">{line}</p>
           </div>
-          <h1 className="type-display mt-3 text-[44px] leading-[1.02] sm:text-[56px]">
-            {greeting}
-            {firstName ? `, ${firstName}` : ""}.
-          </h1>
-          <p className="mt-3 text-[18px] leading-snug text-muted sm:text-[20px]">{line}</p>
+          <div className="flex flex-col gap-4 xl:items-end">
+            <span className="hidden xl:block">
+              <PlanButton replan={plan?.status === "accepted"} />
+            </span>
+            <AtAGlance
+              tasks={dayTasks}
+              events={dayEvents.filter((e) => !e.allDay).length}
+              goals={[...summaries.values()]}
+            />
+          </div>
         </header>
 
-        <DayView
-          tasks={dayTasks}
-          events={dayEvents}
-          timezone={tz}
-          initialNow={nowMinutes}
-          middle={<RecommendationCard candidates={candidates} assistantName={assistantName} />}
-          addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />}
-        />
+        <div className="grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:gap-12">
+          {/* The assistant: next action, a way to ask, check-ins and momentum. First on phones, alongside the day on desktop. */}
+          <aside aria-label={assistantName} className="flex flex-col gap-6 xl:sticky xl:top-8 xl:order-2">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <p className="flex items-center gap-2.5 text-[15px] font-semibold">
+                <Presence size="sm" />
+                {assistantName}
+              </p>
+              <Link
+                href="/assistant"
+                className="-my-3 inline-flex min-h-11 items-center gap-1 text-[14px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+              >
+                Open conversation <ArrowUpRight className="size-4" aria-hidden />
+              </Link>
+            </div>
+            <RecommendationCard candidates={candidates} assistantName={assistantName} />
+            {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
+            {momentum.length ? <Momentum items={momentum} /> : null}
+            <AccountabilityStatus
+              assistantName={assistantName}
+              smsOn={!isDemo && canReceiveSms(profile, prefs, { requireVerified: requirePhoneVerification() })}
+              prefs={prefs}
+              tz={tz}
+              isDemo={isDemo}
+            />
+          </aside>
 
-        {momentum.length ? <Momentum items={momentum} /> : null}
-
-        {checkInKind ? <CheckInPrompt kind={checkInKind} assistantName={assistantName} /> : null}
-
-        <AccountabilityStatus
-          assistantName={assistantName}
-          smsOn={!isDemo && canReceiveSms(profile, prefs, { requireVerified: requirePhoneVerification() })}
-          prefs={prefs}
-          tz={tz}
-          isDemo={isDemo}
-        />
+          {/* The day: calendar and timed tasks on one line, then everything untimed. */}
+          <section aria-labelledby="your-day-title" className="min-w-0 xl:order-1">
+            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
+              <h2 id="your-day-title" className="type-eyebrow">
+                Your day
+              </h2>
+              <CalendarStatus state={calendarState} isDemo={isDemo} />
+            </div>
+            <DayView
+              tasks={dayTasks}
+              events={dayEvents}
+              timezone={tz}
+              initialNow={nowMinutes}
+              addTask={<AddTaskForm goals={goals.map((g) => ({ id: g.id, title: g.title }))} />}
+            />
+          </section>
+        </div>
       </div>
     </PlanSheetProvider>
+  );
+}
+
+/** Today in four honest figures, all counted from the user's own data. */
+function AtAGlance({ tasks, events, goals }: { tasks: DayTask[]; events: number; goals: GoalProgressSummary[] }) {
+  const done = tasks.filter((t) => t.status === "done").length;
+  const open = tasks.filter((t) => t.status === "pending");
+  const priorities = open.filter((t) => t.isPriority).length;
+  const tracked = goals.filter((g) => g.pace !== "not_applicable");
+  const onPace = tracked.filter((g) => g.pace === "on_track" || g.pace === "ahead" || g.pace === "done").length;
+  const items = [
+    { label: "Tasks done", value: tasks.length ? `${done} of ${tasks.length}` : "None yet" },
+    { label: "Priorities left", value: String(priorities) },
+    { label: "On your calendar", value: events === 0 ? "None" : events === 1 ? "1 event" : `${events} events` },
+    { label: "Goals on pace", value: tracked.length ? `${onPace} of ${tracked.length}` : "—" },
+  ];
+  return (
+    <dl className="grid grid-cols-2 overflow-hidden rounded-tile bg-surface-raised shadow-card sm:grid-cols-4 xl:min-w-[520px]">
+      {items.map((i) => (
+        <div key={i.label} className="flex flex-col gap-1 px-4 py-3 shadow-[inset_1px_0_0_var(--hairline),inset_0_1px_0_var(--hairline)]">
+          <dt className="text-[12px] font-medium text-muted">{i.label}</dt>
+          <dd className="type-num text-[17px] font-semibold tracking-[-0.01em]">{i.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Where today's events come from — and the way to connect or fix it. */
+function CalendarStatus({ state, isDemo }: { state: "not_connected" | "reauth_required" | "read_only" | "writable"; isDemo: boolean }) {
+  const linkClass = "-my-3 inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring";
+  if (isDemo) return <span className="text-[13px] text-muted">Sample calendar</span>;
+  if (state === "writable" || state === "read_only")
+    return (
+      <Link href="/calendar" className={linkClass}>
+        <CalendarDays className="size-4" aria-hidden /> Google Calendar · Open calendar
+      </Link>
+    );
+  return (
+    <Link href="/settings#integrations" className={linkClass}>
+      <CalendarDays className="size-4" aria-hidden /> {state === "reauth_required" ? "Reconnect Google Calendar" : "Connect Google Calendar"}
+    </Link>
   );
 }
 
