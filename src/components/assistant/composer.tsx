@@ -63,7 +63,7 @@ export const Composer = forwardRef<
           rows={1}
           maxLength={4000}
           placeholder={placeholder}
-          className="max-h-44 min-h-11 flex-1 resize-none bg-transparent py-[11px] text-[16px] leading-[22px] placeholder:text-subtle focus:outline-none"
+          className="max-h-44 min-h-11 flex-1 resize-none bg-transparent py-[11px] text-[16px] leading-[22px] placeholder:text-muted focus:outline-none"
           style={{ fieldSizing: "content" } as React.CSSProperties}
         />
         <button
@@ -78,7 +78,7 @@ export const Composer = forwardRef<
           <ArrowUp className="size-5" aria-hidden />
         </button>
       </form>
-      <p className="mt-2 hidden px-4 text-[12px] text-subtle md:block">Enter to send · Shift + Enter for a new line</p>
+      <p className="mt-2 hidden px-4 text-[12px] text-muted md:block">Enter to send · Shift + Enter for a new line</p>
     </div>
   );
 });

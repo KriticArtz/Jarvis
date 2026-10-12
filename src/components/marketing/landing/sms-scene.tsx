@@ -20,7 +20,7 @@ function Sms({ from, text, at }: { from: "ai" | "me"; text: string; at: number }
       <p
         className={cn(
           "max-w-[80%] rounded-[19px] px-3.5 py-2 text-[15px] leading-[1.38]",
-          from === "me" ? "rounded-br-[6px] bg-[#0a84ff] text-white" : "rounded-bl-[6px] bg-[var(--lp-sms-in)] text-[var(--lp-sms-in-text)]",
+          from === "me" ? "rounded-br-[6px] bg-[#0068d6] text-white" : "rounded-bl-[6px] bg-[var(--lp-sms-in)] text-[var(--lp-sms-in-text)]",
         )}
       >
         {text}

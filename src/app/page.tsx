@@ -191,25 +191,27 @@ export default function LandingPage() {
 
       {/* 9 — Footer */}
       <footer className="border-t border-hairline">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-[14px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <span className="flex items-center gap-3">
-            <Logo className="text-foreground" />
-            <span>
-              © {new Date().getFullYear()} {brand.name}
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-8 text-[14px] text-muted sm:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <span className="flex items-center gap-3">
+              <Logo className="text-foreground" />
+              <span>
+                © {new Date().getFullYear()} {brand.name}
+              </span>
             </span>
-          </span>
-          <span className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <Link href="/demo" className="hover:text-foreground hover:underline">
-              Demo
-            </Link>
-            <Link href="/login" className="hover:text-foreground hover:underline">
-              Log in
-            </Link>
-            <Link href="/signup" className="hover:text-foreground hover:underline">
-              Sign up
-            </Link>
-            <LegalLinks />
-          </span>
+            <span className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <Link href="/demo" className="hover:text-foreground hover:underline">
+                Demo
+              </Link>
+              <Link href="/login" className="hover:text-foreground hover:underline">
+                Log in
+              </Link>
+              <Link href="/signup" className="hover:text-foreground hover:underline">
+                Sign up
+              </Link>
+            </span>
+          </div>
+          <LegalLinks className="border-t border-hairline pt-5 text-[13.5px] [&_ul]:justify-start" />
         </div>
       </footer>
     </div>

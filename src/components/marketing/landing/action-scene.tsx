@@ -149,7 +149,7 @@ export function ActionScene() {
                   }}
                 >
                   <span className="block truncate">Study session</span>
-                  <span className="block truncate font-normal text-muted">{moved ? "7 – 8 PM" : "8 – 9 PM"}</span>
+                  <span className="block truncate font-normal text-foreground">{moved ? "7 – 8 PM" : "8 – 9 PM"}</span>
                 </div>
               </div>
             </div>

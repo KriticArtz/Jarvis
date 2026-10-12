@@ -258,6 +258,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <Link href="/terms" className="font-medium text-accent hover:underline">
               Terms of Service
             </Link>
+            . To get a copy of your data or make another privacy request, see{" "}
+            <Link href="/privacy-requests" className="font-medium text-accent hover:underline">
+              Data Deletion &amp; Privacy Requests
+            </Link>
             .
           </p>
           {!isDemo ? (

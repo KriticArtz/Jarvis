@@ -186,7 +186,7 @@ function Entry({ entry, isLast, nowBefore, now, actions }: { entry: TimelineEntr
     <>
       {nowBefore ? <NowMarker now={now} /> : null}
       <li className="group/entry relative grid grid-cols-[4.5rem_1fr] gap-x-3 sm:grid-cols-[5rem_1fr]">
-        <time className={cn("type-time pt-[13px] text-right text-[13px]", current ? "font-semibold text-foreground" : quiet ? "text-subtle" : "text-muted")}>
+        <time className={cn("type-time pt-[13px] text-right text-[13px]", current ? "font-semibold text-foreground" : "text-muted")}>
           {formatTime12(entry.start)}
         </time>
         <div className="relative flex min-w-0 items-start gap-3 pb-1">
@@ -220,9 +220,9 @@ function Entry({ entry, isLast, nowBefore, now, actions }: { entry: TimelineEntr
           )}
           <EntryBody
             href={entry.kind === "event" ? "/calendar?view=day" : null}
-            className={cn("min-w-0 flex-1 py-2.5 transition-opacity duration-(--dur-3)", quiet && "opacity-55")}
+            className="min-w-0 flex-1 py-2.5"
           >
-            <p className={cn("text-[16px] leading-snug", current ? "font-semibold" : "font-medium", (done || skipped) && "line-through decoration-subtle/70")}>
+            <p className={cn("text-[16px] leading-snug", current ? "font-semibold" : "font-medium", quiet && "text-muted", (done || skipped) && "line-through decoration-subtle/70")}>
               {entry.title}
             </p>
             {meta ? <p className="type-num mt-0.5 text-[13px] leading-snug text-muted">{meta}</p> : null}
@@ -265,8 +265,8 @@ function LaterRow({ task, actions }: { task: DayTask; actions: Actions }) {
           {done ? <Check className="check-pop size-[13px]" strokeWidth={3.2} aria-hidden /> : null}
         </span>
       </button>
-      <div className={cn("min-w-0 flex-1 py-2 transition-opacity duration-(--dur-3)", (done || skipped) && "opacity-55")}>
-        <p className={cn("truncate text-[15px] font-medium", (done || skipped) && "line-through decoration-subtle/70")}>{task.title}</p>
+      <div className="min-w-0 flex-1 py-2">
+        <p className={cn("truncate text-[15px] font-medium", (done || skipped) && "text-muted line-through decoration-subtle/70")}>{task.title}</p>
         {task.isPriority || task.goalTitle || task.durationMinutes || skipped ? (
           <p className="type-num truncate text-[13px] text-muted">
             {[task.isPriority ? "Priority" : null, formatDuration(task.durationMinutes) || null, task.goalTitle, skipped ? "Skipped" : null].filter(Boolean).join(" · ")}

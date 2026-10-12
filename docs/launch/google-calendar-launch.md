@@ -4,8 +4,9 @@ Status: **prepared for review.** Nothing in Google Cloud Console, Vercel,
 Supabase or Twilio has been changed. **No verification has been submitted.**
 Items marked **(you)** need your account access.
 
-Intended settings: canonical domain **https://www.arovenna.com**, proposed
-support contact **Support@arovenna.com** (mailbox not yet confirmed).
+Intended settings: canonical domain **https://www.arovenna.com**, support
+contact **Support@arovenna.com** (confirmed active by the owner). The privacy
+update is implemented on branch `launch-readiness`; see `legal-launch-readiness.md`.
 
 ---
 

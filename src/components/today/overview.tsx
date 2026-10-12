@@ -58,14 +58,15 @@ export function VitalsRow({ items, className }: { items: Vital[]; className?: st
   return (
     <dl className={cn("grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4", className)}>
       {items.map(({ key, label, value, icon: Icon }) => (
-        <div key={key} className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-            <Icon className="size-[18px]" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <dt className="truncate text-[12px] font-medium text-muted">{label}</dt>
-            <dd className="type-num text-[18px] leading-tight font-semibold tracking-[-0.01em]">{value}</dd>
-          </div>
+        // dt/dd must be direct children of the group, so the icon sits inside the dt.
+        <div key={key} className="relative flex min-h-9 min-w-0 flex-col justify-center pl-12">
+          <dt className="truncate text-[12px] font-medium text-muted">
+            <span aria-hidden className="absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <Icon className="size-[18px]" />
+            </span>
+            {label}
+          </dt>
+          <dd className="type-num text-[18px] leading-tight font-semibold tracking-[-0.01em]">{value}</dd>
         </div>
       ))}
     </dl>
@@ -111,14 +112,14 @@ export function WeekRhythm({ days, total, className }: { days: WeekDay[]; total:
                 </div>
               ) : null}
             </div>
-            <span aria-hidden className={cn("text-[11px]", d.isToday ? "font-semibold text-foreground" : "text-subtle")}>
+            <span aria-hidden className={cn("text-[11px]", d.isToday ? "font-semibold text-foreground" : "text-muted")}>
               {d.label}
             </span>
             <span aria-hidden className={cn("-mt-1.5 size-1 rounded-full", d.isToday ? "bg-now" : "bg-transparent")} />
           </li>
         ))}
       </ol>
-      <p aria-hidden className="mt-3 flex items-center gap-4 text-[11px] text-subtle">
+      <p aria-hidden className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2 rounded-[3px] bg-accent" /> Done
         </span>

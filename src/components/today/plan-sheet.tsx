@@ -119,7 +119,7 @@ function PlanFlow({ data, onDone }: { data: PlanSheetData; onDone: () => void })
                 <span className="type-num block text-[13px] text-muted">
                   {[`${item.duration_minutes} min`, item.is_priority ? "Priority" : null].filter(Boolean).join(" · ")}
                 </span>
-                {item.rationale ? <span className="mt-0.5 block text-[13px] leading-snug text-subtle">{item.rationale}</span> : null}
+                {item.rationale ? <span className="mt-0.5 block text-[13px] leading-snug text-muted">{item.rationale}</span> : null}
               </span>
             </li>
           ))}

@@ -13,7 +13,7 @@ const TOKEN = /^[0-9a-f]{40}$/;
 
 function page(title: string, body: string, status = 200) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${title} · ${brand.name}</title>
-<style>:root{color-scheme:light dark}body{margin:0;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f7;color:#1d1d1f}@media (prefers-color-scheme:dark){body{background:#000;color:#f5f5f7}}main{max-width:440px;margin:12vh auto;padding:0 16px}button{font:inherit;font-weight:600;padding:10px 18px;border-radius:999px;border:0;background:#0a84ff;color:#fff;cursor:pointer}a{color:#0a84ff}</style></head>
+<style>:root{color-scheme:light dark}body{margin:0;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f7;color:#1d1d1f}main{max-width:440px;margin:12vh auto;padding:0 16px}button{font:inherit;font-weight:600;padding:10px 18px;border-radius:999px;border:0;background:#0068d6;color:#fff;cursor:pointer}a{color:#0068d6}@media (prefers-color-scheme:dark){body{background:#000;color:#f5f5f7}a{color:#4da3ff}}</style></head>
 <body><main><h1 style="font-size:24px;margin:0 0 12px">${title}</h1>${body}</main></body></html>`;
   return new NextResponse(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
 }

@@ -1,7 +1,8 @@
 # DRAFT — Privacy Policy additions for Google Calendar
 
-Status: **draft for review. Not published.** Nothing here is live until it is
-approved and added to `src/app/(legal)/privacy/page.tsx`.
+Status: **superseded.** This text has been merged into
+`src/app/(legal)/privacy/page.tsx` on branch `launch-readiness`. It is not live
+until that branch is released to Production. Kept for the code references below.
 
 - Proposed support contact: **Support@arovenna.com**. Not yet confirmed to
   receive mail. Confirm the mailbox works before publishing, and decide

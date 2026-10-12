@@ -126,7 +126,13 @@ export function TimeGrid({
         </div>
       ) : null}
       <AllDayRow days={days} onOpen={onOpen} />
-      <div ref={scroller} className="relative max-h-[min(68dvh,720px)] overflow-y-auto overscroll-contain">
+      <div
+        ref={scroller}
+        tabIndex={0}
+        role="region"
+        aria-label="Hours of the day"
+        className="relative max-h-[min(68dvh,720px)] overflow-y-auto overscroll-contain rounded-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+      >
         <div className="relative grid" style={{ gridTemplateColumns: cols, height: HOUR_PX * 24 }}>
           <div className="relative">
             {Array.from({ length: 24 }, (_, h) => (

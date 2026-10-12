@@ -51,9 +51,9 @@
   --gold: #94733a;
   --gold-ink: #7a5c22;
   --gold-soft: #f1e6cc;
-  --success: #2f7d4f;
+  --success: #2b7349;
   --success-soft: #e8f3ec;
-  --warning: #a8620b;
+  --warning: #965709;
   --warning-soft: #fbf0e0;
   --danger: #b8382f;
   --danger-soft: #fbecea;
@@ -1359,7 +1359,7 @@ h3 {
   --lp-aura-2: 9%;
   --lp-phone-screen: #ffffff;
   --lp-phone-text: #0b0b0c;
-  --lp-phone-sub: rgba(0, 0, 0, 0.45);
+  --lp-phone-sub: rgba(0, 0, 0, 0.62);
   --lp-phone-line: rgba(0, 0, 0, 0.08);
   --lp-sms-in: #e9e9eb;
   --lp-sms-in-text: #0b0b0c;
@@ -1382,7 +1382,7 @@ h3 {
   --lp-aura-2: 14%;
   --lp-phone-screen: #000000;
   --lp-phone-text: #f2f2f7;
-  --lp-phone-sub: rgba(255, 255, 255, 0.45);
+  --lp-phone-sub: rgba(255, 255, 255, 0.62);
   --lp-phone-line: rgba(255, 255, 255, 0.1);
   --lp-sms-in: #26262a;
   --lp-sms-in-text: #f2f2f7;
@@ -1400,7 +1400,7 @@ h3 {
     --lp-aura-2: 14%;
     --lp-phone-screen: #000000;
     --lp-phone-text: #f2f2f7;
-    --lp-phone-sub: rgba(255, 255, 255, 0.45);
+    --lp-phone-sub: rgba(255, 255, 255, 0.62);
     --lp-phone-line: rgba(255, 255, 255, 0.1);
     --lp-sms-in: #26262a;
     --lp-sms-in-text: #f2f2f7;

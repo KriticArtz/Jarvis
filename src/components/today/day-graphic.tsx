@@ -96,7 +96,7 @@ export function DayStrip({ marks, window: win, timezone, initialNow, className }
           </span>
         ) : null}
       </div>
-      <div aria-hidden className="relative mt-2 h-4 text-[11px] text-subtle">
+      <div aria-hidden className="relative mt-2 h-4 text-[11px] text-muted">
         {hours.map((h) => (
           <span key={h} className="type-num absolute -translate-x-1/2 whitespace-nowrap first:translate-x-0" style={{ left: `${x(h)}%` }}>
             {formatTime12(minutesToTime(h)).replace(":00", "")}

@@ -112,7 +112,7 @@ export function RecommendationCard({ candidates, assistantName, bare = false }: 
           maxLength={4000}
           autoComplete="off"
           placeholder={rec.kind === "empty" ? "What do you want to get done?" : `Ask ${assistantName} anything…`}
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] placeholder:text-subtle focus:outline-none"
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] placeholder:text-muted focus:outline-none"
         />
         <button
           type="submit"

@@ -15,7 +15,7 @@ export const DELETED_DATA = [
   "Your profile, schedule and preferences",
   "Goals, progress history, tasks and daily plans",
   "Check-ins, weekly reviews and assistant notes",
-  "All conversations with your assistant, including text messages",
+  "All conversations with your assistant, including text messages and email check-ins",
   "Phone number, SMS consent and message history",
   "AI usage records",
   "Connected calendars and fitness sources, their synced events and activity data (Google access is revoked)",

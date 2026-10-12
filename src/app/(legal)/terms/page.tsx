@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/config/brand";
 
-export const metadata: Metadata = { title: "Terms of Service", description: `The terms that apply when you use ${brand.name}.` };
+export const metadata: Metadata = { title: "Terms of Service", description: `The terms that apply when you use ${brand.name}.`, alternates: { canonical: "/terms" } };
 
 export default function TermsPage() {
   const { legal } = brand;
@@ -12,8 +12,9 @@ export default function TermsPage() {
       <p className="text-muted">Last updated: {legal.lastUpdated}</p>
 
       <p>
-        These terms govern your use of {brand.name}, provided by {legal.entityName}. By creating an account or using the service, including
-        the demo, you agree to them. Please also read our <Link href="/privacy">Privacy Policy</Link>.
+        These terms govern your use of {brand.name}, including the website, web app, companion mobile app, text messages, emails and the
+        demo, provided by {legal.entityName}. By creating an account or using the service, you agree to them. Please also read our{" "}
+        <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
       <h2>The service</h2>
@@ -24,10 +25,21 @@ export default function TermsPage() {
 
       <h2>Eligibility and your account</h2>
       <ul>
-        <li>You must be at least {legal.minimumAge} years old, and old enough to agree to these terms where you live.</li>
+        <li>
+          You must be at least {legal.minimumAge} years old, and old enough where you live to agree to these terms and to use a service like
+          this without a parent&apos;s permission.
+        </li>
         <li>Keep your login details secure. You are responsible for activity on your account.</li>
         <li>Give accurate information, including a phone number that belongs to you if you enable text messages.</li>
       </ul>
+
+      <h2>Free use and paid plans</h2>
+      <p>
+        {brand.name} is currently free to use, and we do not take payment details. If we introduce paid plans, we will describe their price,
+        billing period, renewal, cancellation and refunds before you buy, in our{" "}
+        <Link href="/subscriptions">Subscription &amp; Refund Policy</Link>, and features you already use for free will not start charging you
+        without your agreement.
+      </p>
 
       <h2>AI assistant — important limitations</h2>
       <ul>
@@ -35,6 +47,10 @@ export default function TermsPage() {
         <li>
           {brand.name} is not a medical, mental-health, legal or financial service and does not provide professional advice. Consult a
           qualified professional for those needs.
+        </li>
+        <li>
+          The assistant only changes your calendar, tasks or plans when you approve a specific proposal. Check each proposal before you approve
+          it; you are responsible for the changes you approve.
         </li>
         <li>
           {brand.name} is not an emergency service. If you are in crisis or in danger, contact local emergency services or a crisis line
@@ -51,28 +67,41 @@ export default function TermsPage() {
         are not liable for delayed or undelivered messages.
       </p>
 
+      <h2>Google Calendar and other connected services</h2>
+      <p>
+        Connecting Google Calendar, Apple Health or Health Connect is optional. When you connect one, you allow {brand.name} to access it as
+        described when you connect and in our <Link href="/privacy">Privacy Policy</Link>, and you can disconnect at any time in Settings.
+        Those services are provided by their own companies under their own terms, and we are not responsible for them. If you get our mobile
+        app from an app store, that store&apos;s terms also apply to the download.
+      </p>
+
       <h2>Acceptable use</h2>
       <p>You agree not to:</p>
       <ul>
         <li>break the law, or use the service to harass, harm or impersonate anyone;</li>
         <li>enter someone else&apos;s phone number, or send content you don&apos;t have the right to share;</li>
         <li>attempt to access other users&apos; data, probe or disrupt the service, or bypass usage limits;</li>
-        <li>use automated means to create accounts, start demo sessions or send messages in bulk.</li>
+        <li>use automated means to create accounts, start demo sessions or send messages in bulk;</li>
+        <li>copy, resell or reverse-engineer the service, except where the law allows it.</li>
       </ul>
 
-      <h2>Your content</h2>
+      <h2>Your content and our service</h2>
       <p>
         You own the goals, messages and other content you add. You give us permission to store and process it only to provide and improve
-        the service for you, as described in the Privacy Policy.
+        the service for you, as described in the Privacy Policy. {brand.name}, its software, name, logo and design belong to{" "}
+        {legal.entityName} or its licensors; these terms give you a personal, non-transferable right to use the service, not ownership of
+        it. If you send us feedback, we may use it without obligation to you.
       </p>
 
       <h2>Demo</h2>
       <p>The interactive demo uses sample data in a temporary account that may be reset or deleted at any time.</p>
 
-      <h2>Ending your use</h2>
+      <h2>Availability and ending your use</h2>
       <p>
-        You can stop using {brand.name} and delete your account at any time in Settings. We may suspend or close accounts that violate these
-        terms or put the service or other users at risk.
+        We work to keep {brand.name} available, but it may be interrupted for maintenance, outages or reasons outside our control, and
+        features may change or be withdrawn. You can stop using {brand.name} and delete your account at any time in Settings. We may suspend
+        or close accounts that violate these terms or put the service or other users at risk; where reasonable, we will tell you why. If we
+        shut down the service, we will give reasonable notice where we can.
       </p>
 
       <h2>Disclaimers and limitation of liability</h2>
@@ -80,7 +109,7 @@ export default function TermsPage() {
         The service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without warranties of any kind, to the extent permitted by
         law. We don&apos;t guarantee that the service will be uninterrupted or error-free, or that you will achieve any particular result. To
         the extent permitted by law, {legal.entityName} is not liable for indirect, incidental or consequential damages arising from your use
-        of the service.
+        of the service. Nothing in these terms limits rights you have under consumer-protection laws that cannot be waived.
       </p>
 
       {legal.governingLaw ? (
@@ -91,7 +120,10 @@ export default function TermsPage() {
       ) : null}
 
       <h2>Changes to these terms</h2>
-      <p>We may update these terms. If we make significant changes, we will let you know before they take effect.</p>
+      <p>
+        We may update these terms. The date at the top shows when they last changed. If we make significant changes, we will let you know
+        before they take effect.
+      </p>
 
       <h2>Contact</h2>
       <p>

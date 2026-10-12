@@ -38,7 +38,7 @@ export function PlanItems({ card }: { card: PlanCard }) {
         <li key={`${item.start}-${i}`} className="flex items-baseline gap-4 border-b border-hairline py-2 last:border-b-0">
           <span className="type-time w-[68px] shrink-0 text-[13px] text-muted">{item.start ? formatTime12(item.start) : "Anytime"}</span>
           <span className="min-w-0 flex-1 text-[15px] leading-snug [overflow-wrap:anywhere]">{item.title}</span>
-          {item.durationMinutes ? <span className="type-num shrink-0 text-[13px] text-subtle">{durationLabel(item.durationMinutes)}</span> : null}
+          {item.durationMinutes ? <span className="type-num shrink-0 text-[13px] text-muted">{durationLabel(item.durationMinutes)}</span> : null}
         </li>
       ))}
     </ol>

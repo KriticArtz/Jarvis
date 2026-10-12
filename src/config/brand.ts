@@ -25,18 +25,24 @@ export const brand = {
     `${NAME} is your AI accountability partner. Tell it what you're trying to accomplish — it plans around your calendar, goals and energy, checks in, and helps you turn the things you want to do into the things you actually do.`,
   /** The canonical public address (metadata, canonical links, social cards). */
   siteUrl: "https://www.arovenna.com",
-  supportEmail: "support@example.com",
+  /** Monitored support mailbox (confirmed active by the owner). Also used for privacy requests. */
+  supportEmail: "Support@arovenna.com",
   /**
-   * Legal details used by /privacy and /terms. REPLACE before launch:
-   * the operating company's legal name, a monitored privacy contact, and the
-   * governing-law jurisdiction (leave null to omit that clause).
+   * Legal details used by the policy pages (/privacy, /terms, /subscriptions,
+   * /cookies, /accessibility, /privacy-requests). Still to confirm before
+   * launch: the operating entity's registered legal name and address, and the
+   * governing-law jurisdiction. Values left null are omitted from the pages
+   * rather than invented.
    */
   legal: {
+    /** The operator's name as shown in the policies. Replace with the registered legal entity once confirmed. */
     entityName: NAME,
-    privacyEmail: "privacy@example.com",
+    /** Registered business address, or null until confirmed. */
+    postalAddress: null as string | null,
+    privacyEmail: "Support@arovenna.com",
     governingLaw: null as string | null,
     minimumAge: 13,
-    lastUpdated: "September 29, 2026",
+    lastUpdated: "October 12, 2026",
   },
 } as const;
 

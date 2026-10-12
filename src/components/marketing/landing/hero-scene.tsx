@@ -280,7 +280,7 @@ export function HeroScene() {
 
           {/* Conversation */}
           <div className="flex min-h-[380px] flex-col sm:min-h-[430px]">
-            <ul className="flex gap-1.5 overflow-x-auto border-b border-hairline px-4 py-2.5 no-scrollbar lg:hidden" aria-label="What it knows (sample)">
+            <ul tabIndex={0} className="flex gap-1.5 overflow-x-auto border-b border-hairline px-4 py-2.5 no-scrollbar focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-ring lg:hidden" aria-label="What it knows (sample)">
               {script.context.filter((c) => c.kind !== "goal" || script.steps.some((st) => st.id === c.id)).map((c) => ctxItem(c, true))}
             </ul>
             <div className="flex flex-1 flex-col justify-start gap-3 px-4 py-5 sm:px-6" aria-live="polite">
