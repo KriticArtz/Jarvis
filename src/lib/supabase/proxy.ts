@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPublicPath } from "@/lib/routes";
+import { isHttpsRequest, sessionCookieOptions } from "./cookie-options";
 
 /**
  * Refreshes the Supabase session cookie on every matched request and
@@ -21,6 +22,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, key, {
+    cookieOptions: sessionCookieOptions(isHttpsRequest(request.headers.get("x-forwarded-proto"), request.nextUrl.protocol)),
     cookies: {
       getAll() {
         return request.cookies.getAll();

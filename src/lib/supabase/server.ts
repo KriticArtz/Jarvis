@@ -1,7 +1,8 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { isHttpsRequest, sessionCookieOptions } from "./cookie-options";
 
 /**
  * Supabase client bound to the current request's user session. All queries
@@ -9,8 +10,10 @@ import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  const https = isHttpsRequest((await headers()).get("x-forwarded-proto"));
 
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
+    cookieOptions: sessionCookieOptions(https),
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -119,8 +119,11 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>What we store.</strong> To show your schedule and plan around it, we keep a copy of these details for events from the start
-        of today through the next 30 days (up to about two months when you view a month on the Calendar page), and for past events for up to
-        35 days:
+        of today through the next 30 days (up to about two months when you view a month on the Calendar page), and recent past events. Copies of
+        past events are removed once they are more than 35 days old, but only when a full sync runs: when you open Today or Calendar and
+        the last sync was over an hour ago, when you choose Sync now, or when you reconnect. So if you stop opening {brand.name}, older
+        copies stay until you disconnect Google Calendar or delete your account, and viewing an earlier month on the Calendar page copies
+        that month&apos;s events again until the next full sync. We keep these details:
       </p>
       <ul>
         <li>title, start and end time, whether it is all-day, and its time zone;</li>
@@ -131,7 +134,9 @@ export default function PrivacyPage() {
       <p>
         We do not store event descriptions, guest names or email addresses, attachments or conference links. When you open an event, or ask
         the assistant about a specific event, we fetch its description and guest names from Google at that moment to show them or answer, and
-        we do not keep them. We also keep the access tokens Google gives us, encrypted (AES-256-GCM), on our servers only; they are never
+        we do not store those details separately. However, the assistant&apos;s replies, which may mention them, are saved in your
+        conversation history like any other message, may be included in the summaries we keep of longer conversations, and may be saved in
+        a note if you ask the assistant to remember something. We also keep the access tokens Google gives us, encrypted (AES-256-GCM), on our servers only; they are never
         shown in the app or written to logs.
       </p>
       <p>
@@ -146,8 +151,9 @@ export default function PrivacyPage() {
         names) to our AI provider, OpenAI, which processes them on our behalf as described in <a href="#ai">AI processing</a>.
       </p>
       <p>
-        <strong>Disconnecting.</strong> When you disconnect Google Calendar, we revoke {brand.name}&apos;s access at Google and delete the
-        stored tokens and every calendar event we copied. Your events in Google Calendar itself are not affected. You can also remove{" "}
+        <strong>Disconnecting.</strong> When you disconnect Google Calendar, we ask Google to revoke {brand.name}&apos;s access, and we
+        delete the stored tokens and every calendar event we copied, even if that request to Google fails. If it fails, {brand.name} may
+        still appear in your Google Account&apos;s list of connected apps until you remove it there. Your events in Google Calendar itself are not affected. You can also remove{" "}
         {brand.name}&apos;s access at any time from your Google Account at{" "}
         <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>; when we learn access was revoked, we stop
         syncing and ask you to reconnect. Disconnecting Google Calendar does not delete your {brand.name} account; deleting your account (see{" "}

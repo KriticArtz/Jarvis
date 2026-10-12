@@ -6,6 +6,7 @@ import { LEGAL_PAGES, LegalLinks } from "@/components/legal/legal-links";
 import { LANDING_APPEARANCE_KEY } from "@/components/marketing/landing/appearance-toggle";
 import { OAUTH_COOKIE } from "@/lib/integrations/oauth-state";
 import { isPublicPath } from "@/lib/routes";
+import { ACTION_TOOLS } from "@/lib/assistant/actions/registry";
 import PrivacyPage from "./privacy/page";
 import TermsPage from "./terms/page";
 import SubscriptionsPage from "./subscriptions/page";
@@ -86,6 +87,16 @@ describe("privacy policy content", () => {
     expect(t).toMatch(/do not use it to develop, improve or train generalized AI/);
   });
 
+  it("does not overstate retention, revocation or what is kept from event details", () => {
+    // Pruning of past events only happens during a full sync (sync.ts); revocation is best effort (disconnectGoogleCalendar).
+    expect(t).toContain("only when a full sync runs");
+    expect(t).not.toMatch(/past events for up to 35 days/);
+    expect(t).toContain("even if that request to Google fails");
+    expect(t).not.toMatch(/we revoke Arovenna's access at Google/);
+    expect(t).toMatch(/saved in your conversation history/);
+    expect(t).not.toMatch(/and we do not keep them/);
+  });
+
   it("explains Calendar disconnection separately from account deletion", () => {
     expect(t).toContain("Disconnecting Google Calendar does not delete your Arovenna account");
     expect(html(PrivacyPage)).toContain('id="google-calendar"');
@@ -103,6 +114,25 @@ describe("privacy policy content", () => {
 });
 
 describe("terms", () => {
+  it("says which assistant changes need approval and which happen straight away (matches tool risk levels)", () => {
+    const t = text(TermsPage);
+    expect(t).not.toMatch(/only changes your calendar, tasks or plans when you approve/);
+    expect(t).toContain("without a separate approval step");
+  });
+
+  it("matches the assistant's actual approval rules (update both if a tool's risk changes)", () => {
+    const byRisk = (risk: string) => ACTION_TOOLS.filter((d) => d.risk === risk && !d.needsConfirmation).map((d) => d.name).sort();
+    // Terms: "asks for your approval before it changes your calendar, replans your day, … deletes a goal or a saved note, or cancels a task"
+    expect(byRisk("confirm")).toEqual(
+      ["cancel_task", "create_calendar_event", "delete_calendar_event", "delete_goal", "delete_memory", "replan_today", "reschedule_calendar_event", "update_calendar_event"].sort(),
+    );
+    // Terms: "changes a goal's target or deadline" — update_goal asks only for those fields.
+    const conditional = ACTION_TOOLS.filter((d) => d.needsConfirmation).map((d) => d.name);
+    expect(conditional).toEqual(["update_goal"]);
+    // Terms: "Other changes … happen straight away without a separate approval step"
+    expect(byRisk("direct")).toEqual(["complete_task", "create_goal", "create_task", "record_progress", "reschedule_task", "save_memory", "set_goal_status", "update_memory"].sort());
+  });
+
   it("omits governing law until it is confirmed", () => {
     expect(brand.legal.governingLaw).toBeNull();
     expect(text(TermsPage)).not.toContain("Governing law");
@@ -123,6 +153,10 @@ describe("cookie policy", () => {
     expect(t).toContain(OAUTH_COOKIE);
     expect(t).toContain(LANDING_APPEARANCE_KEY);
     expect(t).toContain("auth-token");
+    // Names @supabase/auth-js uses for PKCE verifiers (observed in the browser after sign-up).
+    expect(t).toContain("auth-token-code-verifier");
+    expect(t).toContain("auth-token-flows-code-verifier");
+    expect(t).toContain("auth-token-flow-…-code-verifier");
     expect(html(CookiesPage)).toContain('id="preferences"');
   });
 });

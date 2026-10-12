@@ -1,4 +1,5 @@
 import "server-only";
+import { logWarn } from "@/lib/observability/log";
 
 /**
  * Server-side environment access. Secrets are only ever read here, from
@@ -174,14 +175,25 @@ export function integrationsEncryptionKey(): Buffer | null {
   return key.length === 32 ? key : null;
 }
 
+let warnedGoogleOverride = false;
+
 /**
  * Override for all Google endpoints. Only for automated tests against a mock
- * server: ignored on a Vercel production deployment, so a stray value can
- * never send users' OAuth codes or tokens anywhere but Google.
+ * server on this machine: like OPENAI_BASE_URL, it is honoured solely for an
+ * http(s) loopback URL (localhost, 127.0.0.1, [::1]) and never on a Vercel
+ * production deployment. Anything else falls back to the real Google
+ * endpoints, so the client secret, codes and tokens can never be sent to
+ * another host.
  */
 export function googleTestBaseUrl(): string | undefined {
-  if (vercelEnv() === "production") return undefined;
-  return read("GOOGLE_API_TEST_BASE_URL")?.replace(/\/$/, "");
+  const value = read("GOOGLE_API_TEST_BASE_URL");
+  const allowed = testBaseURL(value, vercelEnv());
+  if (value && !allowed && !warnedGoogleOverride) {
+    warnedGoogleOverride = true;
+    // The value itself is never logged.
+    logWarn("integrations", "GOOGLE_API_TEST_BASE_URL ignored (production, or not an http(s) loopback URL)");
+  }
+  return allowed ?? undefined;
 }
 
 export type EmailMode = "disabled" | "test" | "live";

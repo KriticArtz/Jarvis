@@ -49,8 +49,11 @@ export default function TermsPage() {
           qualified professional for those needs.
         </li>
         <li>
-          The assistant only changes your calendar, tasks or plans when you approve a specific proposal. Check each proposal before you approve
-          it; you are responsible for the changes you approve.
+          The assistant asks for your approval before it changes your calendar, replans your day, changes a goal&apos;s target or deadline,
+          deletes a goal or a saved note, or cancels a task. Other changes you ask for, such as adding, completing or moving a task, adding a
+          goal or changing its name, notes or status, logging progress, or saving or updating a note to remember, happen straight away
+          without a separate approval step and are recorded in your conversation; you can change them in the app. Check each proposal before you
+          approve it; you are responsible for the changes you approve or ask for.
         </li>
         <li>
           {brand.name} is not an emergency service. If you are in crisis or in danger, contact local emergency services or a crisis line

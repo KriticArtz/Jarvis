@@ -48,9 +48,10 @@ export default function PrivacyRequestsPage() {
 
       <h2 id="google-calendar">Disconnect Google Calendar (keep your account)</h2>
       <p>
-        Open <strong>Settings → Integrations</strong> and choose <strong>Disconnect</strong> next to Google Calendar. We revoke our access at
-        Google and delete the stored access tokens and every calendar event we copied. Your account and everything else stay as they are,
-        and nothing changes in Google Calendar itself. You can also remove access from your Google Account at{" "}
+        Open <strong>Settings → Integrations</strong> and choose <strong>Disconnect</strong> next to Google Calendar. We ask Google to
+        revoke our access, and we delete the stored access tokens and every calendar event we copied, even if that request to Google
+        fails. Your account and everything else stay as they are,
+        and nothing changes in Google Calendar itself. To be sure our access is gone, check or remove it in your Google Account at{" "}
         <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.
       </p>
 

@@ -58,7 +58,7 @@ Do these together, in this order, then redeploy Production:
   - `INTEGRATIONS_ENCRYPTION_KEY` (32 bytes; never rotate casually, since every user would have to reconnect);
   - `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`);
   - `NEXT_PUBLIC_APP_URL`.
-- **Must NOT be set in Production:** `GOOGLE_API_TEST_BASE_URL`. This branch also makes Production ignore it.
+- **Must NOT be set in Production:** `GOOGLE_API_TEST_BASE_URL`. The code ignores it on Vercel production and, everywhere else, accepts only an http(s) loopback URL (`localhost`, `127.0.0.1`, `[::1]`); any other value falls back to the real Google endpoints.
 
 ---
 

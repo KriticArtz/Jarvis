@@ -535,4 +535,108 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Account deletion: every user table, discovered from the schema
+-- ---------------------------------------------------------------------------
+-- Seeds one row in each table that references auth.users for a user who is
+-- deleted (…0g) and for a bystander (…0h), deletes the first, and checks
+-- that none of their rows remain while all of the bystander's rows do. The
+-- table list comes from the foreign keys themselves and must match the
+-- expected list, so a new user table fails here until it's covered.
+reset role;
+create function pg_temp.seed_user_data(uid uuid, tag text) returns void language plpgsql as $f$
+declare
+  g uuid := gen_random_uuid(); c uuid := gen_random_uuid(); cal uuid := gen_random_uuid(); fit uuid := gen_random_uuid();
+  ob uuid := gen_random_uuid();
+begin
+  insert into public.recurring_commitments (user_id, title, start_time, end_time) values (uid, 'Work', '09:00', '17:00');
+  insert into public.goals (id, user_id, title, goal_type, period) values (g, uid, 'Read', 'recurring', 'week');
+  insert into public.daily_plans (user_id, plan_date) values (uid, current_date);
+  insert into public.tasks (user_id, goal_id, title, task_date) values (uid, g, 't', current_date);
+  insert into public.goal_progress (user_id, goal_id, logged_for) values (uid, g, current_date);
+  insert into public.daily_check_ins (user_id, check_in_date, kind) values (uid, current_date, 'morning');
+  insert into public.daily_insights (user_id, insight_date, content) values (uid, current_date, 'insight');
+  insert into public.weekly_reviews (user_id, week_start, stats) values (uid, current_date, '{}');
+  insert into public.conversations (id, user_id) values (c, uid);
+  insert into public.conversation_messages (conversation_id, user_id, role, content) values (c, uid, 'user', 'hi');
+  insert into public.user_memories (user_id, content) values (uid, 'note');
+  insert into public.notifications (user_id, kind, body) values (uid, 'test', 'hi');
+  insert into public.inbound_messages (user_id, provider, provider_message_id, from_number, body) values (uid, 'twilio', 'SM-' || tag, '+15550000001', 'text');
+  insert into public.phone_verifications (user_id, phone, provider, expires_at) values (uid, '+15550000001', 'test', now());
+  insert into public.ai_usage_events (user_id, feature, model, status) values (uid, 'chat', 'm', 'ok');
+  insert into public.assistant_actions (user_id, conversation_id, tool, status) values (uid, c, 'create_task', 'succeeded');
+  insert into public.integration_connections (id, user_id, provider, kind) values (cal, uid, 'google_calendar', 'calendar');
+  insert into public.integration_credentials (connection_id, user_id, access_token_enc) values (cal, uid, 'v1.sealed');
+  insert into public.calendar_events (user_id, connection_id, provider, provider_event_id, calendar_id, title, starts_at, ends_at)
+    values (uid, cal, 'google_calendar', 'ev-' || tag, 'primary', 'Dentist', now(), now() + interval '1 hour');
+  insert into public.integration_connections (id, user_id, provider, kind) values (fit, uid, 'apple_health', 'fitness');
+  insert into public.fitness_daily_summaries (user_id, connection_id, provider, summary_date) values (uid, fit, 'apple_health', current_date);
+  insert into public.fitness_workouts (user_id, connection_id, provider, provider_workout_id, activity_type, started_at, ended_at, duration_minutes)
+    values (uid, fit, 'apple_health', 'wk-' || tag, 'running', now(), now() + interval '30 minutes', 30);
+  insert into public.email_outbound (id, user_id, kind, to_email, subject, body, reply_token, dedupe_key)
+    values (ob, uid, 'check_in', tag || '@example.com', 'Hi', 'Body', rpad('token' || tag, 40, '0'), 'k-' || tag);
+  insert into public.email_inbound (user_id, provider, provider_email_id, outbound_id) values (uid, 'resend', 'em-' || tag, ob);
+end
+$f$;
+
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000000a1', 'deleted@example.com'),
+  ('00000000-0000-0000-0000-0000000000a2', 'bystander@example.com');
+select pg_temp.seed_user_data('00000000-0000-0000-0000-0000000000a1', 'del');
+select pg_temp.seed_user_data('00000000-0000-0000-0000-0000000000a2', 'keep');
+
+-- The user tables, from the foreign keys to auth.users (table, column).
+create temp table user_fk_tables as
+  select c.conrelid::regclass::text as tbl, a.attname::text as col
+  from pg_constraint c
+  join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+  where c.contype = 'f' and c.confrelid = 'auth.users'::regclass and c.connamespace = 'public'::regnamespace;
+
+do $$
+declare
+  expected text[] := array[
+    'ai_usage_events', 'assistant_actions', 'calendar_events', 'conversation_messages', 'conversations', 'daily_check_ins',
+    'daily_insights', 'daily_plans', 'email_inbound', 'email_outbound', 'fitness_daily_summaries', 'fitness_workouts', 'goal_progress',
+    'goals', 'inbound_messages', 'integration_connections', 'integration_credentials', 'notification_preferences', 'notifications',
+    'phone_verifications', 'profiles', 'recurring_commitments', 'tasks', 'user_memories', 'weekly_reviews'];
+  found text[];
+  r record;
+  n int;
+begin
+  select array_agg(distinct tbl order by tbl) into found from user_fk_tables;
+  if found is distinct from expected then
+    raise exception 'user tables changed (update this test and the deletion docs): found %', found;
+  end if;
+  if (select count(*) from user_fk_tables where (select confdeltype from pg_constraint k
+        where k.conrelid = user_fk_tables.tbl::regclass and k.contype = 'f' and k.confrelid = 'auth.users'::regclass limit 1) <> 'c') > 0 then
+    raise exception 'a user table does not cascade on account deletion';
+  end if;
+  -- Before deletion: both users have data in every table.
+  for r in select * from user_fk_tables loop
+    execute format('select count(*) from public.%I where %I = %L', r.tbl, r.col, '00000000-0000-0000-0000-0000000000a1') into n;
+    if n = 0 then raise exception 'test setup: no row in % for the user to delete', r.tbl; end if;
+  end loop;
+end $$;
+
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000a1';
+
+do $$
+declare
+  r record;
+  n int;
+begin
+  for r in select * from user_fk_tables loop
+    execute format('select count(*) from public.%I where %I = %L', r.tbl, r.col, '00000000-0000-0000-0000-0000000000a1') into n;
+    if n <> 0 then raise exception 'account deletion left % row(s) in %', n, r.tbl; end if;
+    execute format('select count(*) from public.%I where %I = %L', r.tbl, r.col, '00000000-0000-0000-0000-0000000000a2') into n;
+    if n = 0 then raise exception 'account deletion removed the bystander''s rows in %', r.tbl; end if;
+  end loop;
+  -- Rows linked only indirectly (no user_id match) are gone too.
+  if exists (select 1 from public.inbound_messages where provider_message_id = 'SM-del')
+     or exists (select 1 from public.email_inbound where provider_email_id = 'em-del') then
+    raise exception 'inbound message or email survived account deletion';
+  end if;
+end $$;
+drop table user_fk_tables;
+
 select 'RLS checks passed' as result;
