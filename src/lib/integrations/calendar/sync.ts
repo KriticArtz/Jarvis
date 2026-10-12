@@ -157,7 +157,7 @@ export async function accessToken(admin: DB, userId: string, connectionId: strin
 
 export type SyncOutcome =
   | { ok: true; upserted: number; cancelled: number; removed: number }
-  | { ok: false; reason: "not_configured" | "not_connected" | "reauth_required" | "error" };
+  | { ok: false; reason: "not_configured" | "not_connected" | "reauth_required" | "rate_limited" | "api_disabled" | "error" };
 
 /**
  * Pull the next CALENDAR_SYNC_DAYS days (from the start of the user's today)
@@ -193,15 +193,28 @@ export async function syncGoogleCalendar(
     // Access token revoked or expired early: refresh once and retry.
     token = await accessToken(admin, userId, conn.id, r, true);
     if (token.ok) list = await listEvents(token.token, { calendarId: CALENDAR_ID, timeMin, timeMax, fallbackTz: tz }, r.fetch);
+    if (!token.ok && token.reason !== "reauth_required") {
+      // Google's token endpoint was unreachable: keep the grant and try again later.
+      await admin.from("integration_connections").update({ last_error: "sync_failed" }).eq("id", conn.id);
+      return { ok: false, reason: "error" };
+    }
     if (!token.ok || (!list.ok && list.reason === "unauthorized")) {
       await markNeedsReconnect(admin, conn.id);
       return { ok: false, reason: "reauth_required" };
     }
   }
+  if (!list.ok && list.reason === "insufficient_scope") {
+    // The grant can't read events at all: only reconnecting (and allowing access) fixes it.
+    await markNeedsReconnect(admin, conn.id);
+    return { ok: false, reason: "reauth_required" };
+  }
   if (!list.ok) {
-    logWarn("integrations", "google calendar list failed", { userId, reason: list.reason });
-    await admin.from("integration_connections").update({ last_error: "sync_failed" }).eq("id", conn.id);
-    return { ok: false, reason: "error" };
+    // Rate limits, a disabled Calendar API or a Google outage say nothing about the
+    // user's access: keep the grant, record why, and try again on the next sync.
+    logWarn("integrations", "google calendar list failed", { userId, reason: list.reason, httpStatus: list.httpStatus });
+    const lastError = list.reason === "rate_limited" || list.reason === "api_disabled" ? list.reason : "sync_failed";
+    await admin.from("integration_connections").update({ last_error: lastError }).eq("id", conn.id);
+    return { ok: false, reason: list.reason === "rate_limited" || list.reason === "api_disabled" ? list.reason : "error" };
   }
 
   const syncedAt = r.now.toISOString();
@@ -255,6 +268,24 @@ export async function syncGoogleCalendar(
     .update({ status: "connected", last_error: null, ...(range ? {} : { last_synced_at: syncedAt }) })
     .eq("id", conn.id);
   return { ok: true, upserted: events.length, cancelled: cancelledIds.length, removed };
+}
+
+/**
+ * Which Google account is connected, for display only: the primary calendar's
+ * name, which Google sets to the account's email address. Read live with the
+ * existing grant (no extra permission, nothing stored). Never changes the
+ * connection: any failure just returns null.
+ */
+export async function googleAccountLabel(admin: DB, userId: string, deps: IntegrationDeps = {}): Promise<string | null> {
+  const r = resolve(deps);
+  if (!r.key || !r.config) return null;
+  const conn = await loadConnection(admin, userId);
+  if (!conn || conn.status !== "connected") return null;
+  const token = await accessToken(admin, userId, conn.id, r);
+  if (!token.ok) return null;
+  const list = await listEvents(token.token, { calendarId: CALENDAR_ID, timeMin: r.now, timeMax: new Date(r.now.getTime() + 60_000), fallbackTz: "UTC" }, r.fetch);
+  const name = list.ok ? list.calendarName?.trim() : null;
+  return name && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(name) ? name : null;
 }
 
 /** Revoke at Google (best effort), then delete tokens, events and the connection. */

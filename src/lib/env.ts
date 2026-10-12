@@ -141,6 +141,11 @@ export function cronSecret(): string | undefined {
 }
 
 /** Public base URL, used for auth email redirects and Twilio signature checks. */
+/** "production" | "preview" | "development" on Vercel; undefined elsewhere. */
+export function vercelEnv(): string | undefined {
+  return read("VERCEL_ENV");
+}
+
 export function appUrl(): string | undefined {
   return read("NEXT_PUBLIC_APP_URL")?.replace(/\/$/, "");
 }
@@ -169,8 +174,13 @@ export function integrationsEncryptionKey(): Buffer | null {
   return key.length === 32 ? key : null;
 }
 
-/** Override for all Google endpoints. Only for automated tests against a mock server. */
+/**
+ * Override for all Google endpoints. Only for automated tests against a mock
+ * server: ignored on a Vercel production deployment, so a stray value can
+ * never send users' OAuth codes or tokens anywhere but Google.
+ */
 export function googleTestBaseUrl(): string | undefined {
+  if (vercelEnv() === "production") return undefined;
   return read("GOOGLE_API_TEST_BASE_URL")?.replace(/\/$/, "");
 }
 

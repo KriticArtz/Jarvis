@@ -69,7 +69,10 @@ describe("Google write error handling", () => {
     ).toMatchObject({ ok: false, reason: "insufficient_scope" });
     // Not being the organizer is NOT a scope problem (must not downgrade the connection).
     expect(await patchEvent("t", "primary", "e", {}, fake(403, { error: { errors: [{ reason: "forbiddenForNonOrganizer" }] } }))).toMatchObject({ ok: false, reason: "forbidden" });
-    expect(await insertEvent("t", "primary", {}, fake(403, { error: { errors: [{ reason: "rateLimitExceeded" }] } }))).toMatchObject({ ok: false, reason: "error" });
+    // Rate limits and a disabled API are temporary/server-side: never "not the organizer", never a scope downgrade.
+    expect(await insertEvent("t", "primary", {}, fake(403, { error: { errors: [{ reason: "rateLimitExceeded" }] } }))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await insertEvent("t", "primary", {}, fake(429))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await patchEvent("t", "primary", "e", {}, fake(403, { error: { errors: [{ reason: "accessNotConfigured" }] } }))).toMatchObject({ ok: false, reason: "api_disabled" });
     expect(await insertEvent("t", "primary", {}, (async () => Promise.reject(new Error("network"))) as typeof fetch)).toMatchObject({ ok: false, reason: "error" });
   });
 

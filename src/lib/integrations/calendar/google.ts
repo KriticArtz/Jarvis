@@ -219,9 +219,35 @@ export function normalizeGoogleEvent(e: GoogleEvent, calendarId: string, fallbac
   };
 }
 
+/**
+ * How Google refused a request. Only `unauthorized` (the access token is no
+ * longer valid) and `insufficient_scope` (the grant can't do this) are about
+ * the user's access; rate limits and a disabled Calendar API are temporary or
+ * server-side problems and must never cost the user their connection.
+ */
+export type GoogleFailure = "unauthorized" | "insufficient_scope" | "rate_limited" | "api_disabled" | "forbidden" | "not_found" | "conflict" | "error";
+
+export async function classifyGoogleError(res: Response): Promise<GoogleFailure> {
+  if (res.status === 401) return "unauthorized";
+  if (res.status === 404 || res.status === 410) return "not_found";
+  if (res.status === 409) return "conflict";
+  if (res.status === 429) return "rate_limited";
+  if (res.status === 403) {
+    const json = (await res.json().catch(() => null)) as { error?: { errors?: { reason?: string }[]; details?: { reason?: string }[]; status?: string } } | null;
+    const reasons = [...(json?.error?.errors ?? []), ...(json?.error?.details ?? [])].map((e) => e?.reason ?? "").join(" ") + ` ${json?.error?.status ?? ""}`;
+    if (/insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(reasons)) return "insufficient_scope";
+    if (/rateLimit|RateLimit|quota|RATE_LIMIT|RESOURCE_EXHAUSTED/i.test(reasons)) return "rate_limited";
+    if (/accessNotConfigured|SERVICE_DISABLED|API_DISABLED/i.test(reasons)) return "api_disabled";
+    return "forbidden";
+  }
+  return "error";
+}
+
+export type ListFailure = "unauthorized" | "insufficient_scope" | "rate_limited" | "api_disabled" | "error";
+
 export type ListResult =
-  | { ok: true; items: NormalizedOrCancelled[]; complete: boolean }
-  | { ok: false; reason: "unauthorized" | "error" };
+  | { ok: true; items: NormalizedOrCancelled[]; complete: boolean; calendarName: string | null }
+  | { ok: false; reason: ListFailure; httpStatus: number | null };
 
 const MAX_PAGES = 4;
 
@@ -233,6 +259,8 @@ export async function listEvents(
 ): Promise<ListResult> {
   const items: NormalizedOrCancelled[] = [];
   let pageToken: string | undefined;
+  // The primary calendar's name: by default the Google account's email address.
+  let calendarName: string | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const url = new URL(`${endpoints().calendar}/calendars/${encodeURIComponent(opts.calendarId)}/events`);
     url.search = new URLSearchParams({
@@ -248,20 +276,25 @@ export async function listEvents(
     try {
       res = await fetchImpl(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     } catch {
-      return { ok: false, reason: "error" };
+      return { ok: false, reason: "error", httpStatus: null };
     }
-    if (res.status === 401 || res.status === 403) return { ok: false, reason: "unauthorized" };
-    if (!res.ok) return { ok: false, reason: "error" };
-    const json = (await res.json().catch(() => null)) as { items?: GoogleEvent[]; nextPageToken?: string; timeZone?: string } | null;
-    if (!json) return { ok: false, reason: "error" };
+    if (!res.ok) {
+      const failure = await classifyGoogleError(res);
+      const reason: ListFailure =
+        failure === "unauthorized" || failure === "insufficient_scope" || failure === "rate_limited" || failure === "api_disabled" ? failure : "error";
+      return { ok: false, reason, httpStatus: res.status };
+    }
+    const json = (await res.json().catch(() => null)) as { items?: GoogleEvent[]; nextPageToken?: string; timeZone?: string; summary?: string } | null;
+    if (!json) return { ok: false, reason: "error", httpStatus: res.status };
+    if (page === 0) calendarName = typeof json.summary === "string" ? json.summary.slice(0, 200) : null;
     for (const e of json.items ?? []) {
       const n = normalizeGoogleEvent(e, opts.calendarId, json.timeZone ?? opts.fallbackTz);
       if (n) items.push(n);
     }
     pageToken = json.nextPageToken;
-    if (!pageToken) return { ok: true, items, complete: true };
+    if (!pageToken) return { ok: true, items, complete: true, calendarName };
   }
-  return { ok: true, items, complete: false };
+  return { ok: true, items, complete: false, calendarName };
 }
 
 // --- Writes (require GOOGLE_CALENDAR_EVENTS_SCOPE) -----------------------------------
@@ -315,23 +348,10 @@ export async function eventIdFor(seed: string): Promise<string> {
   return `jv${createHash("sha256").update(seed).digest("hex").slice(0, 40)}`;
 }
 
-export type WriteFailure = "unauthorized" | "insufficient_scope" | "forbidden" | "not_found" | "conflict" | "error";
+export type WriteFailure = GoogleFailure;
 export type WriteResult = { ok: true; event: GoogleEvent } | { ok: false; reason: WriteFailure; httpStatus: number | null };
 
-async function classify(res: Response): Promise<WriteFailure> {
-  if (res.status === 401) return "unauthorized";
-  if (res.status === 404 || res.status === 410) return "not_found";
-  if (res.status === 409) return "conflict";
-  if (res.status === 403) {
-    const json = (await res.json().catch(() => null)) as { error?: { errors?: { reason?: string }[]; details?: { reason?: string }[] } } | null;
-    const reasons = [...(json?.error?.errors ?? []), ...(json?.error?.details ?? [])].map((e) => e?.reason ?? "").join(" ");
-    // Only an explicit scope error means "this grant can't write" (other 403s, e.g. not the organizer, are not).
-    if (/insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(reasons)) return "insufficient_scope";
-    if (/rateLimit|quota/i.test(reasons)) return "error";
-    return "forbidden";
-  }
-  return "error";
-}
+const classify = classifyGoogleError;
 
 async function call(method: string, path: string, accessToken: string, fetchImpl: Fetch, body?: unknown, query: Record<string, string> = {}): Promise<WriteResult | { ok: true; event: null }> {
   const url = new URL(`${endpoints().calendar}${path}`);

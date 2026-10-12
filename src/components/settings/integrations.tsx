@@ -19,12 +19,27 @@ export interface CalendarState {
   upcoming: number;
   /** The grant allows creating/changing events; false = connected read-only (Phase 1 grant). */
   writable: boolean;
+  /** The connected Google account (its email), when Google reports it. */
+  account: string | null;
+  /** Why the last sync didn't complete, when the connection itself is fine. */
+  issue: "rate_limited" | "api_disabled" | "sync_failed" | null;
 }
+
+const ISSUE: Record<NonNullable<CalendarState["issue"]>, string> = {
+  rate_limited: "The last sync was paused because Google limited requests. It will catch up on its own.",
+  api_disabled: "Syncing is temporarily unavailable on our side. Your connection is fine.",
+  sync_failed: "The last sync didn't finish. It will try again shortly, or use “Sync now”.",
+};
 
 export type { FitnessState } from "./health";
 
 /** Messages for the OAuth round-trip result (?calendar=… on return from Google). */
-const FLASH: Record<string, { ok: boolean; text: string }> = {
+const FLASH: Record<string, { ok: boolean; text: string; action?: { href: string; label: string } }> = {
+  embedded_browser: {
+    ok: false,
+    text: "Google doesn't allow signing in from inside another app's browser. Open this page in Safari or Chrome, then connect again.",
+    action: { href: "/api/integrations/google/start?continue=1", label: "Try anyway" },
+  },
   connected: { ok: true, text: "Google Calendar connected. Your upcoming events are synced." },
   connected_sync_failed: { ok: false, text: "Connected, but the first sync failed. Try “Sync now”." },
   denied: { ok: false, text: "Google Calendar wasn't connected — access was declined." },
@@ -57,7 +72,7 @@ function Row({ icon, title, subtitle, status, children }: { icon: React.ReactNod
 }
 
 export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { calendar: CalendarState; fitness: FitnessState[]; isDemo: boolean; flash: string | null }) {
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(flash && FLASH[flash] ? FLASH[flash] : null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string; action?: { href: string; label: string } } | null>(flash && FLASH[flash] ? FLASH[flash] : null);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<"sync" | "disconnect" | string | null>(null);
@@ -110,7 +125,7 @@ export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { cal
               : !calendar.configured
                 ? "Not configured on this server yet."
                 : connected
-                  ? `${calendar.upcoming} event${calendar.upcoming === 1 ? "" : "s"} in the next 30 days${calendar.lastSynced ? ` · synced ${calendar.lastSynced}` : ""}. ${
+                  ? `${calendar.account ? `Connected as ${calendar.account}. ` : ""}${calendar.upcoming} event${calendar.upcoming === 1 ? "" : "s"} in the next 30 days${calendar.lastSynced ? ` · synced ${calendar.lastSynced}` : ""}. ${calendar.issue ? `${ISSUE[calendar.issue]} ` : ""}${
                       calendar.writable
                         ? "You can add and change events from the Calendar page, and your assistant can too — only after you confirm each change."
                         : "Connected read-only, so events can't be added or changed from here. Reconnect to enable editing — Google will ask you to allow it."
@@ -164,7 +179,19 @@ export function IntegrationsSettings({ calendar, fitness, isDemo, flash }: { cal
           </p>
         ) : null}
         <div className="mt-3 min-h-5" aria-live="polite">
-          {msg ? <FormMessage tone={msg.ok ? "success" : "error"}>{msg.text}</FormMessage> : null}
+          {msg ? (
+            <FormMessage tone={msg.ok ? "success" : "error"}>
+              {msg.text}
+              {msg.action ? (
+                <>
+                  {" "}
+                  <a href={msg.action.href} className="font-medium underline underline-offset-4">
+                    {msg.action.label}
+                  </a>
+                </>
+              ) : null}
+            </FormMessage>
+          ) : null}
         </div>
       </section>
 

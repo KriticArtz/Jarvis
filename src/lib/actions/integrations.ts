@@ -39,6 +39,10 @@ export async function syncCalendarNow(): Promise<ActionResult> {
       return { ok: false, error: "Google access was revoked or expired. Reconnect to keep syncing." };
     case "not_configured":
       return NOT_CONFIGURED;
+    case "rate_limited":
+      return { ok: false, error: "Google is limiting requests right now. Your connection is fine — try again in a few minutes." };
+    case "api_disabled":
+      return { ok: false, error: "Google Calendar is temporarily unavailable on our side. Your connection is fine and nothing was changed." };
     default:
       return { ok: false, error: "Couldn't reach Google Calendar. Please try again in a minute." };
   }

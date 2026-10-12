@@ -3,15 +3,20 @@ import { getSessionUser } from "@/lib/auth";
 import { googleOAuthConfig, integrationsEncryptionKey, supabaseServiceKey } from "@/lib/env";
 import { buildAuthorizeUrl } from "@/lib/integrations/calendar/google";
 import { OAUTH_COOKIE, OAUTH_STATE_TTL_SECONDS, startOAuth } from "@/lib/integrations/oauth-state";
-import { backToSettings, googleRedirectUri, OAUTH_COOKIE_PATH } from "@/lib/integrations/google-oauth-route";
+import { backToSettings, canonicalStartUrl, googleRedirectUri, isEmbeddedBrowser, OAUTH_COOKIE_PATH } from "@/lib/integrations/google-oauth-route";
 import { logInfo } from "@/lib/observability/log";
 
 /**
- * Begin connecting Google Calendar (events scope; also used to upgrade a read-only connection). Requires a signed-in,
- * non-demo user. Sets a single-use, encrypted, httpOnly state cookie bound to
+ * Begin connecting Google Calendar (events scope; also used to upgrade a read-only connection). Runs on the
+ * canonical host only, explains in-app browsers that Google blocks, and requires a signed-in, non-demo user. Sets a single-use, encrypted, httpOnly state cookie bound to
  * this user (CSRF state + PKCE verifier) and redirects to Google.
  */
 export async function GET(request: NextRequest) {
+  const canonical = canonicalStartUrl(request);
+  if (canonical) return NextResponse.redirect(canonical);
+  // Google refuses sign-in inside in-app browsers; explain instead of sending the user to an error page.
+  // `?continue=1` lets someone try anyway (e.g. a browser we misidentified).
+  if (isEmbeddedBrowser(request.headers.get("user-agent")) && !request.nextUrl.searchParams.has("continue")) return backToSettings(request, "embedded_browser");
   const session = await getSessionUser();
   if (!session) return NextResponse.redirect(new URL("/login?next=/settings", request.nextUrl.origin));
   if (session.isDemo) return backToSettings(request, "demo");

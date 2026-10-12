@@ -24,7 +24,7 @@ export const brand = {
   description:
     `${NAME} is your AI accountability partner. Tell it what you're trying to accomplish — it plans around your calendar, goals and energy, checks in, and helps you turn the things you want to do into the things you actually do.`,
   /** The canonical public address (metadata, canonical links, social cards). */
-  siteUrl: "https://arovenna.com",
+  siteUrl: "https://www.arovenna.com",
   supportEmail: "support@example.com",
   /**
    * Legal details used by /privacy and /terms. REPLACE before launch:

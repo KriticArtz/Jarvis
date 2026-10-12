@@ -15,6 +15,8 @@ import { AssistantIdentityForm } from "@/components/settings/your-ai";
 import { AppearanceSettings } from "@/components/settings/appearance";
 import { IntegrationsSettings, type FitnessState } from "@/components/settings/integrations";
 import { getConnections } from "@/lib/integrations/connections";
+import { googleAccountLabel } from "@/lib/integrations/calendar/sync";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { fitnessConnectionState } from "@/lib/integrations/fitness/status";
 import { googleOAuthConfig, integrationsEncryptionKey } from "@/lib/env";
 import { resolvePersonalization } from "@/lib/personalization";
@@ -64,6 +66,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const syncedLabel = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString("en-US", { timeZone: profile.timezone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null;
   const google = connections.find((c) => c.provider === "google_calendar");
+  // Which Google account is connected (display only; a slow or failed lookup just omits it).
+  const admin = !isDemo && google?.status === "connected" ? createAdminClient() : null;
+  const googleAccount = admin
+    ? await Promise.race([googleAccountLabel(admin, userId).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 2500))])
+    : null;
+  const googleIssue = google?.status === "connected" && (google.lastError === "rate_limited" || google.lastError === "api_disabled" || google.lastError === "sync_failed") ? google.lastError : null;
   const fitness: FitnessState[] = (["apple_health", "health_connect"] as const).map((provider) => {
     const c = connections.find((x) => x.provider === provider);
     const { state, issue } = fitnessConnectionState(c ? { status: c.status, last_synced_at: c.lastSyncedAt, last_error: c.lastError, created_at: c.connectedAt } : null);
@@ -151,6 +159,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               lastSynced: syncedLabel(google?.lastSyncedAt ?? null),
               upcoming: upcomingEvents.count ?? 0,
               writable: Boolean(google?.writable),
+              account: googleAccount,
+              issue: googleIssue,
             }}
             fitness={fitness}
           />

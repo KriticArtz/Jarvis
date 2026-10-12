@@ -155,7 +155,27 @@ describe("listEvents", () => {
     expect(seen[1]).toContain("pageToken=p2");
 
     const unauthorized = vi.fn(async () => new Response("{}", { status: 401 })) as unknown as typeof fetch;
-    expect(await listEvents("bad", { calendarId: "primary", timeMin: new Date(), timeMax: new Date(), fallbackTz: "UTC" }, unauthorized)).toEqual({ ok: false, reason: "unauthorized" });
+    expect(await listEvents("bad", { calendarId: "primary", timeMin: new Date(), timeMax: new Date(), fallbackTz: "UTC" }, unauthorized)).toEqual({ ok: false, reason: "unauthorized", httpStatus: 401 });
+  });
+
+  it("tells a revoked grant apart from rate limits and a disabled Calendar API (403s)", async () => {
+    const opts = { calendarId: "primary", timeMin: new Date(), timeMax: new Date(), fallbackTz: "UTC" };
+    const reply = (status: number, error?: unknown) => vi.fn(async () => new Response(JSON.stringify(error ? { error } : {}), { status })) as unknown as typeof fetch;
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "rateLimitExceeded" }] }))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "userRateLimitExceeded" }] }))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "quotaExceeded" }] }))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await listEvents("t", opts, reply(429))).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "accessNotConfigured" }], status: "PERMISSION_DENIED" }))).toMatchObject({ ok: false, reason: "api_disabled" });
+    expect(await listEvents("t", opts, reply(403, { details: [{ reason: "SERVICE_DISABLED" }] }))).toMatchObject({ ok: false, reason: "api_disabled" });
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "insufficientPermissions" }] }))).toMatchObject({ ok: false, reason: "insufficient_scope" });
+    // Any other 403 is not about the user's grant.
+    expect(await listEvents("t", opts, reply(403, { errors: [{ reason: "forbidden" }] }))).toMatchObject({ ok: false, reason: "error" });
+    expect(await listEvents("t", opts, reply(503))).toMatchObject({ ok: false, reason: "error" });
+  });
+
+  it("reports the primary calendar's name (the account email) from the first page", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ summary: "alex@example.com", items: [] }), { status: 200 })) as unknown as typeof fetch;
+    expect(await listEvents("t", { calendarId: "primary", timeMin: new Date(), timeMax: new Date(), fallbackTz: "UTC" }, fetchImpl)).toMatchObject({ ok: true, calendarName: "alex@example.com" });
   });
 });
 
