@@ -208,8 +208,9 @@ export default function PrivacyPage() {
       <p>
         To generate replies, plans and summaries, we send the relevant information from your account (for example your goals, schedule,
         today&apos;s tasks, recent messages and, if connected, calendar and activity data) to OpenAI, which processes it on our behalf. We
-        send these requests with storage turned off, so conversation history is kept in our database rather than by OpenAI. OpenAI may retain
-        API data for a limited time for abuse monitoring under its own policies. OpenAI&apos;s API terms state that it does not use API data
+        send these requests with the API&apos;s storage option turned off, so OpenAI doesn&apos;t keep the responses for us to retrieve later,
+        and your conversation history is kept in our database. That setting doesn&apos;t by itself stop OpenAI from keeping data: OpenAI may
+        retain API inputs and outputs for a limited time, for example to monitor abuse, under its own policies. OpenAI&apos;s API terms state that it does not use API data
         to train its models unless the customer chooses to share it, and we do not use your information to train AI models. AI output can be wrong; see our <Link href="/terms">Terms of Service</Link>
         .
       </p>
@@ -264,7 +265,8 @@ export default function PrivacyPage() {
 
       <h2 id="sms">Text messages</h2>
       <p>
-        We only text you if you add your number and check the consent box. Message frequency varies. Message and data rates may apply. Reply
+        We only text you if you add your number and check the consent box. Our texts are sent under the name &ldquo;{brand.smsBrandName}&rdquo;,
+        the name our text-message program is registered under. Message frequency varies. Message and data rates may apply. Reply
         STOP to opt out at any time, or HELP for help; you can also turn texts off in Settings.{" "}
         <strong>
           We do not share or sell your mobile number or text-message opt-in information with third parties or affiliates for their marketing

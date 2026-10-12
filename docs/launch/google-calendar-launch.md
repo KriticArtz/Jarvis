@@ -8,6 +8,44 @@ Intended settings: canonical domain **https://www.arovenna.com**, support
 contact **Support@arovenna.com** (confirmed active by the owner). The privacy
 update is implemented on branch `launch-readiness`; see `legal-launch-readiness.md`.
 
+## 0. Status on 2026-10-12, and the final Google Cloud checklist
+
+**What the public site serves today.**
+- GitHub's deployment records show the latest **Production** deployment is commit `1a94b30` (02:41 UTC). `28a4e05` and later commits exist only as **Preview** deployments.
+- The `1a94b30` source has `support@example.com` and `privacy@example.com`, no Google section or Limited Use statement, and no Google in the provider list. This matches what was observed on `https://www.arovenna.com/privacy`.
+- **Google verification cannot pass until the `launch-readiness` policies are deployed to Production.** The site could not be fetched from the agent's environment; this conclusion rests on the deployment records and the content match.
+
+**Values the code expects** (`src/lib/integrations/google-oauth-route.ts`, `calendar/google.ts`, `calendar/scopes.ts`):
+
+| Setting | Value |
+|---|---|
+| Production `NEXT_PUBLIC_APP_URL` | `https://www.arovenna.com` (no trailing slash needed; one is stripped) |
+| Authorized redirect URI | `https://www.arovenna.com/api/integrations/google/callback`. Must be byte-identical to what the app sends. If `NEXT_PUBLIC_APP_URL` is unset, the app uses the request's own origin instead, so set it |
+| Authorized JavaScript origins | None needed (server-side flow) |
+| Scope (Data Access) | `https://www.googleapis.com/auth/calendar.events` only. The app never requests `calendar` or any non-calendar scope. `calendar.events.readonly` is only *accepted* for connections made before the write feature |
+| Client type | Web application (uses a client secret plus PKCE S256) |
+| API | Google Calendar API, enabled in the **same** project as the OAuth client |
+
+**Owner checklist in Google Cloud Console** (the agent has no access; each item is unverified until you check it):
+1. **OAuth client:** type *Web application*; the redirect URI above present exactly. Remove stale `*.vercel.app` or `jarvis` URIs once the domain is final.
+2. **Branding:**
+   - App name: *Arovenna*.
+   - User support email: `Support@arovenna.com`.
+   - Logo: the A mark.
+   - Home page: `https://www.arovenna.com`.
+   - Privacy policy: `https://www.arovenna.com/privacy`.
+   - Terms of service: `https://www.arovenna.com/terms`.
+   - Authorized domain: `arovenna.com`.
+   - Developer contact: an address you monitor.
+3. **Domain ownership:** `arovenna.com` verified in Google Search Console, by an owner of the Cloud project.
+4. **Data Access:** only `calendar.events`, with the justification in §3.
+5. **APIs & Services:** Google Calendar API enabled.
+6. **Audience:**
+   - Publishing status. *Testing* admits only listed test users, and their access expires after 7 days.
+   - *In production* lets anyone connect. Until verification, that means the "unverified app" screen and a 100-user cap.
+7. **Verification:** submit after the new policies are live in Production; demo video per §3.
+8. **End-to-end check:** with a Google account that was **never** a test user, connect on `https://www.arovenna.com`, confirm events appear, then disconnect and confirm Arovenna is gone from https://myaccount.google.com/permissions (or remove it there if the revoke request failed).
+
 ---
 
 ## 1. Domain and redirect URI: what the code does

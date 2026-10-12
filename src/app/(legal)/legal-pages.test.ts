@@ -97,6 +97,15 @@ describe("privacy policy content", () => {
     expect(t).not.toMatch(/and we do not keep them/);
   });
 
+  it("does not present the OpenAI storage setting as a guarantee that nothing is retained", () => {
+    expect(t).toContain("doesn't by itself stop OpenAI from keeping data");
+    expect(t).not.toMatch(/storage turned off, so conversation history is kept in our database rather than by OpenAI/);
+  });
+
+  it("names the sender our texts actually use (the carrier-registered name)", () => {
+    expect(t).toContain(`sent under the name "${brand.smsBrandName}"`);
+  });
+
   it("explains Calendar disconnection separately from account deletion", () => {
     expect(t).toContain("Disconnecting Google Calendar does not delete your Arovenna account");
     expect(html(PrivacyPage)).toContain('id="google-calendar"');
@@ -118,6 +127,13 @@ describe("terms", () => {
     const t = text(TermsPage);
     expect(t).not.toMatch(/only changes your calendar, tasks or plans when you approve/);
     expect(t).toContain("without a separate approval step");
+  });
+
+  it("names the SMS sender and the real support contact", () => {
+    const t = text(TermsPage);
+    expect(t).toContain(`sent under the name "${brand.smsBrandName}"`);
+    expect(t).toContain("Support@arovenna.com");
+    expect(t).not.toMatch(/example\.com/);
   });
 
   it("matches the assistant's actual approval rules (update both if a tool's risk changes)", () => {
