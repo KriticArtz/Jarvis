@@ -53,7 +53,7 @@ export function NavRail({ offsetTop = false }: { offsetTop?: boolean }) {
         aria-label={`${brand.name} — Today`}
         className="mt-6 mb-8 rounded-[30%] transition-transform duration-(--dur-2) ease-soft hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
       >
-        <LogoMark className="size-9" />
+        <LogoMark className="size-8" />
       </Link>
       <ul className="flex flex-col items-center gap-2">
         {items.map((item) => (

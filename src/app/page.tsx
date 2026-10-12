@@ -69,8 +69,8 @@ export default function LandingPage() {
       <header data-mode="dark" className="landing landing-header sticky top-0 z-30 border-b border-hairline bg-background/80 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:px-8">
           <Link href="/" className="flex items-center gap-3" aria-label={`${brand.name} home`}>
-            <LogoMark className="size-9" />
-            <Wordmark width={132} className="hidden sm:block" />
+            <LogoMark className="size-8" />
+            <Wordmark className="h-[11px] text-foreground" />
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-2" aria-label="Main">
             <AppearanceToggle />

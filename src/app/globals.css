@@ -914,52 +914,35 @@ h3 {
     0 30px 60px -30px rgba(0, 0, 0, 0.55);
 }
 
-/* ----------------------------------------------------------------- Brand mark & wordmark */
-/* Crops of the supplied logo (public/brand/arovenna-logo.webp); never redrawn. */
-/* In the components layer so utilities (size, hidden, responsive display) still apply. */
+/* ----------------------------------------------------------------- Brand mark */
+/*
+ * The Arovenna mark (src/components/logo.tsx): the symbol in champagne gold on
+ * a flat forest-green tile, the same in every theme and mode, like an app icon.
+ * In the components layer so utilities (size, hidden, responsive display) still apply.
+ */
+:root {
+  --brand-forest: #12301f;
+  --brand-gold: #cdae66;
+}
 @layer components {
   .brand-mark {
-    position: relative;
-    display: block;
+    display: inline-grid;
     flex-shrink: 0;
-    overflow: hidden;
-    border-radius: 9999px;
-    /* The logo tile's own near-black forest. */
-    background-color: #010f09;
-    box-shadow:
-      inset 0 0 0 1px color-mix(in oklab, var(--gold) 55%, transparent),
-      0 1px 2px rgba(0, 0, 0, 0.18);
+    place-items: center;
+    border-radius: 28%;
+    background: var(--brand-forest);
+    color: var(--brand-gold);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
-  /* Same crop as the seal; clipped just below the A's base so the wordmark never shows. */
-  .brand-mark::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url("/brand/arovenna-logo.webp");
-    background-repeat: no-repeat;
-    background-size: 165% auto;
-    background-position: 49.39% 33%;
-    clip-path: inset(0 0 14.6% 0);
-  }
-  /*
-   * Wordmark crop: image px x 180–1074, y 836–950 (894:114).
-   *   background-size 1254/894 = 140.27% · position 50% 73.33%
-   * `lighten` drops the tile's near-black green into a darker-or-equal ground.
-   */
-  .brand-wordmark {
-    display: block;
-    flex-shrink: 0;
-    background-image: url("/brand/arovenna-logo.webp");
-    background-repeat: no-repeat;
-    background-size: 140.27% auto;
-    background-position: 50% 73.33%;
-    mix-blend-mode: lighten;
+  .brand-mark-symbol {
+    width: 64%;
+    height: 64%;
   }
 }
 
 /* ----------------------------------------------------------------- Presence: the Arovenna seal */
 /*
- * The supplied Arovenna emblem in a fine gold ring (src/components/ui/presence.tsx).
+ * The Arovenna symbol on a forest face in a fine gold ring (src/components/ui/presence.tsx).
  * Still when idle. Motion marks real activity only, and each state reads
  * without motion too (ring treatment), so reduced motion loses nothing.
  *
@@ -969,11 +952,8 @@ h3 {
  *   acting     an impression ring leaves the seal, like a stamp
  *   complete   the ring closes, one sheen crosses, the halo settles (once)
  *
- * The face is a crop of the supplied logo, never a redraw: a 760px circle
- * centred on the A (image px 624,543) holds the whole emblem; the crop stops
- * at image y=812, between the A's base (778) and the wordmark (856), and the
- * face's own colour (the logo tile's near-black forest) fills the rest.
- *   background-size 1254/760 = 165% · position 49.39% 33% · clip bottom 14.6%
+ * The face is flat brand forest with the symbol in gold (the same pair as
+ * the app mark), so the seal stays legible down to 14 px.
  * Size via --presence-size.
  */
 .presence {
@@ -1024,25 +1004,19 @@ h3 {
 }
 .presence-face {
   position: relative;
+  display: grid;
+  place-items: center;
   width: 84%;
   height: 84%;
   overflow: hidden;
   border-radius: 9999px;
-  background: #010f09;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -6px 14px rgba(0, 0, 0, 0.35),
-    0 calc(var(--presence-size) * 0.1) calc(var(--presence-size) * 0.25) calc(var(--presence-size) * -0.14) rgba(0, 0, 0, 0.55);
+  background: var(--brand-forest);
+  color: var(--brand-gold);
   transition: transform var(--dur-3) var(--ease-spring);
 }
 .presence-emblem {
-  position: absolute;
-  inset: 0;
-  background-image: url("/brand/arovenna-logo.webp");
-  background-repeat: no-repeat;
-  background-size: 165% auto;
-  background-position: 49.39% 33%;
-  clip-path: inset(0 0 14.6% 0);
+  width: 60%;
+  height: 60%;
 }
 .presence-sheen {
   position: absolute;

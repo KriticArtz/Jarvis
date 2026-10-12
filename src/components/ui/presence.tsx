@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
+import { ArovennaSymbol } from "@/components/logo";
 
 export type PresenceState = "idle" | "listening" | "thinking" | "acting" | "complete";
 
@@ -7,8 +8,7 @@ const SIZES = { xs: 16, sm: 24, md: 32, lg: 48, xl: 96, hero: 160 } as const;
 
 /**
  * The Arovenna seal — the assistant's mark, independent of the name the user
- * gave it. The supplied Arovenna emblem (public/brand/arovenna-logo.webp,
- * cropped for display, never redrawn) inside a fine gold ring.
+ * gave it. The Arovenna symbol on a forest face inside a fine gold ring.
  *
  * Still when idle. Motion only while something is really happening:
  * listening (the user is typing to it), thinking (a reply is streaming),
@@ -48,7 +48,7 @@ export function Presence({
         </g>
       </svg>
       <span className="presence-face">
-        <span className="presence-emblem" />
+        <ArovennaSymbol className="presence-emblem" />
         <span className="presence-sheen" />
       </span>
     </span>
