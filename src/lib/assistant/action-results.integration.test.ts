@@ -5,9 +5,9 @@
  * Run: npm run test:integration (needs `supabase start`). Skips itself if the
  * stack isn't reachable.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { addDays, localDate } from "@/lib/time";
+import { addDays, localDate, localMinutesNow } from "@/lib/time";
 import { runTool } from "./actions/registry";
 import type { ToolContext } from "./actions/types";
 import { attachActions, STORED_ACTION_COLUMNS, type StoredAction } from "./history";
@@ -18,6 +18,23 @@ const PUBLISHABLE = process.env.INTEGRATION_SUPABASE_PUBLISHABLE_KEY ?? "";
 const SECRET = process.env.INTEGRATION_SUPABASE_SECRET_KEY ?? "";
 const reachable = await fetch(`${URL}/auth/v1/health`, { headers: { apikey: PUBLISHABLE } }).then((r) => r.ok).catch(() => false);
 const enabled = reachable && Boolean(PUBLISHABLE && SECRET);
+
+// The planner never schedules before "now", so a replan late in the real day
+// has no room left. Tests that replan pin the clock the planner reads (only
+// that function; everything else, and the database, keep real time).
+vi.mock("@/lib/time", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/time")>();
+  return { ...actual, localMinutesNow: vi.fn(actual.localMinutesNow) };
+});
+const realMinutesNow = (await vi.importActual<typeof import("@/lib/time")>("@/lib/time")).localMinutesNow;
+async function at<T>(minutes: number, fn: () => Promise<T>): Promise<T> {
+  vi.mocked(localMinutesNow).mockImplementation(() => minutes);
+  try {
+    return await fn();
+  } finally {
+    vi.mocked(localMinutesNow).mockImplementation(realMinutesNow);
+  }
+}
 
 type DB = SupabaseClient;
 const today = localDate("UTC");
@@ -144,7 +161,8 @@ describe.skipIf(!enabled)("assistant action results (real Supabase, RLS)", () =>
     const { data: t } = await user.db.from("tasks").insert({ user_id: user.id, title: "Deep work", task_date: today, duration_minutes: 60 }).select("id").single();
     const turn = new Date().toISOString();
     await wait(50);
-    const proposal = await call(ctx(turn), "replan_today", { available_start: "00:00", available_end: "23:59", note: null });
+    // 9:00 AM: there is always room for an hour, whatever time the suite runs.
+    const proposal = await at(9 * 60, () => call(ctx(turn), "replan_today", { available_start: "00:00", available_end: "23:59", note: null }));
     expect(proposal.status).toBe("needs_confirmation");
     expect(proposal.card).toMatchObject({ kind: "plan", action: "proposed", date: today });
     const items = (proposal.card as { items: { title: string; start: string | null }[] }).items;
