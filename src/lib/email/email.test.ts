@@ -113,9 +113,29 @@ describe("templates", () => {
     expect(out.html).toContain('href="https://app.example.com/api/email/unsubscribe?t=abc"');
   });
 
-  it("uses the assistant's name on the verified sender address", () => {
-    expect(fromWithName("Jarvis <jarvis@mail.example.com>", "Ava")).toBe("Ava <jarvis@mail.example.com>");
-    expect(fromWithName("jarvis@mail.example.com", 'Bad"<x@y>\r\nBcc:')).toBe("BadxyBcc <jarvis@mail.example.com>");
+  it("shows the sender as \"<assistant> by Arovenna\" on the verified sender address", () => {
+    const FROM = "Arovenna <hello@mail.arovenna.com>";
+    expect(fromWithName(FROM, "Atlas")).toBe("Atlas by Arovenna <hello@mail.arovenna.com>");
+    // Renaming the assistant changes the sender on the next email; the address never changes.
+    expect(fromWithName(FROM, "Nova")).toBe("Nova by Arovenna <hello@mail.arovenna.com>");
+    expect(fromWithName("hello@mail.arovenna.com", "Coach O'Neil")).toBe("Coach O'Neil by Arovenna <hello@mail.arovenna.com>");
+    expect(fromWithName(FROM, "アトラス")).toBe("アトラス by Arovenna <hello@mail.arovenna.com>");
+  });
+
+  it("falls back to \"Arovenna\" for missing, blank, unusable or brand-only assistant names", () => {
+    const FROM = "Arovenna <hello@mail.arovenna.com>";
+    for (const name of [null, undefined, "", "   ", '<>"@,;:\\', "\r\n"]) {
+      expect(fromWithName(FROM, name)).toBe("Arovenna <hello@mail.arovenna.com>");
+    }
+    expect(fromWithName(FROM, "Arovenna")).toBe("Arovenna <hello@mail.arovenna.com>");
+    expect(fromWithName(FROM, " arovenna ")).toBe("Arovenna <hello@mail.arovenna.com>");
+  });
+
+  it("strips header-breaking characters and caps the assistant name", () => {
+    expect(fromWithName("hello@mail.example.com", 'Bad"<x@y>\r\nBcc:')).toBe("BadxyBcc by Arovenna <hello@mail.example.com>");
+    const long = fromWithName("hello@mail.example.com", "A".repeat(80));
+    expect(long).toBe(`${"A".repeat(40)} by Arovenna <hello@mail.example.com>`);
+    expect(fromWithName("hello@mail.example.com", "  Atlas \t  Two  ")).toBe("Atlas Two by Arovenna <hello@mail.example.com>");
   });
 
   it("cleans subjects and builds reply subjects", () => {

@@ -30,12 +30,15 @@ export function replySubject(subject: string | null | undefined): string {
 }
 
 /**
- * "Arovenna <hello@mail.example.com>" + "Ava" → "Ava <hello@mail.example.com>".
- * Only the display name changes; the verified sending address is kept.
+ * "Arovenna <hello@mail.example.com>" + "Ava" → "Ava by Arovenna <hello@mail.example.com>".
+ * Only the display name changes; the verified sending address is kept. A
+ * missing or unusable assistant name, or one that is just the brand, shows as
+ * "Arovenna".
  */
-export function fromWithName(from: string, name: string): string {
+export function fromWithName(from: string, name: string | null | undefined): string {
   const addr = /<([^<>]+)>/.exec(from)?.[1] ?? from.trim();
-  const display = name.replace(/[<>"\\,;:@\r\n]/g, "").trim().slice(0, 40) || brand.name;
+  const assistant = (name ?? "").replace(/[<>"\\,;:@\r\n]/g, "").replace(/\s+/g, " ").trim().slice(0, 40).trim();
+  const display = !assistant || assistant.toLowerCase() === brand.name.toLowerCase() ? brand.name : `${assistant} by ${brand.name}`;
   return `${display} <${addr}>`;
 }
 

@@ -102,7 +102,7 @@ Inbound email is untrusted input.
 |---|---|---|
 | `EMAIL_MODE` | no | `test` (default) records only and sends nothing. `live` sends through Resend. `disabled` turns email off. |
 | `RESEND_API_KEY` | for live | Resend API key, server-only. Sending access is enough to send. Reading received emails needs a key that can read them; a full-access key works. |
-| `EMAIL_FROM` | for live | Sender on a **domain you verified in Resend**, e.g. `Arovenna <hello@mail.your-domain.com>`. The display name becomes the user's assistant name. |
+| `EMAIL_FROM` | for live | Sender on a **domain you verified in Resend**, e.g. `Arovenna <hello@mail.your-domain.com>`. The display name becomes "<assistant name> by Arovenna" (just "Arovenna" if the assistant has no usable name); the address is kept. |
 | `EMAIL_REPLY_DOMAIN` | recommended | Domain with Resend receiving enabled. Replies go to `reply+<token>@<domain>`. Defaults to the domain in `EMAIL_FROM`. |
 | `RESEND_WEBHOOK_SECRET` | for replies | Signing secret (`whsec_…`) of the inbound webhook endpoint. |
 | `NEXT_PUBLIC_APP_URL` | yes | Used for the unsubscribe link in each email. |
