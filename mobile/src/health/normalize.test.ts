@@ -7,7 +7,7 @@ import type { RawHealthData } from "./types";
 const TZ = "America/New_York";
 const empty = (): RawHealthData => ({ steps: {}, activeCaloriesKcal: {}, distanceMeters: {}, sleep: [], workouts: [] });
 
-describe("health normalization (native app → Jarvis sync payload)", () => {
+describe("health normalization (native app → Arovenna sync payload)", () => {
   it("produces payloads the server accepts, with rounded and clamped values", () => {
     const raw: RawHealthData = {
       steps: { "2026-09-29": 8412.6, "2026-09-30": 250_000 },
@@ -60,7 +60,7 @@ describe("health normalization (native app → Jarvis sync payload)", () => {
     expect(sleepMinutesByDay(night, TZ)).toEqual({ "2026-09-30": 510 });
   });
 
-  it("maps platform workout types to Jarvis types", () => {
+  it("maps platform workout types to Arovenna types", () => {
     expect([52, 24, 37, 13, 46, 50, 20, 63, 57, 999].map((t) => workoutType("apple_health", t))).toEqual([
       "walking", "walking", "running", "cycling", "swimming", "strength", "strength", "hiit", "yoga", "other",
     ]);

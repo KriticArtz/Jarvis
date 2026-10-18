@@ -19,7 +19,7 @@ integration follows:
   descriptions, attendee identities or links (those are fetched from Google
   only when the user opens an event), and no raw health samples, heart rate,
   routes or clinical records.
-- **Health data comes only from the user's phone.** The Jarvis mobile app
+- **Health data comes only from the user's phone.** The Arovenna mobile app
   (`mobile/`) reads Apple Health / Health Connect read-only and syncs daily
   totals and workout summaries.
 - **Calendar writes need the user's OK.** Google Calendar events can be
@@ -149,7 +149,7 @@ Plan:
 HealthKit entitlement and per-type user permission; Health Connect only to
 Android apps that declare and are granted each permission. A website can
 access neither, so Settings → Integrations → **Health & Fitness** explains
-that connecting happens in the Jarvis iPhone/Android app and never shows a
+that connecting happens in the Arovenna iPhone/Android app and never shows a
 connection the phone hasn't made.
 
 Status shown on the web and returned to the app (derived from

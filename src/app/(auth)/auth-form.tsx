@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Field, FormMessage, Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { AuthState } from "./actions";
+import { ResendConfirmation } from "./resend-confirmation";
 
 type Mode = "login" | "signup" | "forgot" | "reset";
 
@@ -28,48 +29,74 @@ export function AuthForm({
 }) {
   const [state, formAction] = useActionState(action, { error: initialError });
 
-  if (state.message && (mode === "signup" || mode === "forgot")) {
+  if (state.message && mode === "signup") {
+    return (
+      <div className="flex flex-col gap-4">
+        <FormMessage tone="success">{state.message}</FormMessage>
+        <ResendConfirmation email={state.email} />
+        <p className="text-center text-sm text-muted">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-accent hover:underline">
+            Log in
+          </Link>{" "}
+          or{" "}
+          <Link href="/forgot-password" className="font-medium text-accent hover:underline">
+            reset your password
+          </Link>{" "}
+          instead.
+        </p>
+      </div>
+    );
+  }
+  if (state.message && mode === "forgot") {
     return <FormMessage tone="success">{state.message}</FormMessage>;
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4" noValidate>
-      {next ? <input type="hidden" name="next" value={next} /> : null}
-      {mode !== "reset" ? (
-        <Field label="Email" htmlFor="email">
-          <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={state.email} inputMode="email" />
-        </Field>
+    <>
+      <form action={formAction} className="flex flex-col gap-4" noValidate>
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        {mode !== "reset" ? (
+          <Field label="Email" htmlFor="email">
+            <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={state.email} inputMode="email" />
+          </Field>
+        ) : null}
+        {mode !== "forgot" ? (
+          <Field
+            label={mode === "reset" ? "New password" : "Password"}
+            htmlFor="password"
+            hint={mode === "signup" || mode === "reset" ? "At least 8 characters." : undefined}
+          >
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              required
+              minLength={mode === "login" ? undefined : 8}
+            />
+          </Field>
+        ) : null}
+        {mode === "reset" ? (
+          <Field label="Confirm new password" htmlFor="confirm">
+            <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
+          </Field>
+        ) : null}
+        {mode === "login" ? (
+          <Link href="/forgot-password" className="-mt-1 self-end text-sm text-muted hover:text-foreground">
+            Forgot password?
+          </Link>
+        ) : null}
+        <FormMessage>{state.error}</FormMessage>
+        <SubmitButton size="lg" pendingText={copy[mode].pending}>
+          {copy[mode].submit}
+        </SubmitButton>
+      </form>
+      {mode === "login" && state.unconfirmed ? (
+        <div className="mt-4">
+          <ResendConfirmation email={state.email} />
+        </div>
       ) : null}
-      {mode !== "forgot" ? (
-        <Field
-          label={mode === "reset" ? "New password" : "Password"}
-          htmlFor="password"
-          hint={mode === "signup" || mode === "reset" ? "At least 8 characters." : undefined}
-        >
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            required
-            minLength={mode === "login" ? undefined : 8}
-          />
-        </Field>
-      ) : null}
-      {mode === "reset" ? (
-        <Field label="Confirm new password" htmlFor="confirm">
-          <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
-        </Field>
-      ) : null}
-      {mode === "login" ? (
-        <Link href="/forgot-password" className="-mt-1 self-end text-sm text-muted hover:text-foreground">
-          Forgot password?
-        </Link>
-      ) : null}
-      <FormMessage>{state.error}</FormMessage>
-      <SubmitButton size="lg" pendingText={copy[mode].pending}>
-        {copy[mode].submit}
-      </SubmitButton>
-    </form>
+    </>
   );
 }

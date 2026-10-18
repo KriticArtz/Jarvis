@@ -1,5 +1,5 @@
 /**
- * The sync contract with the Jarvis backend (POST /api/integrations/fitness/sync).
+ * The sync contract with the Arovenna backend (POST /api/integrations/fitness/sync).
  * Mirrors src/lib/integrations/fitness/schema.ts on the server; the contract
  * test (normalize.test.ts) validates payloads built here against that schema.
  */
@@ -44,5 +44,5 @@ export interface RawHealthData {
   workouts: { id: string; platformType: number; start: Date; end: Date; activeCaloriesKcal?: number | null; distanceMeters?: number | null }[];
 }
 
-/** The only data types Jarvis reads. Nothing else is ever requested. */
+/** The only data types Arovenna reads. Nothing else is ever requested. */
 export const HEALTH_DATA_TYPES = ["steps", "active_energy", "distance", "sleep", "workouts"] as const;

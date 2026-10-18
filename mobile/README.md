@@ -1,14 +1,14 @@
-# Jarvis mobile (iOS + Android)
+# Arovenna mobile (iOS + Android)
 
 A small Expo (React Native) companion app whose only job is health data: it
-signs in with the user's existing Jarvis account, reads **Apple Health**
+signs in with the user's existing Arovenna account, reads **Apple Health**
 (HealthKit, iOS) or **Health Connect** (Android) with the user's permission,
-and syncs daily totals and workout summaries to the existing Jarvis backend.
+and syncs daily totals and workout summaries to the existing Arovenna backend.
 Everything else stays in the web app.
 
 ## What it reads (read-only)
 
-| Jarvis field | Apple Health (HealthKit) | Health Connect |
+| Arovenna field | Apple Health (HealthKit) | Health Connect |
 |---|---|---|
 | Steps | `HKQuantityTypeIdentifierStepCount` (daily sum) | `Steps` (daily aggregate) |
 | Active energy | `HKQuantityTypeIdentifierActiveEnergyBurned` | `ActiveCaloriesBurned` |

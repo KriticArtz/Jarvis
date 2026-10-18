@@ -1,7 +1,7 @@
 import type { DailySummary, HealthProvider, RawHealthData, SyncPayload, WorkoutSummary, WorkoutType } from "./types";
 
 /**
- * Pure normalization from platform data to the Jarvis sync payload. No
+ * Pure normalization from platform data to the Arovenna sync payload. No
  * React Native imports here, so it is unit-tested from the web repo against
  * the server's schema. Limits mirror the server (it rejects anything larger).
  */
@@ -40,7 +40,7 @@ export function sleepMinutesByDay(intervals: { start: Date; end: Date }[], timeZ
   return out;
 }
 
-/** HKWorkoutActivityType raw values → Jarvis workout types. */
+/** HKWorkoutActivityType raw values → Arovenna workout types. */
 const APPLE_WORKOUTS: Record<number, WorkoutType> = {
   52: "walking", // walking
   24: "walking", // hiking
@@ -55,7 +55,7 @@ const APPLE_WORKOUTS: Record<number, WorkoutType> = {
   57: "yoga", // yoga
 };
 
-/** Health Connect ExerciseSessionRecord.EXERCISE_TYPE_* → Jarvis workout types. */
+/** Health Connect ExerciseSessionRecord.EXERCISE_TYPE_* → Arovenna workout types. */
 const HEALTH_CONNECT_WORKOUTS: Record<number, WorkoutType> = {
   79: "walking", // WALKING
   37: "walking", // HIKING

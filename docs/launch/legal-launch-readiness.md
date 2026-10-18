@@ -34,7 +34,7 @@ None of this is legal advice, and nothing here claims compliance.
 | 15 | Data export | No self-service export. Requests go to email (the policy says so) | needs decision | **NEEDS YOUR INPUT** (optional feature) |
 | 16 | Legal entity | Registered name, address and governing law are unknown | needs decision | **NEEDS YOUR INPUT**. The fields exist (`brand.legal.entityName`, `postalAddress`, `governingLaw`); the pages omit them rather than invent them. |
 | 17 | AI training statements | The policy says: we don't train models on user data; OpenAI's API terms say API data isn't used for training unless the customer opts in | needs confirmation | **NEEDS YOUR INPUT**: confirm your OpenAI org hasn't opted in to data sharing |
-| 18 | SMS sender name | Still "Jarvis" (carrier registration) | external config | Unchanged on purpose |
+| 18 | SMS sender name | Changed to "Arovenna" in the app, consent wording and policies (2026-10-18). The Twilio brand/campaign registration, sample messages and HELP/STOP replies are configured in the Twilio console and must be updated to match before live SMS | external config | **Twilio console update required** |
 
 ## 2. Routes (all static; they also render on the Supabase-less Preview)
 

@@ -265,8 +265,8 @@ export default function PrivacyPage() {
 
       <h2 id="sms">Text messages</h2>
       <p>
-        We only text you if you add your number and check the consent box. Our texts are sent under the name &ldquo;{brand.smsBrandName}&rdquo;,
-        the name our text-message program is registered under. Message frequency varies. Message and data rates may apply. Reply
+        We only text you if you add your number and check the consent box. Our texts are sent under the name &ldquo;{brand.smsBrandName}&rdquo;.
+        Message frequency varies. Message and data rates may apply. Reply
         STOP to opt out at any time, or HELP for help; you can also turn texts off in Settings.{" "}
         <strong>
           We do not share or sell your mobile number or text-message opt-in information with third parties or affiliates for their marketing

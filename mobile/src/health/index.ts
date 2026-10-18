@@ -34,7 +34,7 @@ export function healthSource(): HealthSource | null {
         return null;
       },
       read: apple.readAppleHealth,
-      manageHint: "Change what's shared in the Health app → Sharing → Apps → Jarvis.",
+      manageHint: "Change what's shared in the Health app → Sharing → Apps → Arovenna.",
     };
   }
   if (Platform.OS === "android") {
@@ -51,7 +51,7 @@ export function healthSource(): HealthSource | null {
       requestAccess: hc.requestHealthConnectAccess,
       accessGranted: hc.healthConnectAccessGranted,
       read: hc.readHealthConnect,
-      manageHint: "Change what's shared in Settings → Health Connect → App permissions → Jarvis.",
+      manageHint: "Change what's shared in Settings → Health Connect → App permissions → Arovenna.",
     };
   }
   return null;

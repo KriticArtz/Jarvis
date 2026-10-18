@@ -37,6 +37,10 @@ Because SMS consent and help texts read the brand name, they must keep saying
 "Jarvis" until the Twilio registration is updated in the launch phase. The
 in-app rename must not reach those texts before then.
 
+_Superseded 2026-10-18: by owner decision, SMS texts, consent wording and the
+policies now say "Arovenna". Live SMS must stay off until the Twilio
+brand/campaign registration and console HELP/STOP replies match._
+
 ## 4. Logo
 - Use only the supplied, original Arovenna logo. Do not create, redraw or
   substitute a logo.

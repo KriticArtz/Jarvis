@@ -15,7 +15,7 @@ import type { RawHealthData } from "./types";
 
 /**
  * Google Health Connect adapter — Android only. READ access only, for the
- * five data types Jarvis uses; the matching android.permission.health.READ_*
+ * five data types Arovenna uses; the matching android.permission.health.READ_*
  * permissions are declared in app.config.ts and nothing else.
  */
 const PERMISSIONS: Permission[] = [
@@ -41,14 +41,14 @@ export async function healthConnectAvailability(): Promise<HealthConnectAvailabi
   }
 }
 
-/** Shows the Health Connect permission screen. Returns true when every type Jarvis reads was granted. */
+/** Shows the Health Connect permission screen. Returns true when every type Arovenna reads was granted. */
 export async function requestHealthConnectAccess(): Promise<boolean> {
   if (!(await initialize())) return false;
   const granted = await requestPermission(PERMISSIONS);
   return hasAll(granted);
 }
 
-/** Whether the user still allows Jarvis to read everything it needs (they can revoke anytime). */
+/** Whether the user still allows Arovenna to read everything it needs (they can revoke anytime). */
 export async function healthConnectAccessGranted(): Promise<boolean> {
   if (!(await initialize())) return false;
   return hasAll(await getGrantedPermissions());

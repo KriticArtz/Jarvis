@@ -5,7 +5,7 @@
  * propose → confirm flow (nothing reaches Google before confirmation),
  * idempotent creates, reschedule across DST, update, delete, deleted/invited
  * events, revoked access, a grant Google says can't write, cross-user and
- * demo isolation, sync of Jarvis-created/Google-edited/deleted events, and
+ * demo isolation, sync of Arovenna-created/Google-edited/deleted events, and
  * free-time search around events.
  *
  * Run with `npm run test:integration` (needs `supabase start`). Skips itself
@@ -377,7 +377,7 @@ describe.skipIf(!enabled)("calendar writes (real Supabase, RLS, fake Google)", (
   it("revoked access: the confirmed change fails honestly and the connection asks for reconnecting", async () => {
     const proposal = await call(ctxFor("a"), "create_calendar_event", { title: "Run", date: soon, start_time: "06:30", duration_minutes: 30, all_day_days: null, location: null, description: null });
     expect(proposal).toMatchObject({ status: "needs_confirmation" });
-    // User revokes Jarvis in their Google account.
+    // User revokes Arovenna in their Google account.
     google.tokens.clear();
     google.refresh.clear();
     await wait(20);
@@ -427,7 +427,7 @@ describe.skipIf(!enabled)("calendar writes (real Supabase, RLS, fake Google)", (
   });
 
   // ------------------------------------------------------------- sync
-  it("sync keeps Jarvis-created and Google-edited events without duplicates, removes deletions, and covers later months on demand", async () => {
+  it("sync keeps Arovenna-created and Google-edited events without duplicates, removes deletions, and covers later months on demand", async () => {
     const created = [...google.events.values()].find((e) => e.summary === "Study block")!;
     google.events.set(created.id!, { ...created, summary: "Study block (edited in Google)" });
     const r1 = await syncGoogleCalendar(admin, users.a.id);

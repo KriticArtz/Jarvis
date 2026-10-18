@@ -56,7 +56,7 @@ The mock can't judge tone or reasoning. Before calling the Assistant done, run t
 
 The Assistant needs the additive migration `20261008000000_assistant_action_results.sql` (`assistant_actions.result`). Without it, proposals fail to save. Applying it to the production database would change production, so:
 
-1. Create a second Supabase project, e.g. "jarvis-preview".
+1. Create a second Supabase project, e.g. "arovenna-preview".
 2. Apply every migration in `supabase/migrations/` to it, in order (`supabase db push` against that project, or paste them into its SQL editor).
 3. Under **Authentication → URL Configuration**, add `https://*.vercel.app/**` (or your branch's preview URL) to Redirect URLs.
 4. Create the test user under **Authentication → Users → Add user**, with "Auto confirm" on, so no email is needed.
@@ -104,7 +104,7 @@ Changing a variable's environments only affects new deployments. The running pro
 
 ### 2.4 The ten scenarios
 
-Start each from **Today → Jarvis**. Opening the Assistant resumes today's conversation; use **New** where noted. After each scenario that changes something, open **Today** and check it.
+Start each from **Today → your assistant** (named Arovenna unless you renamed it). Opening the Assistant resumes today's conversation; use **New** where noted. After each scenario that changes something, open **Today** and check it.
 
 | # | Say | Pass | Fail |
 | --- | --- | --- | --- |

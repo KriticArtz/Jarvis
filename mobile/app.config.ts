@@ -1,15 +1,15 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
 /**
- * Jarvis iOS/Android app. Health access is READ-ONLY and limited to the five
- * data types Jarvis uses (steps, active energy, distance, sleep, workouts).
+ * Arovenna iOS/Android app. Health access is READ-ONLY and limited to the five
+ * data types Arovenna uses (steps, active energy, distance, sleep, workouts).
  *
  * Set the bundle id / package name to identifiers you own before the first
  * store build (JARVIS_IOS_BUNDLE_ID / JARVIS_ANDROID_PACKAGE).
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "Jarvis",
+  name: "Arovenna",
   slug: "jarvis",
   scheme: "jarvis",
   version: "0.1.0",
@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: process.env.JARVIS_ANDROID_PACKAGE ?? "com.jarvis.app",
-    // Health Connect: read-only, exactly the five types Jarvis uses.
+    // Health Connect: read-only, exactly the five types Arovenna uses.
     permissions: [
       "android.permission.health.READ_STEPS",
       "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
@@ -30,7 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "android.permission.health.READ_SLEEP",
       "android.permission.health.READ_EXERCISE",
     ],
-    // Expo/React Native add these by default; Jarvis doesn't use them (least privilege for a health app).
+    // Expo/React Native add these by default; Arovenna doesn't use them (least privilege for a health app).
     blockedPermissions: [
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -43,8 +43,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "@kingstinct/react-native-healthkit",
       {
         NSHealthShareUsageDescription:
-          "Jarvis reads your steps, active energy, distance, sleep and workouts to understand your activity and help you plan around it. You choose what to share.",
-        // Read-only: Jarvis never writes to Apple Health.
+          "Arovenna reads your steps, active energy, distance, sleep and workouts to understand your activity and help you plan around it. You choose what to share.",
+        // Read-only: Arovenna never writes to Apple Health.
         NSHealthUpdateUsageDescription: false,
         background: false,
       },

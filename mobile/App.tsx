@@ -9,7 +9,7 @@ import { healthSource } from "./src/health";
 import { connect, disconnect, syncIfDue, syncNow, type FlowResult } from "./src/sync";
 
 /**
- * Minimal Jarvis companion app: sign in with the existing Jarvis account,
+ * Minimal Arovenna companion app: sign in with the existing Arovenna account,
  * connect Apple Health (iOS) or Health Connect (Android), and keep it synced.
  * Everything else stays in the web app.
  */
@@ -91,14 +91,14 @@ export default function App() {
     <SafeAreaView style={[s.screen, { backgroundColor: c.bg }]}>
       <StatusBar style={dark ? "light" : "dark"} />
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <Text style={[s.brand, { color: c.text }]}>Jarvis</Text>
+        <Text style={[s.brand, { color: c.text }]}>Arovenna</Text>
 
         {problem ? (
           <Text style={[s.note, { color: c.danger }]}>{problem}</Text>
         ) : !session ? (
           <View style={[s.card, { backgroundColor: c.surface }]}>
             <Text style={[s.title, { color: c.text }]}>Sign in</Text>
-            <Text style={[s.body, { color: c.muted }]}>Use the same account as the Jarvis web app.</Text>
+            <Text style={[s.body, { color: c.muted }]}>Use the same account as the Arovenna web app.</Text>
             <TextInput
               style={[s.input, { backgroundColor: c.surface2, color: c.text }]}
               placeholder="Email"
@@ -155,7 +155,7 @@ export default function App() {
               )}
             </View>
             <Text style={[s.small, { color: c.muted }]}>
-              You control which health data you share with Jarvis. Only daily totals and workout summaries are sent — no heart rate, locations or medical records. {source.manageHint}
+              You control which health data you share with Arovenna. Only daily totals and workout summaries are sent — no heart rate, locations or medical records. {source.manageHint}
             </Text>
             <Pressable accessibilityRole="button" onPress={() => run("signout", async () => (await signOut(), { ok: true }))} style={s.link}>
               <Text style={{ color: c.accent, fontSize: 15 }}>Sign out</Text>
@@ -181,7 +181,7 @@ function Button({ label, onPress, disabled, secondary, c }: { label: string; onP
   );
 }
 
-/** Jarvis "ocean" theme tokens (src/app/globals.css), light and dark. */
+/** Arovenna "ocean" theme tokens (src/app/globals.css), light and dark. */
 const COLORS = {
   light: { bg: "#f5f6f7", surface: "#ffffff", surface2: "#eef0f2", text: "#15171a", muted: "#6c7278", accent: "#0a7ea4", onAccent: "#ffffff", success: "#1a8a4a", warning: "#b25f00", danger: "#c42b2b" },
   dark: { bg: "#0b0c0d", surface: "#161819", surface2: "#222528", text: "#f1f2f3", muted: "#9aa1a8", accent: "#3cc3de", onAccent: "#03232b", success: "#4ade80", warning: "#fbbf24", danger: "#f87171" },

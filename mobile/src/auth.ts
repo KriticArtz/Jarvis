@@ -4,7 +4,7 @@ import { createClient, type SupportedStorage } from "@supabase/supabase-js";
 import { config } from "./config";
 
 /**
- * Sign-in with the user's existing Jarvis account (same Supabase project as
+ * Sign-in with the user's existing Arovenna account (same Supabase project as
  * the web app). The session lives in the iOS Keychain / Android Keystore via
  * expo-secure-store — never in plain storage. SecureStore values are limited
  * in size, so the session is stored in chunks.
@@ -44,7 +44,7 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
-/** A current access token for the Jarvis API (refreshed when needed), or null when signed out. */
+/** A current access token for the Arovenna API (refreshed when needed), or null when signed out. */
 export async function accessToken(forceRefresh = false): Promise<string | null> {
   if (forceRefresh) {
     const { data } = await supabase.auth.refreshSession();

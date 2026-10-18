@@ -10,13 +10,13 @@ import type { RawHealthData } from "./types";
 
 /**
  * Apple Health (HealthKit) adapter — iOS only. READ access only, and only
- * for the five data types Jarvis uses. The app never writes to Health
+ * for the five data types Arovenna uses. The app never writes to Health
  * (NSHealthUpdateUsageDescription is disabled in app.config.ts).
  *
  * iOS privacy note: HealthKit never tells an app whether READ access was
  * denied — denied types simply return no data. So the app can't detect "the
  * user turned access off"; it shows what was received and points the user to
- * Health → Sharing → Apps → Jarvis.
+ * Health → Sharing → Apps → Arovenna.
  */
 const READ_TYPES = [
   "HKQuantityTypeIdentifierStepCount",

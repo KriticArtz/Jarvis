@@ -102,8 +102,10 @@ describe("privacy policy content", () => {
     expect(t).not.toMatch(/storage turned off, so conversation history is kept in our database rather than by OpenAI/);
   });
 
-  it("names the sender our texts actually use (the carrier-registered name)", () => {
-    expect(t).toContain(`sent under the name "${brand.smsBrandName}"`);
+  it("names the sender our texts actually use (Arovenna)", () => {
+    expect(brand.smsBrandName).toBe("Arovenna");
+    expect(t).toContain('sent under the name "Arovenna"');
+    expect(t).not.toMatch(/jarvis/i);
   });
 
   it("explains Calendar disconnection separately from account deletion", () => {
@@ -131,7 +133,8 @@ describe("terms", () => {
 
   it("names the SMS sender and the real support contact", () => {
     const t = text(TermsPage);
-    expect(t).toContain(`sent under the name "${brand.smsBrandName}"`);
+    expect(t).toContain('sent under the name "Arovenna"');
+    expect(t).not.toMatch(/jarvis/i);
     expect(t).toContain("Support@arovenna.com");
     expect(t).not.toMatch(/example\.com/);
   });

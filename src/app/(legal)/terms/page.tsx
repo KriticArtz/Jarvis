@@ -64,8 +64,7 @@ export default function TermsPage() {
       <h2>Text message program</h2>
       <p>
         If you add your mobile number and check the consent box, {brand.name} sends recurring accountability texts: check-ins, reminders
-        about tasks you plan, and replies from your assistant. Texts are sent under the name &ldquo;{brand.smsBrandName}&rdquo;, the name our
-        text-message program is registered under. Message frequency varies. Message and data rates may apply. Reply{" "}
+        about tasks you plan, and replies from your assistant. Texts are sent under the name &ldquo;{brand.smsBrandName}&rdquo;. Message frequency varies. Message and data rates may apply. Reply{" "}
         <strong>STOP</strong> to cancel at any time and <strong>HELP</strong> for help, or contact{" "}
         <a href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>. Consent to texts is not a condition of using {brand.name}. Carriers
         are not liable for delayed or undelivered messages.

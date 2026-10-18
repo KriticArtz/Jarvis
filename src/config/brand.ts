@@ -10,11 +10,12 @@ export const brand = {
   /** Default name for a user's assistant until they choose their own (Settings → Your AI). Names users chose are kept. */
   assistantName: NAME,
   /**
-   * The sender name in SMS texts and the SMS consent wording. These texts are
-   * registered with the carrier (Twilio campaign) under the previous name, so
-   * they keep it until that registration is updated — then change this to NAME.
+   * The sender name inside SMS texts and in the policies' SMS sections. Changing
+   * it here does NOT change the Twilio brand/campaign registration: the name in
+   * the registered sample messages, opt-in description and HELP/STOP replies
+   * (Twilio console) must match it before live texts go out.
    */
-  smsBrandName: "Jarvis",
+  smsBrandName: NAME,
   tagline: "Your AI should know your life.",
   /** The product category, used on the landing page and in metadata. */
   category: "AI accountability partner",
@@ -42,7 +43,7 @@ export const brand = {
     privacyEmail: "Support@arovenna.com",
     governingLaw: null as string | null,
     minimumAge: 13,
-    lastUpdated: "October 12, 2026",
+    lastUpdated: "October 18, 2026",
   },
 } as const;
 

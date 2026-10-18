@@ -3,7 +3,7 @@ import { config } from "./config";
 import type { HealthProvider, SyncPayload } from "./health/types";
 
 /**
- * Client for the existing Jarvis native endpoints (/api/integrations/fitness/*).
+ * Client for the existing Arovenna native endpoints (/api/integrations/fitness/*).
  * Every call carries the signed-in user's Supabase access token; the server
  * takes the user id ONLY from that token. A 401 is retried once with a
  * refreshed token.

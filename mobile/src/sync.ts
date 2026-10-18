@@ -5,7 +5,7 @@ import { buildSyncPayload, syncWindow } from "./health/normalize";
 
 /**
  * Connect / sync / disconnect flows. Health data goes straight from the
- * platform store to the Jarvis API — it is never cached on the device by
+ * platform store to the Arovenna API — it is never cached on the device by
  * this app and never logged.
  */
 const FIRST_SYNC_DAYS = 30;
@@ -25,7 +25,7 @@ export async function connect(source: HealthSource | null = healthSource()): Pro
   if (!available.ok) return { ok: false, message: available.reason };
   const granted = await source.requestAccess();
   if (!granted && source.provider === "health_connect") {
-    return { ok: false, message: "Jarvis needs permission for steps, active energy, distance, sleep and exercise. You can allow them in Health Connect." };
+    return { ok: false, message: "Arovenna needs permission for steps, active energy, distance, sleep and exercise. You can allow them in Health Connect." };
   }
   await api.connect(source.provider);
   return syncNow(source, { first: true });
@@ -72,5 +72,5 @@ export async function disconnect(source: HealthSource | null = healthSource()): 
   if (!source) return { ok: false, message: "Health data isn't supported on this device." };
   await api.disconnect(source.provider);
   await SecureStore.deleteItemAsync(LAST_SYNC_KEY);
-  return { ok: true, message: `Disconnected. Jarvis deleted the ${source.label} data it had stored. ${source.manageHint}` };
+  return { ok: true, message: `Disconnected. Arovenna deleted the ${source.label} data it had stored. ${source.manageHint}` };
 }

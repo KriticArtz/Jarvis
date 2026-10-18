@@ -155,7 +155,7 @@ Each user names their own assistant (e.g. "Nova") and picks how it talks — **S
 ## Integrations (calendar + fitness)
 
 - **Google Calendar:** Settings → Integrations → Connect. OAuth with PKCE and `state`, scope `calendar.events` (events only), primary calendar. Tokens are encrypted server-side and never reach the browser. Events are fixed constraints for chat, planning, the Today screen and weekly reviews. The **Calendar** page (day/week/month, mobile agenda) can create, edit, move and delete events; the assistant can too, but only after the user confirms each change (Confirm/Cancel in the chat). Older read-only connections keep syncing and show "Reconnect to enable editing". Includes Sync now and Disconnect (revokes access at Google and deletes synced events). See `docs/integrations.md`.
-- **Apple Health and Health Connect:** read by the Jarvis mobile app in `mobile/` (Expo, iOS + Android; read-only: steps, active energy, distance, sleep, workouts) and synced to `/api/integrations/fitness/*`. Settings → Integrations → Health & Fitness shows each source's status (Not connected / Syncing / Connected / Needs attention). A website can't read either platform, so the web never fakes a connection. See `mobile/README.md`.
+- **Apple Health and Health Connect:** read by the Arovenna mobile app in `mobile/` (Expo, iOS + Android; read-only: steps, active energy, distance, sleep, workouts) and synced to `/api/integrations/fitness/*`. Settings → Integrations → Health & Fitness shows each source's status (Not connected / Syncing / Connected / Needs attention). A website can't read either platform, so the web never fakes a connection. See `mobile/README.md`.
 - **Apple Calendar:** needs a native app; not built yet.
 - Full details, the security model and the native-app contract: [`docs/integrations.md`](docs/integrations.md). Migration: `20261005000000_integrations.sql`. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `INTEGRATIONS_ENCRYPTION_KEY`.
 
@@ -198,7 +198,7 @@ The assistant can make changes in chat and by SMS, through an explicit list of s
 
 ## Shareable demo mode (`/demo`)
 
-Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own Jarvis**, which ends the demo session and opens signup.
+Send people **`https://<your-domain>/demo`**. They tap "Start the demo" (their name is optional), land on a fully populated dashboard, and can use every screen: chat with the real AI, plan the day, check off tasks, read the weekly review and browse goals. A banner on every screen offers **Reset** and **Create your own Arovenna**, which ends the demo session and opens signup.
 
 **How isolation works**
 - Each demo visitor becomes a separate **Supabase anonymous user**. This is a real `auth.users` row with `is_anonymous = true` in its JWT, and no email or password.
