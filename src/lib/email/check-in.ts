@@ -11,9 +11,9 @@ import { emailEligibility, sendEmail, type EmailDeps, type SendEmailOutcome } fr
 import { fallbackCheckIn, type CheckInDraft } from "./templates";
 
 /**
- * Proactive accountability check-in by email — the foundation future
- * scheduling builds on (cron, the user's preferred times, missed-plan
- * detection). Today it's only triggered manually ("Send me a test check-in").
+ * Proactive accountability check-in by email. Triggered manually ("Send me a
+ * test check-in") or by the scheduler (./dispatch.ts: morning / afternoon /
+ * evening slots, each with a per-day dedupe key).
  *
  *   verify opted in -> gather context (same brain as chat/SMS)
  *   -> draft a short check-in -> send -> record in the email conversation.

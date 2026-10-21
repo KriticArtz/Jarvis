@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { goalSchema, normalizePhone, scheduleSchema } from "./schemas";
+import { emailScheduleSchema, goalSchema, normalizePhone, scheduleSchema } from "./schemas";
 import { safeNextPath } from "@/lib/routes";
 
 describe("validation", () => {
@@ -41,5 +41,26 @@ describe("validation", () => {
     expect(safeNextPath("/goals")).toBe("/goals");
     expect(safeNextPath("//evil.com")).toBe("/dashboard");
     expect(safeNextPath("https://evil.com")).toBe("/dashboard");
+  });
+});
+
+describe("emailScheduleSchema", () => {
+  const valid = {
+    email_morning_enabled: true,
+    email_morning_time: "08:00",
+    email_afternoon_enabled: false,
+    email_afternoon_time: "13:00:00",
+    email_evening_enabled: true,
+    email_evening_time: "20:30",
+  };
+
+  it("accepts HH:MM (and HH:MM:SS from the database), normalized to HH:MM", () => {
+    expect(emailScheduleSchema.parse(valid)).toEqual({ ...valid, email_afternoon_time: "13:00" });
+  });
+
+  it("rejects invalid or missing times", () => {
+    for (const bad of ["24:00", "8am", "", null]) {
+      expect(emailScheduleSchema.safeParse({ ...valid, email_evening_time: bad }).success).toBe(false);
+    }
   });
 });

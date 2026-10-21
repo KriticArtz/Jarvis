@@ -24,7 +24,8 @@ import { PhoneForm } from "@/components/settings/phone-form";
 import { MemoriesEditor } from "@/components/settings/memories";
 import { NotificationPrefsForm, SmsActions } from "@/components/settings/notification-settings";
 import { DemoControls } from "@/components/demo/demo-controls";
-import { EmailSettings } from "@/components/settings/email-settings";
+import { EmailScheduleForm, EmailSettings } from "@/components/settings/email-settings";
+import { formatTime12 } from "@/lib/time";
 import { DeleteAccount } from "@/components/settings/delete-account";
 import { PhoneVerification } from "@/components/settings/phone-verification";
 import Link from "next/link";
@@ -49,6 +50,11 @@ interface SentEmail {
   subject: string;
   status: "queued" | "sent" | "failed" | "skipped" | "test";
   created_at: string;
+}
+
+/** "10:00 PM–7:00 AM", or null when quiet hours aren't set. */
+function quietHoursLabel(start: string | null, end: string | null): string | null {
+  return start && end && start.slice(0, 5) !== end.slice(0, 5) ? `${formatTime12(start.slice(0, 5))}–${formatTime12(end.slice(0, 5))}` : null;
 }
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
@@ -121,6 +127,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 canSend={mailMode !== "disabled" && Boolean(supabaseServiceKey())}
                 assistantName={personalization.assistantName}
               />
+              {prefs ? (
+                <div className="mt-5 border-t border-hairline pt-5">
+                  <h3 className="mb-3 text-sm font-semibold">When to check in</h3>
+                  <EmailScheduleForm schedule={prefs} quietHours={quietHoursLabel(prefs.quiet_hours_start, prefs.quiet_hours_end)} />
+                </div>
+              ) : null}
               {sentEmails.data?.length ? (
                 <div className="mt-5 border-t border-hairline pt-5">
                   <h3 className="mb-3 text-sm font-semibold">Recent emails</h3>

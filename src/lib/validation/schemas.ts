@@ -127,6 +127,16 @@ export const notificationPrefsSchema = z.object({
   quiet_hours_end: optionalTime,
 });
 
+/** Scheduled email check-in slots (Settings → Email accountability). */
+export const emailScheduleSchema = z.object({
+  email_morning_enabled: z.boolean(),
+  email_morning_time: timeString.transform((t) => t.slice(0, 5)),
+  email_afternoon_enabled: z.boolean(),
+  email_afternoon_time: timeString.transform((t) => t.slice(0, 5)),
+  email_evening_enabled: z.boolean(),
+  email_evening_time: timeString.transform((t) => t.slice(0, 5)),
+});
+
 export const chatRequestSchema = z.object({
   conversationId: uuid.nullable().optional(),
   message: z.string().trim().min(1, "Message is empty").max(4000, "Message is too long"),

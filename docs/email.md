@@ -105,6 +105,8 @@ Inbound email is untrusted input.
 | `EMAIL_FROM` | for live | Sender on a **domain you verified in Resend**, e.g. `Arovenna <hello@mail.your-domain.com>`. The display name becomes "<assistant name> by Arovenna" (just "Arovenna" if the assistant has no usable name); the address is kept. |
 | `EMAIL_REPLY_DOMAIN` | recommended | Domain with Resend receiving enabled. Replies go to `reply+<token>@<domain>`. Defaults to the domain in `EMAIL_FROM`. |
 | `RESEND_WEBHOOK_SECRET` | for replies | Signing secret (`whsec_…`) of the inbound webhook endpoint. |
+| `EMAIL_SCHEDULE_ENABLED` | for scheduled check-ins | `true` lets `/api/cron/email` send scheduled check-ins. Anything else (or unset) makes the route do nothing. |
+| `CRON_SECRET` | for scheduled check-ins | Bearer secret the scheduler sends to `/api/cron/email` (shared with `/api/cron/dispatch`). |
 | `NEXT_PUBLIC_APP_URL` | yes | Used for the unsubscribe link in each email. |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | Sending, the webhook and the unsubscribe endpoint use it on the server. |
 
@@ -187,9 +189,12 @@ official Node SDK (`resend@6.32.0` on npm):
 
 ## Limitations
 
-- **No automatic sending yet.** Check-ins go out only when the user clicks
-  "Send me a test check-in". No cron sends them and no user is emailed
-  automatically.
+- **Scheduled check-ins need an external scheduler.** See "Scheduled
+  check-ins" below. Without one (or with `EMAIL_SCHEDULE_ENABLED` unset),
+  check-ins go out only when the user clicks "Send me a test check-in".
+- **A failed scheduled send isn't retried.** The slot's dedupe key is already
+  used, so a provider failure means that check-in is skipped for the day
+  rather than risking a double send. It shows as "failed" in Settings.
 - **One email thread per user.** All check-ins and replies continue a single
   "Email" conversation, like SMS.
 - **Bodies come from the text part.** The handler uses the plain-text part,
@@ -204,17 +209,49 @@ official Node SDK (`resend@6.32.0` on npm):
   could both pass the cap check. Dedupe keys still prevent duplicates of the
   same email.
 
-## Future: automated check-ins
+## Scheduled check-ins
 
-`sendAccountabilityCheckIn(admin, userId, { reason, dedupeKey })` is the
-single entry point. A scheduler only has to decide who to email and when, for
-example:
+Users choose up to three email check-ins a day in Settings → Email
+accountability → "When to check in": **morning** (default on, 08:00),
+**afternoon** (default off, 13:00) and **evening** (default on, 20:30), in
+their own timezone. These are separate from the text-message check-in
+settings. Quiet hours (shared with texts) always win.
 
-- a cron route like `/api/cron/dispatch`;
-- the user's check-in times and quiet hours from `notification_preferences`;
-- missed-plan detection, such as a priority task still open 30 minutes after
-  its start.
+How it works:
 
-It would pass a stable `dedupeKey` such as `check_in:<date>:<task id>`. The
-eligibility check, the daily cap, dedupe, recording and the reply flow are
-already in place. SMS could later share the same scheduling decision.
+- `GET /api/cron/email` (`src/app/api/cron/email/route.ts`) requires
+  `Authorization: Bearer $CRON_SECRET` and does nothing unless
+  `EMAIL_SCHEDULE_ENABLED=true`. `EMAIL_MODE` still decides whether emails
+  are real (`test` records only).
+- `src/lib/email/schedule.ts` (pure) decides what's due: a slot is due from
+  its time until 60 minutes after it (so a late or skipped scheduler run
+  still sends it), never during quiet hours, and only when email check-ins
+  are on.
+- `src/lib/email/dispatch.ts` sends each due slot through
+  `sendAccountabilityCheckIn`, which re-checks eligibility (opted in,
+  confirmed email, not a demo) and the daily cap (`email_daily_limit`,
+  default 6, rolling 24 hours).
+- **No duplicates.** Each slot uses the key `check_in:<local date>:<slot>`.
+  `email_outbound`'s unique `(user_id, dedupe_key)` means a slot is recorded
+  and sent at most once per user per day, even when runs overlap or retry.
+  The dispatcher checks the key before drafting, so repeats don't cost a
+  model call.
+- Each check-in starts a new email with its own reply token. Replies continue
+  the same "Email" conversation as before.
+
+### Scheduler setup (not enabled by default)
+
+Call the route **every 15 minutes**. Vercel Hobby only allows daily cron
+jobs, so either:
+
+- **cron-job.org (free):** a job every 15 minutes, `GET
+  https://www.arovenna.com/api/cron/email`, header `Authorization: Bearer
+  <CRON_SECRET>`; or
+- **Vercel Pro:** add `{ "path": "/api/cron/email", "schedule": "*/15 * * * *" }`
+  to `crons` in `vercel.json` (Vercel Cron sends the `CRON_SECRET` header
+  itself).
+
+Then set `EMAIL_SCHEDULE_ENABLED=true` and redeploy. To stop all scheduled
+emails at once, remove it (or set it to anything else) and redeploy, or pause
+the scheduler. Each run handles up to 500 opted-in users within the route's
+60-second limit; drafting uses one model call per check-in sent.

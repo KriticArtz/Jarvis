@@ -181,6 +181,13 @@ export interface NotificationPreferences {
   email_enabled: boolean;
   email_enabled_at: string | null;
   email_daily_limit: number;
+  /** Scheduled email check-ins (independent of the SMS toggles above). */
+  email_morning_enabled: boolean;
+  email_morning_time: string;
+  email_afternoon_enabled: boolean;
+  email_afternoon_time: string;
+  email_evening_enabled: boolean;
+  email_evening_time: string;
 }
 
 export type NotificationKind =

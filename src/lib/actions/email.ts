@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { emailMode } from "@/lib/env";
 import { sendAccountabilityCheckIn } from "@/lib/email/check-in";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { emailScheduleSchema, fieldErrors } from "@/lib/validation/schemas";
 import { GENERIC_ERROR, NOT_SIGNED_IN, type ActionResult } from "./result";
 
 const DEMO_NO_EMAIL: ActionResult = { ok: false, error: "Email check-ins aren't available in the demo. Create your own account to get them." };
@@ -53,4 +54,28 @@ export async function sendTestCheckIn(): Promise<ActionResult> {
     default:
       return { ok: false, error: "Already sent — give it a minute." };
   }
+}
+
+/**
+ * Save when scheduled email check-ins go out (morning / afternoon / evening,
+ * in the user's own timezone). Written with the user's own session, so RLS
+ * limits it to their row. Turning email check-ins off still stops them all.
+ */
+export async function saveEmailSchedule(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const session = await getSessionUser();
+  if (!session) return NOT_SIGNED_IN;
+  if (session.isDemo) return DEMO_NO_EMAIL;
+  const parsed = emailScheduleSchema.safeParse({
+    email_morning_enabled: formData.get("email_morning_enabled") === "on",
+    email_morning_time: formData.get("email_morning_time"),
+    email_afternoon_enabled: formData.get("email_afternoon_enabled") === "on",
+    email_afternoon_time: formData.get("email_afternoon_time"),
+    email_evening_enabled: formData.get("email_evening_enabled") === "on",
+    email_evening_time: formData.get("email_evening_time"),
+  });
+  if (!parsed.success) return { ok: false, fieldErrors: fieldErrors(parsed.error), error: "Please fix the highlighted times." };
+  const { error } = await session.supabase.from("notification_preferences").update(parsed.data).eq("user_id", session.userId);
+  if (error) return GENERIC_ERROR;
+  revalidatePath("/settings");
+  return { ok: true, message: "Check-in times saved." };
 }

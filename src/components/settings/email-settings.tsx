@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actions/result";
-import { sendTestCheckIn, setEmailAccountability } from "@/lib/actions/email";
+import { saveEmailSchedule, sendTestCheckIn, setEmailAccountability } from "@/lib/actions/email";
+import type { NotificationPreferences } from "@/lib/types/domain";
 import { Button } from "@/components/ui/button";
-import { FormMessage } from "@/components/ui/field";
+import { FormMessage, Input } from "@/components/ui/field";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 
 /**
@@ -60,5 +62,58 @@ export function EmailSettings({ email, enabled, canSend, assistantName }: { emai
       </div>
       {msg ? <FormMessage tone={msg.ok ? "success" : "error"}>{msg.ok ? msg.message : msg.error}</FormMessage> : null}
     </div>
+  );
+}
+
+export type EmailSchedule = Pick<
+  NotificationPreferences,
+  "email_morning_enabled" | "email_morning_time" | "email_afternoon_enabled" | "email_afternoon_time" | "email_evening_enabled" | "email_evening_time"
+>;
+
+const hhmm = (v: string | null | undefined) => (v ? v.slice(0, 5) : "");
+
+/**
+ * When scheduled email check-ins go out, in the user's own timezone. Quiet
+ * hours (shared with texts) always win, and nothing is sent while email
+ * check-ins are off.
+ */
+export function EmailScheduleForm({ schedule, quietHours }: { schedule: EmailSchedule; quietHours: string | null }) {
+  const [state, action] = useActionState<ActionResult, FormData>(saveEmailSchedule, { ok: false });
+  const err = state.fieldErrors ?? {};
+  const slots = [
+    { key: "morning", label: "Morning check-in", enabled: schedule.email_morning_enabled, time: schedule.email_morning_time },
+    { key: "afternoon", label: "Afternoon check-in", enabled: schedule.email_afternoon_enabled, time: schedule.email_afternoon_time },
+    { key: "evening", label: "Evening wrap-up", enabled: schedule.email_evening_enabled, time: schedule.email_evening_time },
+  ] as const;
+  return (
+    <form action={action} className="flex flex-col gap-3" noValidate>
+      {slots.map((s) => (
+        <div key={s.key} className="flex items-center justify-between gap-3">
+          <label className="flex min-w-0 items-center gap-3 text-[15px]">
+            <input type="checkbox" name={`email_${s.key}_enabled`} defaultChecked={s.enabled} className="size-4 shrink-0 accent-[var(--accent)]" />
+            {s.label}
+          </label>
+          <div className="w-36 shrink-0">
+            <Input
+              aria-label={`${s.label} time`}
+              name={`email_${s.key}_time`}
+              type="time"
+              defaultValue={hhmm(s.time)}
+              aria-invalid={!!err[`email_${s.key}_time`]}
+              className="h-10"
+            />
+          </div>
+        </div>
+      ))}
+      <p className="text-sm text-muted">
+        Times are in your timezone (Profile below).{quietHours ? ` Nothing is sent during quiet hours (${quietHours}).` : ""}
+      </p>
+      <FormMessage tone={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</FormMessage>
+      <div>
+        <SubmitButton size="sm" variant="secondary" pendingText="Saving…">
+          Save check-in times
+        </SubmitButton>
+      </div>
+    </form>
   );
 }

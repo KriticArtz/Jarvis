@@ -237,6 +237,15 @@ export function emailMode(): EmailMode {
   return "test";
 }
 
+/**
+ * Server switch for scheduled email check-ins (/api/cron/email). Off unless
+ * EMAIL_SCHEDULE_ENABLED is exactly "true", so deploying the code never starts
+ * sending on its own. EMAIL_MODE still decides whether emails are real.
+ */
+export function emailScheduleEnabled(): boolean {
+  return read("EMAIL_SCHEDULE_ENABLED")?.toLowerCase() === "true";
+}
+
 /** Signing secret of the Resend inbound webhook (whsec_...). Required to accept replies. */
 export function resendWebhookSecret(): string | undefined {
   return read("RESEND_WEBHOOK_SECRET");
