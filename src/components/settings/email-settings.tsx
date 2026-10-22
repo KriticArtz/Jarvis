@@ -73,9 +73,10 @@ export type EmailSchedule = Pick<
 const hhmm = (v: string | null | undefined) => (v ? v.slice(0, 5) : "");
 
 /**
- * When scheduled email check-ins go out, in the user's own timezone. Quiet
- * hours (shared with texts) always win, and nothing is sent while email
- * check-ins are off.
+ * Which scheduled email check-ins the user wants, and when (their own
+ * timezone). All start unticked: nothing is scheduled until the user picks
+ * slots. Quiet hours (shared with texts) always win, and nothing is sent while
+ * email check-ins are off.
  */
 export function EmailScheduleForm({ schedule, quietHours }: { schedule: EmailSchedule; quietHours: string | null }) {
   const [state, action] = useActionState<ActionResult, FormData>(saveEmailSchedule, { ok: false });
@@ -87,6 +88,9 @@ export function EmailScheduleForm({ schedule, quietHours }: { schedule: EmailSch
   ] as const;
   return (
     <form action={action} className="flex flex-col gap-3" noValidate>
+      <p className="text-sm text-muted">
+        Scheduled check-ins are off until you choose them. Tick the ones you want and save; nothing is scheduled otherwise.
+      </p>
       {slots.map((s) => (
         <div key={s.key} className="flex items-center justify-between gap-3">
           <label className="flex min-w-0 items-center gap-3 text-[15px]">

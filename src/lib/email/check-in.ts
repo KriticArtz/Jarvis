@@ -7,7 +7,7 @@ import type { AssistantContext } from "@/lib/ai/context-types";
 import { completeJSON } from "@/lib/ai/chat";
 import { getOrCreateEmailConversation } from "@/lib/assistant/conversation";
 import type { Conversation } from "@/lib/types/domain";
-import { emailEligibility, sendEmail, type EmailDeps, type SendEmailOutcome } from "./service";
+import { CHECK_IN_CAP_REASON, checkInCapReached, emailEligibility, sendEmail, type EmailDeps, type SendEmailOutcome } from "./service";
 import { fallbackCheckIn, type CheckInDraft } from "./templates";
 
 /**
@@ -60,6 +60,8 @@ export async function sendAccountabilityCheckIn(admin: DB, userId: string, conte
   // Check before spending a model call.
   const eligible = await emailEligibility(admin, userId);
   if (!eligible.ok) return { status: "skipped", reason: eligible.reason };
+  // Daily cap before drafting, so a capped user costs no model call (sendEmail re-checks it).
+  if (await checkInCapReached(admin, userId, eligible.dailyLimit)) return { status: "skipped", reason: CHECK_IN_CAP_REASON };
 
   const kind = context.kind ?? "check_in";
   const conversation = await getOrCreateEmailConversation(admin, userId);

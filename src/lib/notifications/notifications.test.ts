@@ -20,11 +20,11 @@ const prefs: NotificationPreferences = {
   email_enabled: false,
   email_enabled_at: null,
   email_daily_limit: 6,
-  email_morning_enabled: true,
+  email_morning_enabled: false,
   email_morning_time: "08:00",
   email_afternoon_enabled: false,
   email_afternoon_time: "13:00",
-  email_evening_enabled: true,
+  email_evening_enabled: false,
   email_evening_time: "20:30",
 };
 const profile = { timezone: "America/Chicago", display_name: "Derek", accountability_style: "balanced" as const };

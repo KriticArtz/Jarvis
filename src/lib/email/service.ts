@@ -88,16 +88,27 @@ async function sentInLastDay(admin: DB, userId: string, kinds: EmailKind[]): Pro
   return count ?? 0;
 }
 
+export const CHECK_IN_CAP_REASON = "Daily email limit reached — try again tomorrow.";
+
+/**
+ * Has the user reached their daily limit of proactive emails (check-ins and
+ * test check-ins, rolling 24 hours)? Checked before drafting a check-in (so a
+ * capped user costs no model call) and again in sendEmail as the final guard.
+ */
+export async function checkInCapReached(admin: DB, userId: string, dailyLimit: number): Promise<boolean> {
+  return (await sentInLastDay(admin, userId, ["check_in", "test"])) >= dailyLimit;
+}
+
 export async function sendEmail(admin: DB, input: SendEmailInput, deps: EmailDeps = {}): Promise<SendEmailOutcome> {
   const mode = deps.mode ?? emailMode();
   if (mode === "disabled") return { status: "skipped", reason: "Email is disabled on this server." };
   const eligible = await emailEligibility(admin, input.userId);
   if (!eligible.ok) return { status: "skipped", reason: eligible.reason };
 
-  const proactive = input.kind !== "reply";
-  const used = await sentInLastDay(admin, input.userId, proactive ? ["check_in", "test"] : ["reply"]);
-  if (used >= (proactive ? eligible.dailyLimit : REPLY_DAILY_CAP)) {
-    return { status: "skipped", reason: proactive ? "Daily email limit reached — try again tomorrow." : "Daily reply limit reached." };
+  if (input.kind === "reply") {
+    if ((await sentInLastDay(admin, input.userId, ["reply"])) >= REPLY_DAILY_CAP) return { status: "skipped", reason: "Daily reply limit reached." };
+  } else if (await checkInCapReached(admin, input.userId, eligible.dailyLimit)) {
+    return { status: "skipped", reason: CHECK_IN_CAP_REASON };
   }
 
   const { data: profile } = await admin.from("profiles").select(PERSONA_COLUMNS).eq("id", input.userId).maybeSingle();

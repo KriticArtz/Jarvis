@@ -212,9 +212,10 @@ official Node SDK (`resend@6.32.0` on npm):
 ## Scheduled check-ins
 
 Users choose up to three email check-ins a day in Settings → Email
-accountability → "When to check in": **morning** (default on, 08:00),
-**afternoon** (default off, 13:00) and **evening** (default on, 20:30), in
-their own timezone. These are separate from the text-message check-in
+accountability → "When to check in": **morning** (08:00), **afternoon**
+(13:00) and **evening** (20:30), in their own timezone. **All three start
+off**, for new and existing users: turning email check-ins on doesn't
+schedule anything until the user ticks the slots they want. These are separate from the text-message check-in
 settings. Quiet hours (shared with texts) always win.
 
 How it works:
@@ -230,7 +231,8 @@ How it works:
 - `src/lib/email/dispatch.ts` sends each due slot through
   `sendAccountabilityCheckIn`, which re-checks eligibility (opted in,
   confirmed email, not a demo) and the daily cap (`email_daily_limit`,
-  default 6, rolling 24 hours).
+  default 6, rolling 24 hours) **before drafting**, so a capped user costs no
+  model call. `sendEmail` checks the cap again as the final guard.
 - **No duplicates.** Each slot uses the key `check_in:<local date>:<slot>`.
   `email_outbound`'s unique `(user_id, dedupe_key)` means a slot is recorded
   and sent at most once per user per day, even when runs overlap or retry.

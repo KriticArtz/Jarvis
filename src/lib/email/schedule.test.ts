@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CATCH_UP_MINUTES, dueEmailCheckIns, emailCheckInDedupeKey, type EmailSchedulePrefs } from "./schedule";
 
+// A user who turned email on and chose morning and evening (every slot defaults to off in the database).
 const base: EmailSchedulePrefs = {
   email_enabled: true,
   quiet_hours_start: "22:00:00",
@@ -30,7 +31,7 @@ describe("dueEmailCheckIns: timing", () => {
   it("covers morning, afternoon and evening, each only when enabled", () => {
     const all = prefs({ email_afternoon_enabled: true });
     expect(slots("2026-10-21T13:10:00Z", "UTC", all)).toEqual(["2026-10-21:afternoon"]);
-    expect(slots("2026-10-21T13:10:00Z", "UTC")).toEqual([]); // afternoon is off by default
+    expect(slots("2026-10-21T13:10:00Z", "UTC")).toEqual([]); // afternoon not chosen
     expect(slots("2026-10-21T20:30:00Z", "UTC", all)).toEqual(["2026-10-21:evening"]);
     expect(slots("2026-10-21T08:00:00Z", "UTC", prefs({ email_morning_enabled: false }))).toEqual([]);
     expect(slots("2026-10-21T20:45:00Z", "UTC", prefs({ email_evening_enabled: false }))).toEqual([]);
@@ -100,6 +101,11 @@ describe("dueEmailCheckIns: quiet hours and opt-outs", () => {
 
   it("sends nothing when email check-ins are off", () => {
     expect(slots("2026-10-21T08:05:00Z", "UTC", prefs({ email_enabled: false }))).toEqual([]);
+  });
+
+  it("sends nothing when no slot was chosen (the database default for every slot)", () => {
+    const none = prefs({ email_morning_enabled: false, email_afternoon_enabled: false, email_evening_enabled: false });
+    for (const t of ["2026-10-21T08:05:00Z", "2026-10-21T13:05:00Z", "2026-10-21T20:35:00Z"]) expect(slots(t, "UTC", none)).toEqual([]);
   });
 });
 

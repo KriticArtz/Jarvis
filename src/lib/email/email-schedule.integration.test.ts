@@ -5,13 +5,13 @@
  * with the 20261021000000_email_schedule migration). Skips itself if the
  * stack isn't reachable.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { DB } from "@/lib/data/db";
 import { runEmailDispatch } from "./dispatch";
 import { sendEmail } from "./service";
 import { TestEmailProvider } from "./providers/test-provider";
-import type { CheckInDeps } from "./check-in";
+import { sendAccountabilityCheckIn, type CheckInDeps } from "./check-in";
 
 const URL = process.env.INTEGRATION_SUPABASE_URL ?? "http://127.0.0.1:54321";
 const PUBLISHABLE = process.env.INTEGRATION_SUPABASE_PUBLISHABLE_KEY ?? "";
@@ -35,7 +35,11 @@ interface Prefs {
   email_evening_time?: string;
 }
 
-async function makeUser(tag: string, opts: { timezone?: string; prefs?: Prefs; confirmed?: boolean } = {}) {
+/**
+ * A confirmed user with email check-ins on who chose morning and evening
+ * (every slot defaults to off in the database; `defaults: true` keeps them).
+ */
+async function makeUser(tag: string, opts: { timezone?: string; prefs?: Prefs; confirmed?: boolean; defaults?: boolean } = {}) {
   const email = `it-sched-${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@lifepilot.test`;
   const { data, error } = await sb().auth.admin.createUser({ email, password: "integration-pass-1", email_confirm: opts.confirmed ?? true });
   if (error) throw error;
@@ -43,7 +47,14 @@ async function makeUser(tag: string, opts: { timezone?: string; prefs?: Prefs; c
   await sb().from("profiles").update({ timezone: opts.timezone ?? "UTC", wake_time: "00:00", sleep_time: "23:59", onboarding_completed_at: new Date().toISOString() }).eq("id", id);
   await sb()
     .from("notification_preferences")
-    .update({ email_enabled: true, email_enabled_at: new Date().toISOString(), quiet_hours_start: "22:00", quiet_hours_end: "07:00", ...opts.prefs })
+    .update({
+      email_enabled: true,
+      email_enabled_at: new Date().toISOString(),
+      quiet_hours_start: "22:00",
+      quiet_hours_end: "07:00",
+      ...(opts.defaults ? {} : { email_morning_enabled: true, email_evening_enabled: true }),
+      ...opts.prefs,
+    })
     .eq("user_id", id);
   return { id, email };
 }
@@ -136,14 +147,47 @@ describe.skipIf(!enabled)("scheduled email check-ins (real Supabase, test provid
     expect(deps.provider.sent).toHaveLength(3);
   });
 
-  it("stops at the user's daily email limit", async () => {
+  it("stops at the user's daily email limit without drafting (no model call), on every run in the window", async () => {
     const u = await makeUser("cap", { prefs: { email_daily_limit: 1 } });
     const deps = testDeps();
     // One check-in already went out in the last 24 hours (e.g. a test check-in).
     await sendEmail(admin, { userId: u.id, kind: "test", subject: "Test", body: "Hi", conversationId: null, dedupeKey: "test:earlier" }, deps);
-    const summary = await runEmailDispatch(admin, MORNING_UTC, { userIds: [u.id] }, deps);
-    expect(summary).toMatchObject({ due: 1, skipped: 1, sent: 0 });
+    const draft = vi.fn(async () => ({ subject: "Should not be drafted", body: "x" }));
+    for (const t of ["2026-10-21T08:05:00Z", "2026-10-21T08:20:00Z", "2026-10-21T08:35:00Z", "2026-10-21T08:50:00Z"]) {
+      expect(await runEmailDispatch(admin, new Date(t), { userIds: [u.id] }, { ...deps, draft })).toMatchObject({ due: 1, skipped: 1, test: 0 });
+    }
+    expect(draft).not.toHaveBeenCalled();
     expect((await rows(u.id)).map((r) => r.kind)).toEqual(["test"]);
+  });
+
+  it("a manual test check-in at the cap is also refused before drafting", async () => {
+    const u = await makeUser("cap-manual", { prefs: { email_daily_limit: 1 } });
+    const deps = testDeps();
+    await sendEmail(admin, { userId: u.id, kind: "check_in", subject: "Earlier", body: "Hi", conversationId: null, dedupeKey: "check_in:earlier" }, deps);
+    const draft = vi.fn(async () => ({ subject: "x", body: "x" }));
+    expect(await sendAccountabilityCheckIn(admin, u.id, { kind: "test" }, { ...deps, draft })).toEqual({ status: "skipped", reason: "Daily email limit reached — try again tomorrow." });
+    expect(draft).not.toHaveBeenCalled();
+  });
+
+  it("still drafts and sends while under the cap", async () => {
+    const u = await makeUser("under-cap", { prefs: { email_daily_limit: 2 } });
+    const deps = testDeps();
+    await sendEmail(admin, { userId: u.id, kind: "test", subject: "Test", body: "Hi", conversationId: null, dedupeKey: "test:earlier" }, deps);
+    const draft = vi.fn(async () => ({ subject: "Morning", body: "Hi" }));
+    expect(await runEmailDispatch(admin, MORNING_UTC, { userIds: [u.id] }, { ...deps, draft })).toMatchObject({ test: 1 });
+    expect(draft).toHaveBeenCalledTimes(1);
+  });
+
+  it("schedules nothing for a user who turned email on but never chose check-ins (all slots default to off)", async () => {
+    const u = await makeUser("defaults", { defaults: true });
+    const { data } = await sb().from("notification_preferences").select("email_morning_enabled, email_afternoon_enabled, email_evening_enabled").eq("user_id", u.id).single();
+    expect(data).toEqual({ email_morning_enabled: false, email_afternoon_enabled: false, email_evening_enabled: false });
+    const deps = testDeps();
+    for (const t of ["2026-10-21T08:05:00Z", "2026-10-21T13:05:00Z", "2026-10-21T20:35:00Z"]) {
+      expect(await runEmailDispatch(admin, new Date(t), { userIds: [u.id] }, deps)).toMatchObject({ usersChecked: 1, due: 0 });
+    }
+    expect(deps.provider.sent).toHaveLength(0);
+    expect(await rows(u.id)).toEqual([]);
   });
 
   it("skips accounts whose email isn't confirmed", async () => {
